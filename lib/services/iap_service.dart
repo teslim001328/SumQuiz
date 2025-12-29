@@ -305,7 +305,7 @@ class IAPService {
   }
 
   /// Stream usage data for FREE tier users
-  Stream<Map<String, dynamic>> usageStream(String uid) {
+  Stream<Map> usageStream(String uid) {
     return _firestore.collection('users').doc(uid).snapshots().map((snapshot) {
       if (!snapshot.exists) return {};
       final data = snapshot.data() as Map<String, dynamic>;

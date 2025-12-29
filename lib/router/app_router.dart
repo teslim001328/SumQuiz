@@ -2,9 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sumquiz/models/editable_content.dart';
+import 'package:sumquiz/models/flashcard_set.dart';
+import 'package:sumquiz/models/local_quiz.dart';
+import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/services/auth_service.dart';
 import 'package:sumquiz/views/screens/auth_screen.dart';
-import 'package:sumquiz/views/screens/main_screen.dart';
+import 'package:sumquiz/views/screens/library_screen.dart';
+import 'package:sumquiz/views/screens/progress_screen.dart';
 import 'package:sumquiz/views/screens/settings_screen.dart';
 import 'package:sumquiz/views/screens/spaced_repetition_screen.dart';
 import 'package:sumquiz/views/screens/summary_screen.dart';
@@ -22,6 +26,7 @@ import 'package:sumquiz/views/screens/account_profile_screen.dart';
 import 'package:sumquiz/views/screens/create_content_screen.dart';
 import 'package:sumquiz/views/screens/extraction_view_screen.dart';
 import 'package:sumquiz/views/screens/results_view_screen.dart';
+import 'package:sumquiz/views/widgets/scaffold_with_nav_bar.dart';
 
 // GoRouterRefreshStream class
 class GoRouterRefreshStream extends ChangeNotifier {
@@ -39,39 +44,41 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+// Keys for shell branches
+final _libraryShellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'LibraryShell');
+final _reviewShellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'ReviewShell');
+final _createShellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'CreateShell');
+final _progressShellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'ProgressShell');
+
 GoRouter createAppRouter(AuthService authService) {
   return GoRouter(
-    initialLocation: '/splash', // Set initial location to splash
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: '/splash',
     refreshListenable: GoRouterRefreshStream(authService.authStateChanges),
     redirect: (context, state) {
       final user = authService.currentUser;
-      final loggingIn = state.matchedLocation == '/auth';
+      final isAuthRoute = state.matchedLocation == '/auth';
       final isSplash = state.matchedLocation == '/splash';
       final isOnboarding = state.matchedLocation == '/onboarding';
 
-      // Allow onboarding screen to be shown
-      if (isOnboarding) {
-        return null;
-      }
-
-      // If on splash, don't redirect yet. The splash screen will handle it.
-      if (isSplash) {
-        return null;
+      if (isSplash || isOnboarding) {
+        return null; // Allow splash and onboarding
       }
 
       if (user == null) {
-        // If not logged in and not on auth screen, redirect to auth
-        return loggingIn ? null : '/auth';
+        return isAuthRoute ? null : '/auth'; // If not logged in, redirect to auth
       }
 
-      // If logged in and on auth screen, redirect to home
-      if (loggingIn) {
-        return '/';
+      if (isAuthRoute) {
+        return '/'; // If logged in and on auth, redirect to home (library)
       }
 
       return null;
     },
-    routes: [
+    routes: <RouteBase>[
+      // Top-level routes that should not have the nav bar
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
@@ -81,88 +88,146 @@ GoRouter createAppRouter(AuthService authService) {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
-        path: '/',
-        builder: (context, state) => const MainScreen(),
-      ),
-      GoRoute(
         path: '/auth',
         builder: (context, state) => const AuthScreen(),
       ),
-      GoRoute(
-        path: '/referral',
-        builder: (context, state) => const ReferralScreen(),
-      ),
-      GoRoute(
-        path: '/account-profile',
-        builder: (context, state) => const AccountProfileScreen(),
-      ),
-      GoRoute(
-        path: '/create-content',
-        builder: (context, state) => const CreateContentScreen(),
-      ),
-      GoRoute(
-        path: '/extraction-view',
-        builder: (context, state) =>
-            ExtractionViewScreen(initialText: state.extra as String?),
-      ),
-      GoRoute(
-        path: '/results-view/:folderId',
-        builder: (context, state) =>
-            ResultsViewScreen(folderId: state.pathParameters['folderId']!),
-      ),
-      GoRoute(
-        path: '/subscription',
-        builder: (context, state) => const SubscriptionScreen(),
-      ),
-      GoRoute(
-        path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
-        routes: [
-          GoRoute(
-            path: 'preferences',
-            builder: (context, state) => const PreferencesScreen(),
+
+      // Main application shell with bottom navigation bar
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return ScaffoldWithNavBar(navigationShell: navigationShell);
+        },
+        branches: <StatefulShellBranch>[
+          // Branch 1: Library
+          StatefulShellBranch(
+            navigatorKey: _libraryShellNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const LibraryScreen(),
+                routes: [
+                  // Sub-routes accessible from the Library tab
+                  GoRoute(
+                    path: 'summary',
+                    parentNavigatorKey: _rootNavigatorKey, // Show without nav bar
+                    builder: (context, state) {
+                      final summary = state.extra as LocalSummary?;
+                      return SummaryScreen(summary: summary);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'quiz',
+                     parentNavigatorKey: _rootNavigatorKey, // Show without nav bar
+                    builder: (context, state) {
+                      final quiz = state.extra as LocalQuiz?;
+                      return QuizScreen(quiz: quiz);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'flashcards',
+                     parentNavigatorKey: _rootNavigatorKey, // Show without nav bar
+                    builder: (context, state) {
+                       final set = state.extra as FlashcardSet?;
+                      return FlashcardsScreen(flashcardSet: set);
+                    },
+                  ),
+                   GoRoute(
+                      path: 'results-view/:folderId',
+                       parentNavigatorKey: _rootNavigatorKey,
+                      builder: (context, state) =>
+                          ResultsViewScreen(folderId: state.pathParameters['folderId']!),
+                    ),
+                ],
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'data-storage',
-            builder: (context, state) => const DataStorageScreen(),
+
+          // Branch 2: Review
+          StatefulShellBranch(
+            navigatorKey: _reviewShellNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                path: '/review',
+                builder: (context, state) => const SpacedRepetitionScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: 'privacy-about',
-            builder: (context, state) => const PrivacyAboutScreen(),
+
+          // Branch 3: Create
+          StatefulShellBranch(
+            navigatorKey: _createShellNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                path: '/create',
+                builder: (context, state) => const CreateContentScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'extraction-view',
+                     parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) =>
+                        ExtractionViewScreen(initialText: state.extra as String?),
+                  ),
+                  GoRoute(
+                      path: 'edit-content',
+                       parentNavigatorKey: _rootNavigatorKey,
+                      builder: (context, state) {
+                        if (state.extra is EditableContent) {
+                          return EditContentScreen(content: state.extra as EditableContent);
+                        } else {
+                          // Should return a valid widget, like an error screen
+                          return const Scaffold(body: Center(child: Text('Invalid Content')));
+                        }
+                      },
+                    ),
+                ]
+              ),
+            ],
+          ),
+
+          // Branch 4: Progress
+          StatefulShellBranch(
+            navigatorKey: _progressShellNavigatorKey,
+            routes: <RouteBase>[
+              GoRoute(
+                path: '/progress',
+                builder: (context, state) => const ProgressScreen(),
+                 routes: [
+                     GoRoute(
+                      path: 'settings',
+                       parentNavigatorKey: _rootNavigatorKey,
+                      builder: (context, state) => const SettingsScreen(),
+                      routes: [
+                         GoRoute(
+                            path: 'preferences',
+                            builder: (context, state) => const PreferencesScreen(),
+                          ),
+                          GoRoute(
+                            path: 'data-storage',
+                            builder: (context, state) => const DataStorageScreen(),
+                          ),
+                          GoRoute(
+                            path: 'privacy-about',
+                            builder: (context, state) => const PrivacyAboutScreen(),
+                          ),
+                          GoRoute(
+                            path: 'subscription',
+                            builder: (context, state) => const SubscriptionScreen(),
+                          ),
+                           GoRoute(
+                            path: 'account-profile',
+                            builder: (context, state) => const AccountProfileScreen(),
+                          ),
+                          GoRoute(
+                            path: 'referral',
+                            builder: (context, state) => const ReferralScreen(),
+                          ),
+                      ]
+                    ),
+                 ]
+              ),
+            ],
           ),
         ],
-      ),
-      GoRoute(
-        path: '/spaced-repetition',
-        builder: (context, state) => const SpacedRepetitionScreen(),
-      ),
-      GoRoute(
-        path: '/summary',
-        builder: (context, state) => const SummaryScreen(),
-      ),
-      GoRoute(
-        path: '/quiz',
-        builder: (context, state) => const QuizScreen(),
-      ),
-      GoRoute(
-        path: '/flashcards',
-        builder: (context, state) => const FlashcardsScreen(),
-      ),
-      GoRoute(
-        path: '/edit-content',
-        builder: (context, state) {
-          if (state.extra is EditableContent) {
-            return EditContentScreen(content: state.extra as EditableContent);
-          } else {
-            // Handle the case where the extra data is not of the expected type
-            // For example, navigate to an error screen or back to the previous screen
-            return const Scaffold(
-              body: Center(
-                child: Text('Error: Invalid content data'),
-              ),
-            );
-          }
-        },
       ),
     ],
   );

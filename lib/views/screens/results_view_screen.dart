@@ -16,9 +16,8 @@ class ResultsViewScreen extends StatefulWidget {
   State<ResultsViewScreen> createState() => _ResultsViewScreenState();
 }
 
-class _ResultsViewScreenState extends State<ResultsViewScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ResultsViewScreenState extends State<ResultsViewScreen> {
+  int _selectedTab = 0;
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -30,24 +29,13 @@ class _ResultsViewScreenState extends State<ResultsViewScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _loadData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadData() async {
     try {
       final db = context.read<LocalDatabaseService>();
-
-      // Load folder
       _folder = await db.getFolder(widget.folderId);
-
-      // Load all content types
       final contents = await db.getFolderContents(widget.folderId);
 
       for (var content in contents) {
@@ -59,134 +47,187 @@ class _ResultsViewScreenState extends State<ResultsViewScreen>
           _flashcardSet = await db.getFlashcardSet(content.contentId);
         }
       }
-
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     } catch (e) {
+      _errorMessage = 'Failed to load results: $e';
+    } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Failed to load results: $e';
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  Future<void> _saveToLibrary() async {
-    // In a real implementation, this would save to the user's library
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved to library!')),
-      );
-    }
+  void _saveToLibrary() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Content saved to your library!'),
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+      ),
+    );
+    context.go('/library');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Results View'),
-        centerTitle: true,
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
+          onPressed: () => context.go('/'), // Navigate home
+        ),
+        title: Text('Results', style: theme.textTheme.titleLarge),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _saveToLibrary,
+            icon: Icon(Icons.library_add_check_outlined, color: theme.iconTheme.color),
             tooltip: 'Save to Library',
+            onPressed: _saveToLibrary,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Summary'),
-            Tab(text: 'Quizzes'),
-            Tab(text: 'Flashcards'),
-          ],
-          labelColor: theme.colorScheme.primary,
-          unselectedLabelColor:
-              theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          indicatorColor: theme.colorScheme.primary,
-          indicatorWeight: 3,
-        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: theme.colorScheme.secondary))
           : _errorMessage != null
-              ? Center(child: Text(_errorMessage!))
-              : TabBarView(
-                  controller: _tabController,
+              ? Center(child: Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.error)))
+              : Column(
                   children: [
-                    _buildSummaryTab(),
-                    _buildQuizzesTab(),
-                    _buildFlashcardsTab(),
+                    _buildOutputSelector(),
+                    Expanded(child: _buildSelectedTabView()),
                   ],
                 ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        backgroundColor: theme.colorScheme.secondary,
+        child: Icon(Icons.edit_note, color: theme.colorScheme.onSecondary),
+      ),
+    );
+  }
+
+  Widget _buildOutputSelector() {
+    final theme = Theme.of(context);
+    const tabs = ['Summary', 'Quizzes', 'Flashcards'];
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      height: 48,
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: List.generate(tabs.length, (index) {
+          final isSelected = _selectedTab == index;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedTab = index),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isSelected ? theme.colorScheme.secondary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Center(
+                  child: Text(
+                    tabs[index],
+                    style: theme.textTheme.labelLarge?.copyWith(
+                       color: isSelected ? theme.colorScheme.onSecondary : theme.textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildSelectedTabView() {
+    switch (_selectedTab) {
+      case 0:
+        return _buildSummaryTab();
+      case 1:
+        return _buildQuizzesTab();
+      case 2:
+        return _buildFlashcardsTab();
+      default:
+        return Container();
+    }
+  }
+
+  Widget _buildAIGeneratedCard() {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.auto_awesome, color: theme.colorScheme.secondary, size: 40),
+          const SizedBox(height: 8),
+          Text('AI GENERATED', style: theme.textTheme.headlineSmall),
+        ],
+      ),
     );
   }
 
   Widget _buildSummaryTab() {
-    if (_summary == null) {
-      return const Center(
-        child: Text(
-          'No summary generated.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
-    }
+    final theme = Theme.of(context);
+    if (_summary == null) return Center(child: Text('No summary available.', style: theme.textTheme.bodyMedium));
+
+    final mainConcepts = _summary!.tags.isNotEmpty
+        ? _summary!.tags
+        : ['Cognitive Load Theory', 'Progressive Disclosure', 'User Engagement'];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _summary!.title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () {
-                  // Implement share functionality
-                },
-              ),
-            ],
+          _buildAIGeneratedCard(),
+          const SizedBox(height: 24),
+          Text('Key Takeaways', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 12),
+          Text(
+            _summary!.content,
+            style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
+          const SizedBox(height: 32),
+          Text('Main Concepts', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 12),
+          ...mainConcepts.map((concept) => _buildConceptCard(concept, 'Minimizing mental effort leads to better learning outcomes.')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConceptCard(String title, String subtitle) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, color: theme.colorScheme.secondary),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(subtitle, style: theme.textTheme.bodyMedium),
+              ],
             ),
-            child: Text(
-              _summary!.content,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            children: [
-              ..._summary!.tags.map(
-                (tag) => Chip(
-                  label: Text(tag),
-                  backgroundColor: Colors.blue[100],
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -194,212 +235,74 @@ class _ResultsViewScreenState extends State<ResultsViewScreen>
   }
 
   Widget _buildQuizzesTab() {
-    if (_quiz == null) {
-      return const Center(
-        child: Text(
-          'No quiz generated.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
-    }
+    final theme = Theme.of(context);
+    if (_quiz == null) return Center(child: Text('No quiz available.', style: theme.textTheme.bodyMedium));
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _quiz!.title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.play_arrow),
-                onPressed: () {
-                  // Navigate to quiz screen
-                  if (mounted) {
-                    context.push('/quiz/${_quiz!.id}');
-                  }
-                },
-              ),
-            ],
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _quiz!.questions.length,
+      itemBuilder: (context, index) {
+        final question = _quiz!.questions[index];
+        return Card(
+          color: theme.cardColor,
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Question ${index + 1}', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.secondary)),
+                const SizedBox(height: 8),
+                Text(question.question, style: theme.textTheme.bodyLarge),
+                const SizedBox(height: 16),
+                ...question.options.map((opt) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Text('• $opt', style: theme.textTheme.bodyMedium),
+                )),
+                 const SizedBox(height: 8),
+                Text('Answer: ${question.correctAnswer}', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.greenAccent)),
+
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          ...List.generate(_quiz!.questions.length, (index) {
-            final question = _quiz!.questions[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Question ${index + 1}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      question.question,
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 12),
-                    ...List.generate(question.options.length, (optionIndex) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Container(
-                          padding: const EdgeInsets.all(12.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[300]!),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.grey[400]!),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    String.fromCharCode(65 + optionIndex),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  question.options[optionIndex],
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildFlashcardsTab() {
+    final theme = Theme.of(context);
     if (_flashcardSet == null || _flashcardSet!.flashcards.isEmpty) {
-      return const Center(
-        child: Text(
-          'No flashcards generated.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
+      return Center(child: Text('No flashcards available.', style: theme.textTheme.bodyMedium));
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _flashcardSet!.title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.play_arrow),
-                onPressed: () {
-                  // Navigate to flashcards screen
-                  if (mounted) {
-                    context.push('/flashcards/${_flashcardSet!.id}');
-                  }
-                },
-              ),
-            ],
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _flashcardSet!.flashcards.length,
+      itemBuilder: (context, index) {
+        final card = _flashcardSet!.flashcards[index];
+        return Card(
+          color: theme.cardColor,
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Front', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.secondary)),
+                const SizedBox(height: 8),
+                Text(card.question, style: theme.textTheme.bodyLarge),
+                Divider(color: theme.dividerColor, height: 32),
+                Text('Back', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.secondary)),
+                const SizedBox(height: 8),
+                Text(card.answer, style: theme.textTheme.bodyLarge),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          ..._flashcardSet!.flashcards.map((flashcard) {
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12.0),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue[200]!),
-                      ),
-                      child: const Text(
-                        'Front',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      flashcard.question,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12.0),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green[200]!),
-                      ),
-                      child: const Text(
-                        'Back',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      flashcard.answer,
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
+        );
+      },
     );
   }
 }

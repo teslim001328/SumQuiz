@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:sumquiz/services/content_extraction_service.dart';
 import 'dart:typed_data';
 
+// Enum to represent the single source of content
+enum ContentType { text, link, pdf, image }
+
 class CreateContentScreen extends StatefulWidget {
   const CreateContentScreen({super.key});
 
@@ -13,55 +16,41 @@ class CreateContentScreen extends StatefulWidget {
 }
 
 class _CreateContentScreenState extends State<CreateContentScreen> {
-  final List<ContentItem> _contentItems = [];
+  // State variables
+  ContentType? _activeContentType;
+  final _textController = TextEditingController();
+  final _linkController = TextEditingController();
+  String? _pdfName;
+  Uint8List? _pdfBytes;
+  String? _imageName;
+  Uint8List? _imageBytes;
+
   final ImagePicker _imagePicker = ImagePicker();
   bool _isLoading = false;
-  final TextEditingController _titleController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    // Add an initial text card by default
-    _addTextCard();
-  }
 
   @override
   void dispose() {
-    _titleController.dispose();
+    _textController.dispose();
+    _linkController.dispose();
     super.dispose();
   }
 
-  void _addTextCard() {
-    setState(() {
-      _contentItems.add(ContentItem(type: ContentType.text));
-    });
+  // Reset all other inputs when one is activated
+  void _resetInputs({ContentType? except}) {
+    if (except != ContentType.text) _textController.clear();
+    if (except != ContentType.link) _linkController.clear();
+    if (except != ContentType.pdf) {
+      _pdfName = null;
+      _pdfBytes = null;
+    }
+    if (except != ContentType.image) {
+      _imageName = null;
+      _imageBytes = null;
+    }
+    _activeContentType = except;
   }
 
-  void _addLinkCard() {
-    setState(() {
-      _contentItems.add(ContentItem(type: ContentType.link));
-    });
-  }
-
-  void _addPdfCard() {
-    setState(() {
-      _contentItems.add(ContentItem(type: ContentType.pdf));
-    });
-  }
-
-  void _addImageCard() {
-    setState(() {
-      _contentItems.add(ContentItem(type: ContentType.image));
-    });
-  }
-
-  void _removeCard(int index) {
-    setState(() {
-      _contentItems.removeAt(index);
-    });
-  }
-
-  Future<void> _pickPdf(int index) async {
+  Future<void> _pickPdf() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
@@ -70,145 +59,82 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
 
     if (result != null) {
       setState(() {
-        _contentItems[index].filePath = result.files.single.path;
-        _contentItems[index].fileName = result.files.single.name;
-        _contentItems[index].fileBytes = result.files.single.bytes;
+        _resetInputs(except: ContentType.pdf);
+        _pdfName = result.files.single.name;
+        _pdfBytes = result.files.single.bytes;
       });
     }
   }
 
-  Future<void> _pickImage(int index) async {
-    final XFile? image = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-    );
-
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? image = await _imagePicker.pickImage(source: source);
     if (image != null) {
       final bytes = await image.readAsBytes();
       setState(() {
-        _contentItems[index].filePath = image.path;
-        _contentItems[index].fileName = image.name;
-        _contentItems[index].fileBytes = bytes;
+        _resetInputs(except: ContentType.image);
+        _imageName = image.name;
+        _imageBytes = bytes;
       });
     }
   }
 
-  Future<void> _captureImage(int index) async {
-    final XFile? image = await _imagePicker.pickImage(
-      source: ImageSource.camera,
-    );
-
-    if (image != null) {
-      final bytes = await image.readAsBytes();
-      setState(() {
-        _contentItems[index].filePath = image.path;
-        _contentItems[index].fileName = image.name;
-        _contentItems[index].fileBytes = bytes;
-      });
-    }
-  }
-
-  Future<String> _extractContent() async {
-    final StringBuffer combinedContent = StringBuffer();
-
-    for (final item in _contentItems) {
-      switch (item.type) {
-        case ContentType.text:
-          if (item.content != null && item.content!.isNotEmpty) {
-            combinedContent.writeln(item.content);
-            combinedContent.writeln('\n');
-          }
-          break;
-
-        case ContentType.link:
-          if (item.content != null && item.content!.isNotEmpty) {
-            try {
-              final extractedText =
-                  await ContentExtractionService.extractFromUrl(item.content!);
-              combinedContent.writeln(extractedText);
-              combinedContent.writeln('\n');
-            } catch (e) {
-              // Handle error silently or show a warning
-              combinedContent.writeln(
-                  '[Failed to extract content from URL: ${item.content}]\n');
-            }
-          }
-          break;
-
-        case ContentType.pdf:
-          if (item.fileBytes != null) {
-            try {
-              final extractedText =
-                  await ContentExtractionService.extractFromPdfBytes(
-                      item.fileBytes!);
-              combinedContent.writeln(extractedText);
-              combinedContent.writeln('\n');
-            } catch (e) {
-              combinedContent.writeln(
-                  '[Failed to extract content from PDF: ${item.fileName}]\n');
-            }
-          }
-          break;
-
-        case ContentType.image:
-          if (item.fileBytes != null) {
-            try {
-              final extractedText =
-                  await ContentExtractionService.extractFromImageBytes(
-                      item.fileBytes!);
-              combinedContent.writeln(extractedText);
-              combinedContent.writeln('\n');
-            } catch (e) {
-              combinedContent.writeln(
-                  '[Failed to extract text from image: ${item.fileName}]\n');
-            }
-          }
-          break;
-      }
-    }
-
-    return combinedContent.toString().trim();
-  }
-
-  Future<void> _navigateToExtraction() async {
-    if (_contentItems.isEmpty) {
+  void _processAndNavigate() async {
+    if (_activeContentType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add some content first.')),
+        const SnackBar(content: Text('Please provide some content first.')),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
+
+    String? extractedText;
+    String errorMsg = '';
 
     try {
-      // Extract all content
-      final combinedText = await _extractContent();
-
-      if (combinedText.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'No content to process. Please add some text or files.')),
-        );
-        return;
-      }
-
-      // Navigate to extraction view with the extracted content
-      if (mounted) {
-        context.push('/extraction-view', extra: combinedText);
+      switch (_activeContentType!) {
+        case ContentType.text:
+          if (_textController.text.trim().isNotEmpty) {
+            extractedText = _textController.text;
+          } else {
+            errorMsg = 'The text field is empty.';
+          }
+          break;
+        case ContentType.link:
+          if (_linkController.text.trim().isNotEmpty) {
+            extractedText = await ContentExtractionService.extractFromUrl(_linkController.text);
+          } else {
+            errorMsg = 'The URL field is empty.';
+          }
+          break;
+        case ContentType.pdf:
+          if (_pdfBytes != null) {
+            extractedText = await ContentExtractionService.extractFromPdfBytes(_pdfBytes!);
+          } else {
+            errorMsg = 'No PDF file was selected.';
+          }
+          break;
+        case ContentType.image:
+          if (_imageBytes != null) {
+            extractedText = await ContentExtractionService.extractFromImageBytes(_imageBytes!);
+          } else {
+            errorMsg = 'No image was selected.';
+          }
+          break;
       }
     } catch (e) {
+      errorMsg = 'Failed to extract content: $e';
+    }
+
+    setState(() => _isLoading = false);
+
+    if (extractedText != null && extractedText.isNotEmpty) {
+      context.push('/create/extraction-view', extra: extractedText);
+    } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error processing content: $e')),
+          SnackBar(content: Text(errorMsg.isNotEmpty ? errorMsg : 'Could not extract any content.')),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
       }
     }
   }
@@ -216,372 +142,203 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Create Content'),
-        centerTitle: true,
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.person),
+          ),
+        ],
       ),
-      body: Column(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+             RichText(
+              text: TextSpan(
+                style: theme.textTheme.headlineMedium,
+                children: [
+                  const TextSpan(text: 'What do you want to '),
+                  TextSpan(text: 'learn', style: TextStyle(color: theme.colorScheme.secondary)),
+                  const TextSpan(text: ' today?'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            _buildSectionHeader('PASTE TEXT', Icons.edit),
+            _buildPasteTextSection(),
+            const SizedBox(height: 32),
+            _buildSectionHeader('IMPORT WEBPAGE', Icons.link),
+            _buildImportWebpageSection(),
+            const SizedBox(height: 32),
+            _buildSectionHeader('UPLOAD PDF', Icons.picture_as_pdf),
+            _buildUploadPdfSection(),
+            const SizedBox(height: 32),
+            _buildSectionHeader('SCAN IMAGE', Icons.fullscreen),
+            _buildScanImageSection(),
+            const SizedBox(height: 100), // Extra space for FAB
+          ],
+        ),
+      ),
+      floatingActionButton: _buildGenerateButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, color: theme.colorScheme.secondary, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: theme.textTheme.labelMedium?.copyWith(letterSpacing: 1.2),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPasteTextSection() {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(8),
+      height: 150,
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        onTap: () => setState(() => _resetInputs(except: ContentType.text)),
+        controller: _textController,
+        maxLines: null,
+        expands: true,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: 'Type or paste your notes here for AI summary...',
+          hintStyle: theme.textTheme.bodySmall,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImportWebpageSection() {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
         children: [
+          Icon(Icons.public, color: theme.iconTheme.color),
+          const SizedBox(width: 12),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: _contentItems.length + 1,
-              itemBuilder: (context, index) {
-                if (index == _contentItems.length) {
-                  return _buildTitleField();
-                }
-                return _buildContentCard(index, _contentItems[index]);
-              },
+            child: TextField(
+              onTap: () => setState(() => _resetInputs(except: ContentType.link)),
+              controller: _linkController,
+              style: theme.textTheme.bodyMedium,
+              decoration: InputDecoration(
+                hintText: 'https://example.com/article',
+                hintStyle: theme.textTheme.bodySmall,
+                border: InputBorder.none,
+              ),
             ),
           ),
-          _buildAddCardButtons(),
-          const SizedBox(height: 16),
-          _buildNextButton(),
-          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => setState(() => _activeContentType = ContentType.link),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.secondary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('Add', style: TextStyle(color: theme.colorScheme.onSecondary)),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTitleField() {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Title (Optional)',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                hintText: 'Enter a title for your content...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
+  Widget _buildUploadPdfSection() {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: _pickPdf,
+      child: Container(
+        margin: const EdgeInsets.only(top: 8),
+        height: 120,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor, width: 1, style: BorderStyle.solid),
         ),
-      ),
-    );
-  }
-
-  Widget _buildContentCard(int index, ContentItem item) {
-    switch (item.type) {
-      case ContentType.text:
-        return _buildTextCard(index);
-      case ContentType.link:
-        return _buildLinkCard(index);
-      case ContentType.pdf:
-        return _buildPdfCard(index);
-      case ContentType.image:
-        return _buildImageCard(index);
-    }
-  }
-
-  Widget _buildTextCard(int index) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Add Text',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => _removeCard(index),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: 'Enter or paste your text here...',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                _contentItems[index].content = value;
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLinkCard(int index) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Add Link',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => _removeCard(index),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'https://example.com',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.link),
-              ),
-              keyboardType: TextInputType.url,
-              onChanged: (value) {
-                _contentItems[index].content = value;
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPdfCard(int index) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Upload PDF',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => _removeCard(index),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (_contentItems[index].filePath == null)
-              Column(
+        child: _pdfName == null
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _pickPdf(index),
-                    icon: const Icon(Icons.upload_file),
-                    label: const Text('Select PDF'),
-                  ),
+                  Icon(Icons.upload_file, color: theme.colorScheme.secondary, size: 36),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Choose a PDF file from your device',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  Text('Tap to browse', style: theme.textTheme.bodyMedium),
+                  Text('PDF files up to 10MB', style: theme.textTheme.bodySmall),
                 ],
               )
-            else
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.picture_as_pdf, color: Colors.red),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _contentItems[index].fileName ?? '',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () {
-                        setState(() {
-                          _contentItems[index].filePath = null;
-                          _contentItems[index].fileName = null;
-                          _contentItems[index].fileBytes = null;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImageCard(int index) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Upload Image',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => _removeCard(index),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (_contentItems[index].filePath == null)
-              Column(
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () => _pickImage(index),
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Gallery'),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () => _captureImage(index),
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('Camera'),
-                      ),
-                    ],
-                  ),
+                  Icon(Icons.check_circle, color: theme.colorScheme.secondary, size: 36),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Select an image from gallery or capture a new one',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                    textAlign: TextAlign.center,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Text(_pdfName!, style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
                   ),
                 ],
-              )
-            else
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.image, color: Colors.blue),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _contentItems[index].fileName ?? '',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () {
-                        setState(() {
-                          _contentItems[index].filePath = null;
-                          _contentItems[index].fileName = null;
-                          _contentItems[index].fileBytes = null;
-                        });
-                      },
-                    ),
-                  ],
-                ),
               ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildAddCardButtons() {
-    return Card(
-      margin: const EdgeInsets.all(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+  Widget _buildScanImageSection() {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Expanded(child: _buildScanButton('Camera', Icons.camera_alt, () => _pickImage(ImageSource.camera))),
+          const SizedBox(width: 16),
+          Expanded(child: _buildScanButton('Gallery', Icons.photo_library, () => _pickImage(ImageSource.gallery))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScanButton(String label, IconData icon, VoidCallback onPressed) {
+    final theme = Theme.of(context);
+    bool isSelected = _activeContentType == ContentType.image && _imageName != null;
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        height: 120,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Add New Card',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _addTextCard,
-                  icon: const Icon(Icons.text_fields),
-                  label: const Text('Text'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _addLinkCard,
-                  icon: const Icon(Icons.link),
-                  label: const Text('Link'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _addPdfCard,
-                  icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text('PDF'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _addImageCard,
-                  icon: const Icon(Icons.image),
-                  label: const Text('Image'),
-                ),
-              ],
+            Icon(isSelected ? Icons.check_circle : icon, color: theme.colorScheme.secondary, size: 36),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(isSelected ? _imageName! : label, style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
             ),
           ],
         ),
@@ -589,70 +346,27 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     );
   }
 
-  Widget _buildNextButton() {
+  Widget _buildGenerateButton() {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: SizedBox(
         width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _isLoading ? null : _navigateToExtraction,
+        height: 56,
+        child: ElevatedButton.icon(
+          onPressed: _isLoading ? null : _processAndNavigate,
+          icon: _isLoading
+              ? const SizedBox.shrink()
+              : Icon(Icons.double_arrow_rounded, color: theme.colorScheme.onSecondary),
+          label: _isLoading
+              ? CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.onSecondary))
+              : Text('Extract Content', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSecondary)),
           style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            backgroundColor: theme.colorScheme.secondary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           ),
-          child: _isLoading
-              ? const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Text(
-                      'Processing...',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                )
-              : const Text(
-                  'Next',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
         ),
       ),
     );
   }
-}
-
-enum ContentType {
-  text,
-  link,
-  pdf,
-  image,
-}
-
-class ContentItem {
-  ContentType type;
-  String? content;
-  String? filePath;
-  String? fileName;
-  Uint8List? fileBytes;
-
-  ContentItem({
-    required this.type,
-    this.content,
-    this.filePath,
-    this.fileName,
-    this.fileBytes,
-  });
 }

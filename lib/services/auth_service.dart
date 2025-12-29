@@ -105,12 +105,6 @@ class AuthService {
 
       developer.log('Google Sign-In response received');
 
-      // Handle cancellation
-      if (googleUser == null) {
-        developer.log('Google Sign-In was cancelled by the user');
-        throw Exception('Google Sign-In was cancelled.');
-      }
-
       developer.log('Google user authenticated: ${googleUser.email}');
 
       // Obtain the auth details

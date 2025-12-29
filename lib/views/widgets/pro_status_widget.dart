@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -21,9 +20,7 @@ class ProStatusWidget extends StatelessWidget {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: isPro
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.surfaceContainerHighest,
+      color: isPro ? theme.colorScheme.primaryContainer : theme.colorScheme.tertiaryContainer,
       child: InkWell(
         onTap: isPro ? null : () => context.go('/subscription'),
         borderRadius: BorderRadius.circular(12),
@@ -33,18 +30,14 @@ class ProStatusWidget extends StatelessWidget {
             children: [
               Icon(
                 isPro ? Icons.star : Icons.lock_outline,
-                color: isPro
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.primary,
+                color: isPro ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onTertiaryContainer,
               ),
               const SizedBox(width: 12),
               Text(
-                isPro ? 'You are a Pro Member!' : 'Upgrade to Pro',
+                isPro ? 'Pro Member' : 'Upgrade to Pro',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: isPro
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.primary,
+                  color: isPro ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onTertiaryContainer,
                 ),
               ),
               const Spacer(),
@@ -52,7 +45,7 @@ class ProStatusWidget extends StatelessWidget {
                 Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
-                  color: theme.colorScheme.primary,
+                  color: theme.colorScheme.onTertiaryContainer,
                 ),
             ],
           ),

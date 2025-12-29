@@ -140,9 +140,9 @@ class AIService {
       {Uint8List? pdfBytes, String? userId}) async {
     // Check usage limits for FREE tier users
     if (_iapService != null && userId != null) {
-      final isPro = await _iapService!.hasProAccess();
+      final isPro = await _iapService.hasProAccess();
       if (!isPro) {
-        final isLimitReached = await _iapService!.isUploadLimitReached(userId);
+        final isLimitReached = await _iapService.isUploadLimitReached(userId);
         if (isLimitReached) {
           throw AIServiceException(
               'Weekly upload limit reached. Upgrade to Pro for unlimited access.');
@@ -187,7 +187,7 @@ class AIService {
 
       // Update usage count for FREE tier users
       if (_iapService != null && userId != null) {
-        final isPro = await _iapService!.hasProAccess();
+        final isPro = await _iapService.hasProAccess();
         if (!isPro) {
           await _incrementWeeklyUploads(userId);
         }
@@ -335,9 +335,9 @@ class AIService {
       {String? userId}) async {
     // Check usage limits for FREE tier users
     if (_iapService != null && userId != null) {
-      final isPro = await _iapService!.hasProAccess();
+      final isPro = await _iapService.hasProAccess();
       if (!isPro) {
-        final isLimitReached = await _iapService!.isUploadLimitReached(userId);
+        final isLimitReached = await _iapService.isUploadLimitReached(userId);
         if (isLimitReached) {
           throw AIServiceException(
               'Weekly upload limit reached. Upgrade to Pro for unlimited access.');
@@ -355,7 +355,7 @@ class AIService {
 
       // Update usage count for FREE tier users
       if (_iapService != null && userId != null) {
-        final isPro = await _iapService!.hasProAccess();
+        final isPro = await _iapService.hasProAccess();
         if (!isPro) {
           await _incrementWeeklyUploads(userId);
         }
@@ -374,9 +374,9 @@ class AIService {
       {String? userId}) async {
     // Check usage limits for FREE tier users
     if (_iapService != null && userId != null) {
-      final isPro = await _iapService!.hasProAccess();
+      final isPro = await _iapService.hasProAccess();
       if (!isPro) {
-        final isLimitReached = await _iapService!.isUploadLimitReached(userId);
+        final isLimitReached = await _iapService.isUploadLimitReached(userId);
         if (isLimitReached) {
           throw AIServiceException(
               'Weekly upload limit reached. Upgrade to Pro for unlimited access.');
@@ -400,7 +400,7 @@ class AIService {
 
       // Update usage count for FREE tier users
       if (_iapService != null && userId != null) {
-        final isPro = await _iapService!.hasProAccess();
+        final isPro = await _iapService.hasProAccess();
         if (!isPro) {
           await _incrementWeeklyUploads(userId);
         }
@@ -424,11 +424,11 @@ class AIService {
   }) async {
     // Check usage limits for FREE tier users
     if (_iapService != null) {
-      final isPro = await _iapService!.hasProAccess();
+      final isPro = await _iapService.hasProAccess();
       if (!isPro) {
         // Check upload limit
         final isUploadLimitReached =
-            await _iapService!.isUploadLimitReached(userId);
+            await _iapService.isUploadLimitReached(userId);
         if (isUploadLimitReached) {
           throw AIServiceException(
               'Weekly upload limit reached. Upgrade to Pro for unlimited access.');
@@ -436,7 +436,7 @@ class AIService {
 
         // Check folder limit
         final isFolderLimitReached =
-            await _iapService!.isFolderLimitReached(userId);
+            await _iapService.isFolderLimitReached(userId);
         if (isFolderLimitReached) {
           throw AIServiceException(
               'Folder limit reached. Upgrade to Pro for unlimited folders.');
@@ -552,7 +552,7 @@ class AIService {
 
     // Update usage count for FREE tier users
     if (_iapService != null) {
-      final isPro = await _iapService!.hasProAccess();
+      final isPro = await _iapService.hasProAccess();
       if (!isPro) {
         await _incrementWeeklyUploads(userId);
       }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 
@@ -84,28 +83,25 @@ class _EditContentScreenState extends State<EditContentScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          title: const Text('Add a Tag', style: TextStyle(color: Colors.white)),
+          title: const Text('Add a Tag'),
           content: TextField(
             controller: tagController,
             autofocus: true,
-            style: const TextStyle(color: Colors.white),
             decoration: const InputDecoration(
               hintText: 'Enter tag...',
-              hintStyle: TextStyle(color: Color.fromRGBO(255, 255, 255, 0.6)),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
                 _addTag(tagController.text);
                 Navigator.of(context).pop();
               },
-              child: const Text('Add', style: TextStyle(color: Color(0xFF6C63FF))),
+              child: const Text('Add'),
             ),
           ],
         );
@@ -126,7 +122,6 @@ class _EditContentScreenState extends State<EditContentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
       appBar: _buildAppBar(),
       body: _buildBody(),
     );
@@ -134,13 +129,12 @@ class _EditContentScreenState extends State<EditContentScreen> {
 
   AppBar _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color(0xFF0D0D0D),
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        icon: const Icon(Icons.arrow_back),
         onPressed: () => Navigator.of(context).pop(),
       ),
-      title: const Text('Edit Summary', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      title: const Text('Edit Summary'),
       actions: [
         IconButton(
           icon: AnimatedSwitcher(
@@ -148,7 +142,7 @@ class _EditContentScreenState extends State<EditContentScreen> {
             transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
             child: _isSaving
                 ? const Icon(Icons.check, color: Colors.greenAccent, key: ValueKey('saved'))
-                : const Icon(Icons.save_outlined, color: Colors.white, key: ValueKey('save')),
+                : const Icon(Icons.save_outlined, key: ValueKey('save')),
           ),
           onPressed: _handleSave,
         ),
@@ -169,15 +163,15 @@ class _EditContentScreenState extends State<EditContentScreen> {
                 const SizedBox(height: 12),
                 _buildTagsSection(),
                 const SizedBox(height: 12),
-                const Divider(color: Colors.white24, height: 1),
+                Divider(color: Theme.of(context).dividerColor, height: 1),
                 const SizedBox(height: 10),
                 _buildSummaryField(),
                 if (_showAiTooltip)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0, left: 4.0),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0, left: 4.0),
                     child: Text(
                       'Need help phrasing this? Tap AI Assist.',
-                      style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
               ],
@@ -190,16 +184,15 @@ class _EditContentScreenState extends State<EditContentScreen> {
   }
 
   Widget _buildTitleField() {
+    final theme = Theme.of(context);
     return TextField(
       controller: _titleController,
-      style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white),
+      style: theme.textTheme.displaySmall,
       decoration: InputDecoration(
         border: InputBorder.none,
         hintText: 'Enter title...',
-        hintStyle: GoogleFonts.poppins(
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-          color: const Color.fromRGBO(255, 255, 255, 0.6),
+        hintStyle: theme.textTheme.displaySmall?.copyWith(
+          color: theme.hintColor,
         ),
       ),
     );
@@ -212,18 +205,15 @@ class _EditContentScreenState extends State<EditContentScreen> {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         ..._tags.map((tag) => Chip(
-          backgroundColor: const Color(0xFF1E1E1E),
-          label: Text(tag, style: const TextStyle(color: Colors.white)),
+          label: Text(tag),
           onDeleted: () => _removeTag(tag),
-          deleteIcon: const Icon(Icons.close, size: 18, color: Colors.white70),
+          deleteIcon: const Icon(Icons.close, size: 18),
         )),
         GestureDetector(
           onTap: _showAddTagDialog,
           child: const Chip(
-            backgroundColor: Colors.transparent,
-            side: BorderSide(color: Colors.white38),
-            avatar: Icon(Icons.add, color: Colors.white70, size: 18),
-            label: Text('Add Tag', style: TextStyle(color: Colors.white70)),
+            avatar: Icon(Icons.add, size: 18),
+            label: Text('Add Tag'),
           ),
         ),
       ],
@@ -231,17 +221,18 @@ class _EditContentScreenState extends State<EditContentScreen> {
   }
 
   Widget _buildSummaryField() {
+    final theme = Theme.of(context);
     final editorConfig = QuillEditorConfig(
       customStyles: DefaultStyles(
         paragraph: DefaultTextBlockStyle(
-          GoogleFonts.inter(fontSize: 16, color: Colors.white, height: 1.5),
+          theme.textTheme.bodyLarge!,
           const HorizontalSpacing(0, 0),
           const VerticalSpacing(10, 0),
           const VerticalSpacing(0, 0),
           null,
         ),
         placeHolder: DefaultTextBlockStyle(
-           GoogleFonts.inter(fontSize: 16, color: const Color.fromRGBO(255, 255, 255, 0.6), height: 1.5),
+          theme.textTheme.bodyLarge!.copyWith(color: theme.hintColor),
           const HorizontalSpacing(0, 0),
           const VerticalSpacing(10, 0),
           const VerticalSpacing(0, 0),
@@ -260,6 +251,7 @@ class _EditContentScreenState extends State<EditContentScreen> {
   }
 
   Widget _buildToolbar() {
+    final theme = Theme.of(context);
     final toolbarConfig = QuillSimpleToolbarConfig(
       showAlignmentButtons: false,
       showBackgroundColorButton: false,
@@ -283,11 +275,11 @@ class _EditContentScreenState extends State<EditContentScreen> {
       showSubscript: false,
       showSuperscript: false,
       showUnderLineButton: false,
-      buttonOptions: const QuillSimpleToolbarButtonOptions(
+      buttonOptions: QuillSimpleToolbarButtonOptions(
         base: QuillToolbarBaseButtonOptions(
           iconTheme: QuillIconTheme(
-            iconButtonSelectedData: IconButtonData(color: Color(0xFF6C63FF)),
-            iconButtonUnselectedData: IconButtonData(color: Colors.white70),
+            iconButtonSelectedData: IconButtonData(color: theme.colorScheme.primary),
+            iconButtonUnselectedData: IconButtonData(color: theme.iconTheme.color),
           ),
         ),
       ),
@@ -295,7 +287,6 @@ class _EditContentScreenState extends State<EditContentScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
-      color: const Color(0xFF0D0D0D),
       child: Row(
         children: [
           Expanded(
@@ -313,39 +304,40 @@ class _EditContentScreenState extends State<EditContentScreen> {
   }
 
   Widget _buildAiAssistButton() {
+    final theme = Theme.of(context);
     return Material(
-      color: const Color(0xFF6C63FF),
+      color: theme.colorScheme.secondary,
       borderRadius: BorderRadius.circular(16.0),
       child: InkWell(
         onTap: _handleAiAssist,
         borderRadius: BorderRadius.circular(16.0),
         child: _isAiThinking
-            ? const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
                       width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.onSecondary),
                     ),
-                    SizedBox(width: 8),
-                    Text('Thinking...', style: TextStyle(color: Colors.white)),
+                    const SizedBox(width: 8),
+                    Text('Thinking...', style: TextStyle(color: theme.colorScheme.onSecondary)),
                   ],
                 ),
               )
             : Shimmer.fromColors(
-                baseColor: Colors.white,
-                highlightColor: const Color(0xFF6C63FF).withAlpha(150),
+                baseColor: theme.colorScheme.onSecondary,
+                highlightColor: theme.colorScheme.secondary.withAlpha(150),
                 period: const Duration(seconds: 3),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('✨', style: TextStyle(fontSize: 16)),
-                      SizedBox(width: 8),
-                      Text('AI Assist', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      const Text('✨', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Text('AI Assist', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),

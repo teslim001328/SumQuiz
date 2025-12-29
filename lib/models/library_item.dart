@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sumquiz/models/summary_model.dart';
 import 'package:sumquiz/models/quiz_model.dart';
 import 'package:sumquiz/models/flashcard_set.dart';
+import 'package:sumquiz/models/editable_content.dart';
 
 enum LibraryItemType { summary, quiz, flashcards }
 
@@ -45,4 +46,15 @@ class LibraryItem {
       timestamp: flashcardSet.timestamp,
     );
   }
+
+  EditableContent toEditableContent() {
+    return EditableContent(
+      id: id,
+      title: title,
+      type: type.name,
+      content: '' // This should be populated with the actual content
+      , timestamp: timestamp
+    );
+  }
+
 }

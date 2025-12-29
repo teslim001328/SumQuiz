@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # Firebase and Google Packages (Updated to latest compatible versions)
   firebase_core: ^4.2.0
@@ -26,8 +28,6 @@ dependencies:
   # Other packages (unchanged, but verify for conflicts after upgrade)
   fl_chart: ^1.1.1
   intl: ^0.20.2
-  flutter_localizations:
-    sdk: flutter
   syncfusion_flutter_core: ^31.1.19
   syncfusion_flutter_pdf: ^31.1.19
   image_picker: ^1.0.4
@@ -46,7 +46,7 @@ dependencies:
   uuid: ^4.5.1
   flutter_card_swiper: ^7.0.1
   flip_card: ^0.7.0
-  google_fonts: ^6.3.2
+  google_fonts: ^6.3.3
   share_plus: ^12.0.1
   percent_indicator: ^4.2.3
   rxdart: ^0.28.0
@@ -59,7 +59,7 @@ dependencies:
   flutter_animate: ^4.5.2
   youtube_explode_dart: ^3.0.5
   html: ^0.15.6
-  # Removed RevenueCat dependencies and using in_app_purchase instead
+  collection: ^1.18.0
 
 dev_dependencies:
   flutter_test:

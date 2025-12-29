@@ -33,7 +33,6 @@ import 'package:sumquiz/widgets/notification_navigator.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // HIGH PRIORITY FIX H8: Crash Reporting / Logging
   // Global error handling
   FlutterError.onError = (FlutterErrorDetails details) async {
     final errorReportingService = ErrorReportingService();
@@ -42,7 +41,6 @@ void main() async {
         context: 'Flutter Framework Error');
   };
 
-  // Handle async errors
   PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
     final errorReportingService = ErrorReportingService();
     errorReportingService.reportError(error, stack,
@@ -58,20 +56,15 @@ void main() async {
   final notificationService = NotificationService();
   await notificationService.initialize();
 
-  // Initialize error reporting service
-  // HIGH PRIORITY FIX H8: Crash Reporting / Logging
-  // final errorReportingService = ErrorReportingService();
-
   if (!kIsWeb) {
     await FirebaseAppCheck.instance.activate(
-      providerAndroid: AndroidProvider.debug,
-      providerApple: AppleProvider.debug,
+      androidProvider: AndroidProvider.debug,
+      appleProvider: AppleProvider.appAttest,
     );
   }
 
   final authService = AuthService(FirebaseAuth.instance);
 
-  // CRITICAL FIX C3: Sync time with server to prevent device time manipulation
   await TimeSyncService.syncWithServer();
 
   runApp(MyApp(
@@ -95,29 +88,19 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         Provider<AuthService>.value(value: authService),
         Provider<NotificationService>.value(value: notificationService),
-        Provider<AIService>(
-            create: (context) =>
-                AIService(iapService: context.read<IAPService?>())),
-        Provider<EnhancedAIService>(create: (_) => EnhancedAIService()),
-        Provider<ContentExtractionService>(
-            create: (_) => ContentExtractionService()),
-        Provider<UserService>(create: (_) => UserService()),
         Provider<FirestoreService>(create: (_) => FirestoreService()),
         Provider<LocalDatabaseService>(create: (_) => LocalDatabaseService()),
         Provider<SpacedRepetitionService>(
-            create: (context) => SpacedRepetitionService(
-                context.read<LocalDatabaseService>().getSpacedRepetitionBox())),
-        ProxyProvider4<FirestoreService, LocalDatabaseService,
-            SpacedRepetitionService, NotificationService, MissionService>(
-          update: (context, firestore, localDb, srs, notificationService,
-                  previous) =>
-              MissionService(
-            firestoreService: firestore,
-            localDb: localDb,
-            srs: srs,
-            notificationService: notificationService,
-          ),
+            create: (context) => SpacedRepetitionService(context.read<LocalDatabaseService>().getSpacedRepetitionBox())),
+        Provider<ContentExtractionService>(
+            create: (_) => ContentExtractionService()),
+        Provider<UserService>(create: (_) => UserService()),
+        Provider<EnhancedAIService>(create: (_) => EnhancedAIService()),
+
+        ChangeNotifierProvider<QuizViewModel>(
+          create: (context) => QuizViewModel(context.read<LocalDatabaseService>(), context.read<AuthService>()),
         ),
+        
         ProxyProvider<AuthService, IAPService?>(
           update: (context, authService, previous) {
             final user = authService.currentUser;
@@ -137,25 +120,7 @@ class MyApp extends StatelessWidget {
         ProxyProvider<AuthService, UsageService?>(
           update: (context, authService, previous) {
             final user = authService.currentUser;
-            if (user != null) {
-              return UsageService(user.uid);
-            }
-            return null;
-          },
-        ),
-        Provider<LocalDatabaseService>(
-          create: (context) => LocalDatabaseService(),
-        ),
-        ProxyProvider<AuthService, UsageService>(
-          update: (context, authService, previous) {
-            final user = authService.currentUser;
-            return UsageService(user?.uid ?? '');
-          },
-        ),
-        ProxyProvider3<AuthService, LocalDatabaseService, IAPService?,
-            EnhancedAIService>(
-          update: (context, authService, localDb, iapService, previous) {
-            return EnhancedAIService(iapService: iapService);
+            return user != null ? UsageService(user.uid) : null;
           },
         ),
         ProxyProvider<AuthService, ReferralService>(
@@ -163,21 +128,20 @@ class MyApp extends StatelessWidget {
             return ReferralService();
           },
         ),
+        ProxyProvider4<FirestoreService, LocalDatabaseService,
+            SpacedRepetitionService, NotificationService, MissionService>(
+          update: (context, firestore, localDb, srs, notificationService,
+                  previous) =>
+              MissionService(
+            firestoreService: firestore,
+            localDb: localDb,
+            srs: srs,
+            notificationService: notificationService,
+          ),
+        ),
         StreamProvider<UserModel?>(
           create: (context) => context.read<AuthService>().user,
           initialData: null,
-        ),
-        ChangeNotifierProxyProvider<AuthService, QuizViewModel>(
-          create: (context) => QuizViewModel(
-            LocalDatabaseService(),
-            context.read<AuthService>(),
-          ),
-          update: (_, authService, previous) {
-            if (previous != null) {
-              return previous;
-            }
-            return QuizViewModel(LocalDatabaseService(), authService);
-          },
         ),
         ChangeNotifierProxyProvider<AuthService, ReferralViewModel>(
           create: (context) => ReferralViewModel(
@@ -187,6 +151,9 @@ class MyApp extends StatelessWidget {
             return previous!;
           },
         ),
+         Provider<AIService>(
+            create: (context) =>
+                AIService(iapService: context.read<IAPService?>())),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -194,8 +161,8 @@ class MyApp extends StatelessWidget {
           return NotificationNavigator(
             child: MaterialApp.router(
               title: 'SumQuiz',
-              theme: themeProvider.getTheme(),
-              darkTheme: themeProvider.getTheme(),
+              theme: ThemeProvider.lightTheme,
+              darkTheme: ThemeProvider.darkTheme,
               themeMode: themeProvider.themeMode,
               routerConfig: router,
               debugShowCheckedModeBanner: false,

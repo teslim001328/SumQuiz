@@ -4,123 +4,96 @@ import 'package:intl/intl.dart';
 
 class ActivityChart extends StatelessWidget {
   final List<MapEntry<DateTime, int>> activityData;
-  final String title;
 
-  const ActivityChart({
-    super.key,
-    required this.activityData,
-    this.title = 'Activity',
-  });
+  const ActivityChart({super.key, required this.activityData});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final weeklyData = _prepareWeeklyData(activityData);
 
-    // Prepare data for the chart
-    final chartData = _prepareChartData(activityData);
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      height: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 200,
-              child: LineChart(
-                LineChartData(
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: chartData
-                          .asMap()
-                          .map((index, value) => MapEntry(index.toDouble(),
-                              FlSpot(index.toDouble(), value)))
-                          .values
-                          .toList(),
-                      isCurved: true,
-                      color: theme.colorScheme.primary,
-                      barWidth: 4,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                      ),
-                    ),
-                  ],
-                  titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index >= 0 && index < chartData.length) {
-                            final date = DateTime.now().subtract(
-                                Duration(days: chartData.length - index - 1));
-                            return Text(
-                              DateFormat('E').format(date),
-                              style: theme.textTheme.bodySmall,
-                            );
-                          }
-                          return const Text('');
-                        },
-                        reservedSize: 30,
-                      ),
-                    ),
-                  ),
-                  gridData: const FlGridData(show: true),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: Border.all(
-                      color: theme.dividerColor,
-                      width: 1,
-                    ),
-                  ),
-                ),
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: weeklyData.map((d) => d.value).reduce((a, b) => a > b ? a : b) * 1.2, // Add 20% padding to max Y
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => theme.colorScheme.secondary,
+               getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  '${rod.toY.round()}',
+                  TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold),
+                );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 30,
+                getTitlesWidget: (value, meta) {
+                  final day = weeklyData[value.toInt()].key;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(DateFormat.E().format(day), style: theme.textTheme.bodySmall),
+                  );
+                },
               ),
             ),
-          ],
+          ),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          barGroups: weeklyData.asMap().entries.map((entry) {
+            final index = entry.key;
+            final data = entry.value;
+            return BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: data.value.toDouble(),
+                  color: theme.colorScheme.secondary,
+                  width: 16,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(4),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );
   }
 
-  List<double> _prepareChartData(List<MapEntry<DateTime, int>> rawData) {
-    // Create a map for the last 7 days
-    final dailyActivity = <DateTime, int>{};
+  List<MapEntry<DateTime, int>> _prepareWeeklyData(List<MapEntry<DateTime, int>> rawData) {
     final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final Map<DateTime, int> weeklyActivity = {};
 
-    // Initialize with zeros for the last 7 days
-    for (int i = 6; i >= 0; i--) {
-      final date =
-          DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
-      dailyActivity[date] = 0;
+    for (int i = 0; i < 7; i++) {
+      final day = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day).add(Duration(days: i));
+      weeklyActivity[day] = 0;
     }
 
-    // Fill in the actual data
     for (var entry in rawData) {
       final dateKey = DateTime(entry.key.year, entry.key.month, entry.key.day);
-      if (dailyActivity.containsKey(dateKey)) {
-        dailyActivity[dateKey] = (dailyActivity[dateKey] ?? 0) + entry.value;
+      if (weeklyActivity.containsKey(dateKey)) {
+        weeklyActivity[dateKey] = weeklyActivity[dateKey]! + entry.value;
       }
     }
 
-    // Convert to list of values
-    return dailyActivity.values.map((value) => value.toDouble()).toList();
+    return weeklyActivity.entries.toList();
   }
 }

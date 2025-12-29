@@ -5,6 +5,7 @@ import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/models/local_quiz.dart';
 import 'package:sumquiz/models/local_flashcard_set.dart';
+import 'package:go_router/go_router.dart';
 
 /// Modern data storage management screen with improved UI and additional features
 /// Allows users to manage offline data, cache, and storage preferences
@@ -18,19 +19,11 @@ class DataStorageScreen extends StatelessWidget {
     final user = Provider.of<UserModel?>(context);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(
-          'Data & Storage',
-          style: theme.textTheme.headlineSmall
-              ?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
+        title: const Text('Data & Storage'),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: theme.iconTheme.color),
-          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_ios),
+          onPressed: () => context.pop(),
         ),
       ),
       body: Center(
@@ -79,11 +72,6 @@ class DataStorageScreen extends StatelessWidget {
 
   Widget _buildStorageInfoCard(BuildContext context, ThemeData theme) {
     return Card(
-      color: theme.cardColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -94,7 +82,7 @@ class DataStorageScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    color: theme.colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(Icons.storage_outlined,
@@ -113,8 +101,7 @@ class DataStorageScreen extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         'Manage your app storage and data',
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: theme.textTheme.bodySmall?.color),
+                        style: theme.textTheme.bodyMedium,
                       ),
                     ],
                   ),
@@ -131,8 +118,6 @@ class DataStorageScreen extends StatelessWidget {
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: 0.42,
-              backgroundColor: theme.dividerColor,
-              color: theme.colorScheme.primary,
               minHeight: 8,
               borderRadius: BorderRadius.circular(4),
             ),
@@ -140,12 +125,8 @@ class DataStorageScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('0 MB',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.textTheme.bodySmall?.color)),
-                Text('100 MB',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.textTheme.bodySmall?.color)),
+                Text('0 MB', style: theme.textTheme.bodySmall),
+                Text('100 MB', style: theme.textTheme.bodySmall),
               ],
             ),
           ],
@@ -160,14 +141,10 @@ class DataStorageScreen extends StatelessWidget {
       required String title,
       required String subtitle,
       required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        color: theme.cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        elevation: 0,
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
@@ -175,7 +152,7 @@ class DataStorageScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  color: theme.colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: theme.colorScheme.primary, size: 24),
@@ -193,15 +170,13 @@ class DataStorageScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: theme.textTheme.bodySmall?.color),
+                      style: theme.textTheme.bodyMedium,
                     ),
                   ],
                 ),
               ),
-              Icon(
+              const Icon(
                 Icons.arrow_forward_ios,
-                color: theme.iconTheme.color,
                 size: 18,
               ),
             ],
@@ -218,16 +193,12 @@ class DataStorageScreen extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Clear Cache?',
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          content: Text(
-              'Are you sure you want to clear all cached data? This will free up storage space but may require re-downloading content.',
-              style: theme.textTheme.bodyMedium),
+          title: const Text('Clear Cache?'),
+          content: const Text(
+              'Are you sure you want to clear all cached data? This will free up storage space but may require re-downloading content.'),
           actions: <Widget>[
             TextButton(
-              child: Text('Cancel',
-                  style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+              child: const Text('Cancel'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -256,7 +227,6 @@ class DataStorageScreen extends StatelessWidget {
       LocalDatabaseService localDB, UserModel? user) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -277,8 +247,7 @@ class DataStorageScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 'Offline Files',
-                style: theme.textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.headlineSmall,
               ),
               const SizedBox(height: 24),
               if (user != null)
@@ -308,8 +277,7 @@ class DataStorageScreen extends StatelessWidget {
                             const SizedBox(height: 8),
                             Text(
                               'Download content to view it offline.',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.textTheme.bodySmall?.color),
+                              style: theme.textTheme.bodySmall,
                             ),
                           ],
                         ),
@@ -373,16 +341,12 @@ class DataStorageScreen extends StatelessWidget {
       String id,
       VoidCallback onDelete) {
     return Card(
-      color: theme.cardColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         title: Text(title, style: theme.textTheme.titleMedium),
         subtitle: Text(type, style: theme.textTheme.bodySmall),
         trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.red),
+          icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
           onPressed: () {
             onDelete();
             Navigator.of(context).pop();
@@ -399,13 +363,10 @@ class DataStorageScreen extends StatelessWidget {
   }
 
   void _syncData(BuildContext context) {
-    final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Syncing data...',
-            style: TextStyle(color: theme.colorScheme.onSecondaryContainer)),
-        backgroundColor: theme.colorScheme.secondaryContainer,
-        duration: const Duration(seconds: 2),
+      const SnackBar(
+        content: Text('Syncing data...'),
+        duration: Duration(seconds: 2),
       ),
     );
     // TODO: Implement actual sync functionality

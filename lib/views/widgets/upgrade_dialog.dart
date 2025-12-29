@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../services/iap_service.dart';
+import 'package:go_router/go_router.dart';
 
 class UpgradeDialog extends StatelessWidget {
   final String featureName;
@@ -9,32 +8,39 @@ class UpgradeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AlertDialog(
-      title: Text('Upgrade to Pro to use $featureName'),
-      content: const Text(
-          'You have reached your daily limit for this feature. Upgrade to Pro for unlimited access.'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: theme.colorScheme.surface,
+      title: Row(
+        children: [
+          Icon(Icons.workspace_premium_outlined, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Upgrade for Unlimited ${featureName.replaceFirst(featureName[0], featureName[0].toUpperCase())}',
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      content: Text(
+        'You have reached your daily limit. Upgrade to Pro for unlimited access to all features.',
+        style: theme.textTheme.bodyLarge,
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: const Text('Maybe Later'),
         ),
         ElevatedButton(
-          onPressed: () async {
-            Navigator.of(context).pop(); // Close dialog first to avoid overlap
-
-            final iapService = context.read<IAPService?>();
-            if (iapService != null) {
-              try {
-                // Navigate to subscription screen
-                if (context.mounted) {
-                  Navigator.of(context).pushNamed('/subscription');
-                }
-              } catch (e) {
-                // Ignore or log
-              }
-            }
+          onPressed: () {
+            Navigator.of(context).pop();
+            context.go('/subscription');
           },
-          child: const Text('Upgrade'),
+          child: const Text('Upgrade Now'),
         ),
       ],
     );

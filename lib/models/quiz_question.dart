@@ -1,3 +1,5 @@
+import 'package:sumquiz/models/local_quiz_question.dart';
+
 class QuizQuestion {
   String question;
   List<String> options;
@@ -31,5 +33,13 @@ class QuizQuestion {
       'options': options,
       'correctAnswer': correctAnswer,
     };
+  }
+
+  LocalQuizQuestion toLocalQuizQuestion() {
+    return LocalQuizQuestion(
+      question: question,
+      options: options,
+      correctAnswer: correctAnswer,
+    );
   }
 }

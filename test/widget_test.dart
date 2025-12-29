@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:myapp/main.dart';
-import 'package:myapp/services/auth_service.dart';
+import 'package:sumquiz/main.dart';
+import 'package:sumquiz/services/auth_service.dart';
 import 'package:mockito/mockito.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:myapp/services/notification_service.dart';
+import 'package:sumquiz/services/notification_service.dart';
 
 // Create a mock for the AuthService
 class MockAuthService extends Mock implements AuthService {}

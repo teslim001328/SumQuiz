@@ -66,13 +66,13 @@ class AccountProfileScreen extends StatelessWidget {
           ),
           child: CircleAvatar(
             radius: 45,
-            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            backgroundColor: theme.colorScheme.surface,
             child: Text(
               user.displayName.isNotEmpty
                   ? user.displayName[0].toUpperCase()
                   : '?',
               style: theme.textTheme.headlineLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: theme.colorScheme.onSurface,
               ),
             ),
           ),
@@ -176,7 +176,7 @@ class AccountProfileScreen extends StatelessWidget {
       subtitle: Text(subtitle,
           style: theme.textTheme.bodyMedium?.copyWith(
               color: isDestructive
-                  ? theme.colorScheme.error.withValues(alpha: 0.7)
+                  ? theme.colorScheme.error.withOpacity(0.7)
                   : theme.textTheme.bodySmall?.color)),
       trailing: Icon(Icons.arrow_forward_ios,
           color:
@@ -230,8 +230,8 @@ class AccountProfileScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        icon: const Icon(Icons.logout, color: Colors.white),
-        label: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.logout),
+        label: const Text('Sign Out'),
         onPressed: () {
           authService.signOut();
         },
@@ -241,6 +241,7 @@ class AccountProfileScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           backgroundColor: theme.colorScheme.error,
+          foregroundColor: theme.colorScheme.onError,
         ),
       ),
     );

@@ -23,14 +23,6 @@ class _AuthScreenState extends State<AuthScreen>
   AuthMode _authMode = AuthMode.Login;
   bool _isLoading = false;
 
-  // Consistent color palette from Onboarding
-  static const Color kBackgroundColor = Colors.black;
-  static const Color kPrimaryTextColor = Colors.white;
-  static const Color kSecondaryTextColor = Color(0xFFB3B3B3);
-  static const Color kButtonColor = Colors.white;
-  static const Color kButtonTextColor = Colors.black;
-  static const Color kTextFieldFillColor = Color(0xFF1A1A1A);
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -194,8 +186,8 @@ class _AuthScreenState extends State<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: kBackgroundColor,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -208,8 +200,8 @@ class _AuthScreenState extends State<AuthScreen>
                   return FadeTransition(opacity: animation, child: child);
                 },
                 child: _authMode == AuthMode.Login
-                    ? _buildLoginForm()
-                    : _buildSignUpForm(),
+                    ? _buildLoginForm(theme)
+                    : _buildSignUpForm(theme),
               ),
             ),
           ),
@@ -218,7 +210,7 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildLoginForm() {
+  Widget _buildLoginForm(ThemeData theme) {
     return Form(
       key: _formKey,
       child: Column(
@@ -226,26 +218,18 @@ class _AuthScreenState extends State<AuthScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Welcome Back',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              color: kPrimaryTextColor,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
+            style: theme.textTheme.displaySmall,
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Sign in to continue your learning journey.',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              color: kSecondaryTextColor,
-              fontSize: 16,
-            ),
+            style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 48),
           _buildTextField(
+            theme: theme,
             controller: _emailController,
             labelText: 'Email Address',
             keyboardType: TextInputType.emailAddress,
@@ -258,6 +242,7 @@ class _AuthScreenState extends State<AuthScreen>
           ),
           const SizedBox(height: 16),
           _buildTextField(
+            theme: theme,
             controller: _passwordController,
             labelText: 'Password',
             obscureText: true,
@@ -269,11 +254,12 @@ class _AuthScreenState extends State<AuthScreen>
             },
           ),
           const SizedBox(height: 32),
-          _buildAuthButton('Sign In', _submit),
+          _buildAuthButton('Sign In', _submit, theme),
           const SizedBox(height: 24),
-          _buildGoogleButton(),
+          _buildGoogleButton(theme),
           const SizedBox(height: 24),
           _buildSwitchAuthModeButton(
+            theme,
             'Don\'t have an account? ',
             'Sign Up',
             _switchAuthMode,
@@ -283,7 +269,7 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildSignUpForm() {
+  Widget _buildSignUpForm(ThemeData theme) {
     return Form(
       key: _formKey,
       child: Column(
@@ -291,26 +277,18 @@ class _AuthScreenState extends State<AuthScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Create Account',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              color: kPrimaryTextColor,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
+            style: theme.textTheme.displaySmall,
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Start your learning adventure with us.',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              color: kSecondaryTextColor,
-              fontSize: 16,
-            ),
+            style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 48),
           _buildTextField(
+            theme: theme,
             controller: _fullNameController,
             labelText: 'Full Name',
             validator: (value) {
@@ -322,6 +300,7 @@ class _AuthScreenState extends State<AuthScreen>
           ),
           const SizedBox(height: 16),
           _buildTextField(
+            theme: theme,
             controller: _emailController,
             labelText: 'Email Address',
             keyboardType: TextInputType.emailAddress,
@@ -334,6 +313,7 @@ class _AuthScreenState extends State<AuthScreen>
           ),
           const SizedBox(height: 16),
           _buildTextField(
+            theme: theme,
             controller: _passwordController,
             labelText: 'Password',
             obscureText: true,
@@ -346,16 +326,18 @@ class _AuthScreenState extends State<AuthScreen>
           ),
           const SizedBox(height: 16),
           _buildTextField(
+            theme: theme,
             controller: _referralCodeController,
             labelText: 'Referral Code (Optional)',
             validator: null, // Optional field
           ),
           const SizedBox(height: 32),
-          _buildAuthButton('Sign Up', _submit),
+          _buildAuthButton('Sign Up', _submit, theme),
           const SizedBox(height: 24),
-          _buildGoogleButton(),
+          _buildGoogleButton(theme),
           const SizedBox(height: 24),
           _buildSwitchAuthModeButton(
+            theme,
             'Already have an account? ',
             'Sign In',
             _switchAuthMode,
@@ -366,6 +348,7 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   Widget _buildTextField({
+    required ThemeData theme,
     required TextEditingController controller,
     required String labelText,
     bool obscureText = false,
@@ -374,29 +357,10 @@ class _AuthScreenState extends State<AuthScreen>
   }) {
     return TextFormField(
       controller: controller,
-      style: const TextStyle(fontFamily: 'Inter', color: kPrimaryTextColor),
+      style: TextStyle(color: theme.colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle:
-            const TextStyle(fontFamily: 'Inter', color: kSecondaryTextColor),
-        filled: true,
-        fillColor: kTextFieldFillColor,
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[800]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: kButtonColor),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.redAccent),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 2),
-        ),
+        labelStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)),
       ),
       obscureText: obscureText,
       keyboardType: keyboardType,
@@ -404,56 +368,39 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildAuthButton(String text, VoidCallback onPressed) {
+  Widget _buildAuthButton(String text, VoidCallback onPressed, ThemeData theme) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: kButtonColor,
-          foregroundColor: kButtonTextColor,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
         onPressed: _isLoading ? null : onPressed,
         child: _isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator(
-                    color: kButtonTextColor, strokeWidth: 3))
+                    valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.onPrimary),
+                    strokeWidth: 3))
             : Text(
                 text,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
               ),
       ),
     );
   }
 
-  Widget _buildGoogleButton() {
+  Widget _buildGoogleButton(ThemeData theme) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
         icon: SvgPicture.asset('assets/icons/google_logo.svg', height: 20),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: kSecondaryTextColor),
+          side: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.4)),
           padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
         ),
         onPressed: _isLoading ? null : _googleSignIn,
-        label: const Text(
+        label: Text(
           'Continue with Google',
           style: TextStyle(
-            fontFamily: 'Inter',
-            color: kPrimaryTextColor,
-            fontSize: 16,
+            color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -462,23 +409,20 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   Widget _buildSwitchAuthModeButton(
-      String text, String buttonText, VoidCallback onPressed) {
+      ThemeData theme, String text, String buttonText, VoidCallback onPressed) {
     return Center(
       child: TextButton(
         onPressed: onPressed,
         child: RichText(
           text: TextSpan(
             text: text,
-            style: const TextStyle(
-                fontFamily: 'Inter', color: kSecondaryTextColor, fontSize: 15),
+            style: theme.textTheme.bodyMedium,
             children: [
               TextSpan(
                 text: buttonText,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  color: kPrimaryTextColor,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.primary,
                   fontWeight: FontWeight.bold,
-                  fontSize: 15,
                 ),
               ),
             ],

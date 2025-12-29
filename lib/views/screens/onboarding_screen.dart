@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -14,13 +13,6 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-
-  // Define a clean, high-contrast black and white theme
-  static const Color kBackgroundColor = Colors.black;
-  static const Color kPrimaryTextColor = Colors.white;
-  static const Color kSecondaryTextColor = Color(0xFFB3B3B3);
-  static const Color kButtonColor = Colors.white;
-  static const Color kButtonTextColor = Colors.black;
 
   @override
   void dispose() {
@@ -37,8 +29,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _finishOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hasSeenOnboarding', true);
-    if (!mounted) return;
-    context.go('/auth');
+    if (mounted) context.go('/auth');
   }
 
   void _navigateToNextPage() {
@@ -55,7 +46,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -101,87 +91,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 48),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            child: _currentPage == 2
-                ? _buildGetStartedButtons()
-                : _buildNextButton(),
+            transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+            child: _currentPage == 2 ? _buildGetStartedButtons() : _buildNextButton(),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildGetStartedButtons() {
     return Column(
       key: const ValueKey('getStartedButtons'),
       children: [
         ElevatedButton(
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            _finishOnboarding();
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kButtonColor,
-            foregroundColor: kButtonTextColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-          ),
-          child: const Text(
-            'Get Started Free',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          onPressed: _finishOnboarding,
+          child: const Text('Get Started Free'),
         ),
         const SizedBox(height: 16),
         TextButton(
           onPressed: _finishOnboarding,
-          child: const Text(
-            'Already have an account? Sign In',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              color: kSecondaryTextColor,
-              fontSize: 16,
-            ),
-          ),
+          child: const Text('Already have an account? Sign In'),
         ),
       ],
     );
   }
 
   Widget _buildNextButton() {
-     return SizedBox(
+    return SizedBox(
       key: const ValueKey('nextButton'),
-       width: double.infinity,
-       child: ElevatedButton(
-              onPressed: _navigateToNextPage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kButtonColor,
-                foregroundColor: kButtonTextColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-              ),
-              child: const Text(
-                'Next',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-     );
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _navigateToNextPage,
+        child: const Text('Next'),
+      ),
+    );
   }
 
   Widget _buildDot(int index) {
+    final theme = Theme.of(context);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
@@ -189,7 +136,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       height: 8,
       width: _currentPage == index ? 24 : 8,
       decoration: BoxDecoration(
-        color: _currentPage == index ? kPrimaryTextColor : kSecondaryTextColor.withValues(alpha: 0.5),
+        color: _currentPage == index ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.4),
         borderRadius: BorderRadius.circular(12),
       ),
     );
@@ -210,6 +157,7 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Center(
@@ -224,9 +172,7 @@ class OnboardingPage extends StatelessWidget {
                 placeholderBuilder: (BuildContext context) => Container(
                   padding: const EdgeInsets.all(30.0),
                   child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                    ),
+                    child: CircularProgressIndicator(),
                   ),
                 ),
               ),
@@ -234,24 +180,13 @@ class OnboardingPage extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: _OnboardingScreenState.kPrimaryTextColor,
-                  height: 1.2,
-                ),
+                style: theme.textTheme.displaySmall,
               ),
               const SizedBox(height: 16),
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 17,
-                  color: _OnboardingScreenState.kSecondaryTextColor,
-                  height: 1.5,
-                ),
+                style: theme.textTheme.bodyLarge,
               ),
             ],
           ),

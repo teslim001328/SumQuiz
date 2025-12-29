@@ -95,7 +95,6 @@ class EditScreenState extends State<EditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text('Edit ${widget.item.runtimeType}'),
@@ -114,13 +113,8 @@ class EditScreenState extends State<EditScreen> {
             children: [
               TextFormField(
                 initialValue: _title,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Title',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest,
                 ),
                 onSaved: (value) => _title = value!,
                 validator: (value) =>
@@ -130,13 +124,8 @@ class EditScreenState extends State<EditScreen> {
               Expanded(
                 child: TextFormField(
                   initialValue: _content,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Content',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: theme.colorScheme.surfaceContainerHighest,
                   ),
                   onSaved: (value) => _content = value!,
                   maxLines: null,

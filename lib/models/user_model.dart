@@ -69,7 +69,7 @@ class UserModel {
       itemsCompletedToday: data['itemsCompletedToday'] ?? 0,
       weeklyUploads: data['weeklyUploads'] ?? 0,
       folderCount: data['folderCount'] ?? 0,
-      'srsCardCount': data['srsCardCount'] ?? 0,
+      srsCardCount: data['srsCardCount'] ?? 0,
       lastWeeklyReset: (data['lastWeeklyReset'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );

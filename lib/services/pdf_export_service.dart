@@ -146,6 +146,32 @@ class PdfExportService {
     return await _saveAndLaunchFile(bytes, 'flashcards_${flashcardSet.id}.pdf');
   }
 
+  Future<String> exportTextAsPdf(String content, String fileName, String userId) async {
+    // Check if user can export (Pro users can always export)
+    final isPro = await _isUserPro(userId);
+    if (!isPro) {
+      throw Exception(
+          'PDF export is only available for Pro users. Upgrade to unlock this feature.');
+    }
+
+    final PdfDocument document = PdfDocument();
+    final PdfPage page = document.pages.add();
+
+    final font = PdfStandardFont(PdfFontFamily.helvetica, 12);
+
+    page.graphics.drawString(
+      content,
+      font,
+      bounds: Rect.fromLTWH(
+          0, 0, page.getClientSize().width, page.getClientSize().height),
+    );
+
+    final bytes = await document.save();
+    document.dispose();
+
+    return await _saveAndLaunchFile(bytes, fileName);
+  }
+
   Future<String> _saveAndLaunchFile(List<int> bytes, String fileName) async {
     final directory = await getApplicationDocumentsDirectory();
     final path = directory.path;
