@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sumquiz/models/local_flashcard_set.dart';
-import 'package:sumquiz/models/local_summary.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../models/user_model.dart';
@@ -13,6 +11,7 @@ import '../../services/local_database_service.dart';
 import '../../services/usage_service.dart';
 import '../../view_models/quiz_view_model.dart';
 import '../widgets/upgrade_dialog.dart';
+import '../widgets/quiz_view.dart';
 
 enum QuizState { creation, loading, inProgress, finished, error }
 
@@ -43,9 +42,7 @@ class _QuizScreenState extends State<QuizScreen> {
   String _errorMessage = '';
 
   late List<LocalQuizQuestion> _questions;
-  int _currentQuestionIndex = 0;
-  int? _selectedAnswerIndex;
-  bool _answerWasSelected = false;
+
   int _score = 0;
   String? _quizId;
 
@@ -105,7 +102,7 @@ class _QuizScreenState extends State<QuizScreen> {
     });
 
     try {
-       final folderId = await _aiService.generateAndStoreOutputs(
+      final folderId = await _aiService.generateAndStoreOutputs(
         text: _textController.text,
         title: _titleController.text,
         requestedOutputs: ['quiz'],
@@ -123,7 +120,8 @@ class _QuizScreenState extends State<QuizScreen> {
       }
 
       final content = await _localDbService.getFolderContents(folderId);
-      final quizId = content.firstWhere((c) => c.contentType == 'quiz').contentId;
+      final quizId =
+          content.firstWhere((c) => c.contentType == 'quiz').contentId;
       final quiz = await _localDbService.getQuiz(quizId);
 
       if (quiz != null && quiz.questions.isNotEmpty) {
@@ -140,11 +138,13 @@ class _QuizScreenState extends State<QuizScreen> {
         _state = QuizState.error;
         _errorMessage = 'Error generating quiz: $e';
       });
-    } 
+    }
   }
 
   Future<void> _saveInProgress() async {
-    if (_questions.isEmpty || _titleController.text.isEmpty || _quizId == null) {
+    if (_questions.isEmpty ||
+        _titleController.text.isEmpty ||
+        _quizId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Cannot save an empty quiz."),
@@ -187,7 +187,8 @@ class _QuizScreenState extends State<QuizScreen> {
     final quizViewModel = Provider.of<QuizViewModel>(context, listen: false);
     if (user == null || _quizId == null) return;
 
-    final percentageScore = _questions.isNotEmpty ? (_score / _questions.length) * 100.0 : 0.0;
+    final percentageScore =
+        _questions.isNotEmpty ? (_score / _questions.length) * 100.0 : 0.0;
 
     var quizToSave = await _localDbService.getQuiz(_quizId!);
 
@@ -222,57 +223,18 @@ class _QuizScreenState extends State<QuizScreen> {
     }
   }
 
-  void _onAnswerSelected(int index) {
-    if (_answerWasSelected) return;
-
-    setState(() {
-      _selectedAnswerIndex = index;
-      _answerWasSelected = true;
-      final question = _questions[_currentQuestionIndex];
-      if (question.options[index] == question.correctAnswer) {
-        _score++;
-      }
-    });
-  }
-
-  void _handleNextQuestion() {
-    if (!_answerWasSelected) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select an answer.')),
-        );
-      }
-      return;
-    }
-
-    if (_currentQuestionIndex < _questions.length - 1) {
-      setState(() {
-        _currentQuestionIndex++;
-        _selectedAnswerIndex = null;
-        _answerWasSelected = false;
-      });
-    } else {
-      setState(() {
-        _state = QuizState.finished;
-      });
-    }
-  }
-
   void _resetQuizState() {
     setState(() {
       _state = QuizState.inProgress;
-      _currentQuestionIndex = 0;
-      _selectedAnswerIndex = null;
-      _answerWasSelected = false;
       _score = 0;
     });
   }
-  
+
   void _retry() {
-      setState(() {
-        _state = QuizState.creation;
-        _errorMessage = '';
-      });
+    setState(() {
+      _state = QuizState.creation;
+      _errorMessage = '';
+    });
   }
 
   @override
@@ -297,7 +259,7 @@ class _QuizScreenState extends State<QuizScreen> {
         ));
   }
 
-   Widget _buildContent() {
+  Widget _buildContent() {
     switch (_state) {
       case QuizState.loading:
         return _buildLoadingState();
@@ -332,7 +294,9 @@ class _QuizScreenState extends State<QuizScreen> {
         children: [
           const Icon(Icons.error_outline, color: Colors.red, size: 64),
           const SizedBox(height: 16),
-          Text('Oops! Something went wrong.', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
+          Text('Oops! Something went wrong.',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center),
           const SizedBox(height: 8),
           Text(_errorMessage, textAlign: TextAlign.center),
           const SizedBox(height: 24),
@@ -347,26 +311,33 @@ class _QuizScreenState extends State<QuizScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         children: [
-          Text('Create a New Quiz', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Create a New Quiz',
+              style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 24),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Quiz Title', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Quiz Title',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _titleController,
-                    decoration: const InputDecoration(hintText: 'e.g., History Midterm Review', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        hintText: 'e.g., History Midterm Review',
+                        border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 24),
-                  Text('Text to Generate From', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Text to Generate From',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _textController,
                     maxLines: 8,
-                    decoration: const InputDecoration(hintText: 'Paste your notes or article here.',  border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                        hintText: 'Paste your notes or article here.',
+                        border: OutlineInputBorder()),
                   ),
                 ],
               ),
@@ -389,82 +360,28 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Widget _buildQuizInterface() {
-    final question = _questions[_currentQuestionIndex];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Column(
-        children: [
-          Text(_titleController.text,
-              style: Theme.of(context).textTheme.headlineMedium,
-              textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-          Text('Question ${_currentQuestionIndex + 1}/${_questions.length}',
-              style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 24),
-          Text(
-            question.question,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          Expanded(
-            child: ListView.builder(
-              itemCount: question.options.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  elevation: _answerWasSelected ? 4 : 2,
-                  color: _getTileColor(index),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: _selectedAnswerIndex == index ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                  child: ListTile(
-                    title: Text(question.options[index], style: Theme.of(context).textTheme.bodyLarge),
-                    leading: _getTileIcon(index),
-                    onTap: () => _onAnswerSelected(index),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _answerWasSelected ? _handleNextQuestion : null,
-              child: Text(
-                _currentQuestionIndex < _questions.length - 1 ? 'Next Question' : 'Finish Quiz',
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
+    return QuizView(
+      title: _titleController.text,
+      questions: _questions,
+      showSaveButton: false, // Or true if you want to allow saving mid-quiz
+      onFinish: () {
+        setState(() {
+          _state = QuizState.finished;
+        });
+      },
+      onAnswer: (isCorrect) {
+        if (isCorrect) {
+          setState(() {
+            _score++;
+          });
+        }
+      },
     );
   }
 
-  Color? _getTileColor(int index) {
-    if (!_answerWasSelected) return Theme.of(context).cardColor;
-    final question = _questions[_currentQuestionIndex];
-    if (question.options[index] == question.correctAnswer) return Colors.green.shade50;
-    if (index == _selectedAnswerIndex) return Colors.red.shade50;
-    return Theme.of(context).cardColor;
-  }
-
-  Widget _getTileIcon(int index) {
-    if (!_answerWasSelected) return Icon(Icons.circle_outlined, color: Theme.of(context).disabledColor);
-    final question = _questions[_currentQuestionIndex];
-    if (question.options[index] == question.correctAnswer) return const Icon(Icons.check_circle, color: Colors.green);
-    if (index == _selectedAnswerIndex) return const Icon(Icons.cancel, color: Colors.red);
-    return Icon(Icons.circle_outlined, color: Theme.of(context).disabledColor);
-  }
-
   Widget _buildResultScreen() {
-    final percentage = _questions.isNotEmpty ? (_score / _questions.length) * 100 : 0;
+    final percentage =
+        _questions.isNotEmpty ? (_score / _questions.length) * 100 : 0;
     final theme = Theme.of(context);
     return Center(
       child: Padding(
@@ -481,7 +398,8 @@ class _QuizScreenState extends State<QuizScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Text('Your Score: $_score out of ${_questions.length}', style: theme.textTheme.titleMedium),
+            Text('Your Score: $_score out of ${_questions.length}',
+                style: theme.textTheme.titleMedium),
             const SizedBox(height: 48),
             SizedBox(
               width: double.infinity,

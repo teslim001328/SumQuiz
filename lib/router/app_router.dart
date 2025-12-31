@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sumquiz/models/editable_content.dart';
 import 'package:sumquiz/models/flashcard_set.dart';
+import 'package:sumquiz/models/local_flashcard_set.dart';
 import 'package:sumquiz/models/local_quiz.dart';
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/services/auth_service.dart';
@@ -14,7 +15,9 @@ import 'package:sumquiz/views/screens/review_screen.dart';
 import 'package:sumquiz/views/screens/summary_screen.dart';
 import 'package:sumquiz/views/screens/quiz_screen.dart';
 import 'package:sumquiz/views/screens/flashcards_screen.dart';
-import 'package:sumquiz/views/screens/edit_content_screen.dart';
+import 'package:sumquiz/views/screens/edit_summary_screen.dart';
+import 'package:sumquiz/views/screens/edit_flashcard_screen.dart';
+import 'package:sumquiz/views/screens/edit_quiz_screen.dart';
 import 'package:sumquiz/views/screens/preferences_screen.dart';
 import 'package:sumquiz/views/screens/data_storage_screen.dart';
 import 'package:sumquiz/views/screens/subscription_screen.dart';
@@ -188,6 +191,45 @@ GoRouter createAppRouter(AuthService authService) {
                     builder: (context, state) => ResultsViewScreen(
                         folderId: state.pathParameters['folderId']!),
                   ),
+                  GoRoute(
+                    path: 'edit-summary',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) {
+                      if (state.extra is EditableContent) {
+                        return EditSummaryScreen(
+                            content: state.extra as EditableContent);
+                      } else {
+                        return const Scaffold(
+                            body: Center(child: Text('Invalid Content')));
+                      }
+                    },
+                  ),
+                  GoRoute(
+                    path: 'edit-quiz',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) {
+                      final quiz = state.extra as LocalQuiz?;
+                      if (quiz != null) {
+                        return EditQuizScreen(quiz: quiz);
+                      } else {
+                        return const Scaffold(
+                            body: Center(child: Text('Invalid Content')));
+                      }
+                    },
+                  ),
+                  GoRoute(
+                    path: 'edit-flashcards',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) {
+                      final flashcardSet = state.extra as LocalFlashcardSet?;
+                      if (flashcardSet != null) {
+                        return EditFlashcardScreen(flashcardSet: flashcardSet);
+                      } else {
+                        return const Scaffold(
+                            body: Center(child: Text('Invalid Content')));
+                      }
+                    },
+                  ),
                 ],
               ),
             ],
@@ -206,20 +248,6 @@ GoRouter createAppRouter(AuthService authService) {
                       parentNavigatorKey: _rootNavigatorKey,
                       builder: (context, state) => ExtractionViewScreen(
                           initialText: state.extra as String?),
-                    ),
-                    GoRoute(
-                      path: 'edit-content',
-                      parentNavigatorKey: _rootNavigatorKey,
-                      builder: (context, state) {
-                        if (state.extra is EditableContent) {
-                          return EditContentScreen(
-                              content: state.extra as EditableContent);
-                        } else {
-                          // Should return a valid widget, like an error screen
-                          return const Scaffold(
-                              body: Center(child: Text('Invalid Content')));
-                        }
-                      },
                     ),
                   ]),
             ],

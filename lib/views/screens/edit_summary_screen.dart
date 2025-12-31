@@ -1,20 +1,25 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 
 import '../../models/editable_content.dart';
+import '../../models/local_summary.dart';
+import '../../models/user_model.dart';
+import '../../services/local_database_service.dart';
 
-class EditContentScreen extends StatefulWidget {
+class EditSummaryScreen extends StatefulWidget {
   final EditableContent content;
 
-  const EditContentScreen({super.key, required this.content});
+  const EditSummaryScreen({super.key, required this.content});
 
   @override
-  State<EditContentScreen> createState() => _EditContentScreenState();
+  State<EditSummaryScreen> createState() => _EditSummaryScreenState();
 }
 
-class _EditContentScreenState extends State<EditContentScreen> {
+class _EditSummaryScreenState extends State<EditSummaryScreen> {
   late TextEditingController _titleController;
   late QuillController _quillController;
   late List<String> _tags;
@@ -32,9 +37,26 @@ class _EditContentScreenState extends State<EditContentScreen> {
     super.initState();
     _titleController = TextEditingController(text: widget.content.title);
     _tags = List.from(widget.content.tags ?? []);
-    
+
+    // Initialize QuillController - use QuillController.basic() for empty document
     _quillController = QuillController.basic();
-    _quillController.document.insert(0, widget.content.content ?? '');
+    
+    // Load existing content if available
+    if (widget.content.content != null && widget.content.content!.isNotEmpty) {
+      try {
+        final contentJson = jsonDecode(widget.content.content!);
+        // Create document from JSON delta
+        final doc = Document.fromJson(contentJson is List ? contentJson : [contentJson]);
+        // Replace the controller's document
+        _quillController = QuillController(
+          document: doc,
+          selection: const TextSelection.collapsed(offset: 0),
+        );
+      } catch (e) {
+        // Fallback: treat as plain text
+        _quillController.document.insert(0, widget.content.content!);
+      }
+    }
 
     _quillController.document.changes.listen((_) => _onTyping());
   }
@@ -53,11 +75,38 @@ class _EditContentScreenState extends State<EditContentScreen> {
     });
   }
 
-  void _handleSave() {
+  void _handleSave() async {
+    final user = Provider.of<UserModel?>(context, listen: false);
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Not logged in.')),
+        );
+      }
+      return;
+    }
+
     setState(() => _isSaving = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _isSaving = false);
-    });
+
+    final db = LocalDatabaseService();
+    final updatedSummary = LocalSummary(
+      id: widget.content.id,
+      title: _titleController.text,
+      content: jsonEncode(_quillController.document.toDelta().toJson()),
+      tags: _tags,
+      timestamp: DateTime.now(),
+      userId: user.uid,
+      isSynced: false,
+    );
+
+    await db.saveSummary(updatedSummary);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Summary saved!')),
+      );
+      Navigator.of(context).pop();
+    }
   }
 
   void _handleAiAssist() {
@@ -87,9 +136,7 @@ class _EditContentScreenState extends State<EditContentScreen> {
           content: TextField(
             controller: tagController,
             autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Enter tag...',
-            ),
+            decoration: const InputDecoration(hintText: 'Enter tag...'),
           ),
           actions: [
             TextButton(
@@ -128,6 +175,7 @@ class _EditContentScreenState extends State<EditContentScreen> {
   }
 
   AppBar _buildAppBar() {
+    final theme = Theme.of(context);
     return AppBar(
       elevation: 0,
       leading: IconButton(
@@ -139,9 +187,10 @@ class _EditContentScreenState extends State<EditContentScreen> {
         IconButton(
           icon: AnimatedSwitcher(
             duration: const Duration(milliseconds: 500),
-            transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+            transitionBuilder: (child, animation) =>
+                ScaleTransition(scale: animation, child: child),
             child: _isSaving
-                ? const Icon(Icons.check, color: Colors.greenAccent, key: ValueKey('saved'))
+                ? Icon(Icons.check, color: theme.colorScheme.primary, key: const ValueKey('saved'))
                 : const Icon(Icons.save_outlined, key: ValueKey('save')),
           ),
           onPressed: _handleSave,
@@ -205,10 +254,10 @@ class _EditContentScreenState extends State<EditContentScreen> {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         ..._tags.map((tag) => Chip(
-          label: Text(tag),
-          onDeleted: () => _removeTag(tag),
-          deleteIcon: const Icon(Icons.close, size: 18),
-        )),
+              label: Text(tag),
+              onDeleted: () => _removeTag(tag),
+              deleteIcon: const Icon(Icons.close, size: 18),
+            )),
         GestureDetector(
           onTap: _showAddTagDialog,
           child: const Chip(
@@ -222,77 +271,81 @@ class _EditContentScreenState extends State<EditContentScreen> {
 
   Widget _buildSummaryField() {
     final theme = Theme.of(context);
-    final editorConfig = QuillEditorConfig(
-      customStyles: DefaultStyles(
-        paragraph: DefaultTextBlockStyle(
-          theme.textTheme.bodyLarge!,
-          const HorizontalSpacing(0, 0),
-          const VerticalSpacing(10, 0),
-          const VerticalSpacing(0, 0),
-          null,
-        ),
-        placeHolder: DefaultTextBlockStyle(
-          theme.textTheme.bodyLarge!.copyWith(color: theme.hintColor),
-          const HorizontalSpacing(0, 0),
-          const VerticalSpacing(10, 0),
-          const VerticalSpacing(0, 0),
-          null,
+
+    // Use QuillEditor.basic() with controller and config parameters
+    return QuillEditor.basic(
+      controller: _quillController,
+      config: QuillEditorConfig(
+        padding: EdgeInsets.zero,
+        scrollable: false,
+        autoFocus: false,
+        expands: false,
+        customStyles: DefaultStyles(
+          paragraph: DefaultTextBlockStyle(
+            theme.textTheme.bodyLarge!,
+            HorizontalSpacing.zero,
+            const VerticalSpacing(10, 0),
+            VerticalSpacing.zero,
+            null,
+          ),
+          placeHolder: DefaultTextBlockStyle(
+            theme.textTheme.bodyLarge!.copyWith(color: theme.hintColor),
+            HorizontalSpacing.zero,
+            const VerticalSpacing(10, 0),
+            VerticalSpacing.zero,
+            null,
+          ),
         ),
       ),
-      embedBuilders: const [],
-    );
-
-    return QuillEditor(
-      focusNode: _focusNode,
-      scrollController: _scrollController,
-      controller: _quillController,
-      config: editorConfig,
     );
   }
 
   Widget _buildToolbar() {
     final theme = Theme.of(context);
-    final toolbarConfig = QuillSimpleToolbarConfig(
-      showAlignmentButtons: false,
-      showBackgroundColorButton: false,
-      showCenterAlignment: false,
-      showColorButton: false,
-      showCodeBlock: false,
-      showDirection: false,
-      showFontFamily: false,
-      showFontSize: false,
-      showHeaderStyle: false,
-      showIndent: false,
-      showInlineCode: false,
-      showJustifyAlignment: false,
-      showLeftAlignment: false,
-      showLink: true,
-      showQuote: false,
-      showRightAlignment: false,
-      showSearchButton: false,
-      showSmallButton: false,
-      showStrikeThrough: false,
-      showSubscript: false,
-      showSuperscript: false,
-      showUnderLineButton: false,
-      buttonOptions: QuillSimpleToolbarButtonOptions(
-        base: QuillToolbarBaseButtonOptions(
-          iconTheme: QuillIconTheme(
-            iconButtonSelectedData: IconButtonData(color: theme.colorScheme.primary),
-            iconButtonUnselectedData: IconButtonData(color: theme.iconTheme.color),
-          ),
-        ),
-      ),
-    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: theme.dividerColor, width: 1),
+        ),
+      ),
       child: Row(
         children: [
           Expanded(
             child: QuillSimpleToolbar(
               controller: _quillController,
-              config: toolbarConfig,
+              config: QuillSimpleToolbarConfig(
+                multiRowsDisplay: false,
+                showAlignmentButtons: false,
+                showBackgroundColorButton: false,
+                showCenterAlignment: false,
+                showColorButton: false,
+                showCodeBlock: false,
+                showDirection: false,
+                showFontFamily: false,
+                showFontSize: false,
+                showHeaderStyle: false,
+                showIndent: false,
+                showInlineCode: false,
+                showJustifyAlignment: false,
+                showLeftAlignment: false,
+                showLink: true,
+                showQuote: false,
+                showRightAlignment: false,
+                showSearchButton: false,
+                showSmallButton: false,
+                showStrikeThrough: false,
+                showSubscript: false,
+                showSuperscript: false,
+                showUnderLineButton: true,
+                showBoldButton: true,
+                showItalicButton: true,
+                showListBullets: true,
+                showListNumbers: true,
+                showListCheck: false,
+                showDividers: false,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -319,10 +372,16 @@ class _EditContentScreenState extends State<EditContentScreen> {
                   children: [
                     SizedBox(
                       width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.onSecondary),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2, 
+                        color: theme.colorScheme.onSecondary
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    Text('Thinking...', style: TextStyle(color: theme.colorScheme.onSecondary)),
+                    Text(
+                      'Thinking...', 
+                      style: TextStyle(color: theme.colorScheme.onSecondary)
+                    ),
                   ],
                 ),
               )
@@ -337,7 +396,13 @@ class _EditContentScreenState extends State<EditContentScreen> {
                     children: [
                       const Text('✨', style: TextStyle(fontSize: 16)),
                       const SizedBox(width: 8),
-                      Text('AI Assist', style: TextStyle(color: theme.colorScheme.onSecondary, fontWeight: FontWeight.bold)),
+                      Text(
+                        'AI Assist', 
+                        style: TextStyle(
+                          color: theme.colorScheme.onSecondary, 
+                          fontWeight: FontWeight.bold
+                        )
+                      ),
                     ],
                   ),
                 ),

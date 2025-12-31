@@ -132,7 +132,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           Icon(Icons.dark_mode_outlined, color: theme.colorScheme.primary),
       value: themeProvider.themeMode == ThemeMode.dark,
       onChanged: (value) => themeProvider.toggleTheme(),
-      activeColor: theme.colorScheme.primary,
+      activeThumbColor: theme.colorScheme.primary,
     );
   }
 
@@ -212,7 +212,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           color: theme.colorScheme.primary),
       value: value,
       onChanged: onChanged,
-      activeColor: theme.colorScheme.primary,
+      activeThumbColor: theme.colorScheme.primary,
     );
   }
 }

@@ -5,8 +5,15 @@ import '../../services/iap_service.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 
-class SubscriptionScreen extends StatelessWidget {
+class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
+
+  @override
+  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+}
+
+class _SubscriptionScreenState extends State<SubscriptionScreen> {
+  String? _selectedProductId;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +36,12 @@ class SubscriptionScreen extends StatelessWidget {
           icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.flash_on, color: theme.colorScheme.onSurface),
+            onPressed: () {},
+          ),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -72,48 +85,224 @@ class SubscriptionScreen extends StatelessWidget {
   Widget _buildUpgradeView(BuildContext context, IAPService? iapService) {
     final theme = Theme.of(context);
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.workspace_premium_outlined,
-              size: 80, color: theme.colorScheme.primary),
-          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'Learn faster. Remember smarter.',
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 32),
           Text(
-            'Unlock SumQuiz Pro',
+            'Features',
             style: theme.textTheme.headlineMedium
                 ?.copyWith(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
-          Text('Get unlimited access to all features',
-              style: theme.textTheme.bodyLarge
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 40),
-          _buildFeatureList(theme),
-          const SizedBox(height: 40),
+          const SizedBox(height: 16),
+          _buildFeatureListItem(theme, 'Unlimited quizzes', true),
+          _buildFeatureListItem(theme, 'Advanced analytics', false),
+          _buildFeatureListItem(theme, 'Personalized learning', false),
+          _buildFeatureListItem(theme, 'Offline access', false),
+          _buildFeatureListItem(theme, 'Ad-free experience', false),
+          const SizedBox(height: 32),
+          FutureBuilder<List<ProductDetails>?>(
+            future: iapService?.getAvailableProducts() ?? Future.value([]),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError ||
+                  !snapshot.hasData ||
+                  snapshot.data!.isEmpty) {
+                return const Center(
+                    child: Text('Subscription plans not available.'));
+              }
+
+              final products = snapshot.data!;
+              final monthly = products.firstWhere(
+                  (p) => p.id.contains('monthly'),
+                  orElse: () => products.first);
+              final annual = products.firstWhere((p) => p.id.contains('annual'),
+                  orElse: () => products.first);
+              final lifetime = products.firstWhere(
+                  (p) => p.id.contains('lifetime'),
+                  orElse: () => products.first);
+
+              _selectedProductId ??= annual.id;
+
+              return Column(
+                children: [
+                  _buildSubscriptionCard(
+                    context: context,
+                    product: monthly,
+                    title: 'Monthly',
+                    subtitle: '/month',
+                    billingInfo: 'Billed monthly',
+                    isSelected: _selectedProductId == monthly.id,
+                    onTap: () =>
+                        setState(() => _selectedProductId = monthly.id),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSubscriptionCard(
+                    context: context,
+                    product: annual,
+                    title: 'Annual',
+                    subtitle: '/year',
+                    billingInfo: 'Billed annually',
+                    badgeText: 'Best Value',
+                    isSelected: _selectedProductId == annual.id,
+                    onTap: () => setState(() => _selectedProductId = annual.id),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSubscriptionCard(
+                    context: context,
+                    product: lifetime,
+                    title: 'Lifetime',
+                    subtitle: '',
+                    billingInfo: 'One-time purchase',
+                    isSelected: _selectedProductId == lifetime.id,
+                    onTap: () =>
+                        setState(() => _selectedProductId = lifetime.id),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
-            height: 56,
             child: ElevatedButton(
-              onPressed: () => _showIAPProducts(context, iapService),
+              onPressed: () async {
+                if (_selectedProductId != null && iapService != null) {
+                  final products = await iapService.getAvailableProducts();
+                  final selectedProduct =
+                      products.firstWhere((p) => p.id == _selectedProductId);
+                  await iapService.purchaseProduct(selectedProduct.id);
+                }
+              },
               style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
+                backgroundColor: const Color(0xFF0000FF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('View Plans',
+              child: const Text('Upgrade to Pro',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
           ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => _restorePurchases(context, iapService),
-            child: Text('Restore Purchases',
-                style: TextStyle(color: theme.colorScheme.primary)),
+          const SizedBox(height: 24),
+          Center(
+            child: RichText(
+              text: TextSpan(
+                style: theme.textTheme.bodyMedium,
+                children: const [
+                  TextSpan(
+                      text: 'Invite 3 friends and get 1 week of Pro free '),
+                  WidgetSpan(
+                    child: Text('🎁', style: TextStyle(fontSize: 16)),
+                  ),
+                ],
+              ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionCard({
+    required BuildContext context,
+    required ProductDetails product,
+    required String title,
+    required String subtitle,
+    required String billingInfo,
+    required bool isSelected,
+    required VoidCallback onTap,
+    String? badgeText,
+  }) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color:
+                    isSelected ? const Color(0xFF0000FF) : theme.dividerColor,
+                width: isSelected ? 2 : 1,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: theme.textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(product.price,
+                          style: theme.textTheme.displaySmall
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 4),
+                      Text(subtitle,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.check, size: 20, color: Colors.black),
+                      const SizedBox(width: 8),
+                      Text(billingInfo, style: theme.textTheme.bodyLarge),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (badgeText != null)
+            Positioned(
+              top: -15,
+              right: 20,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0000FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      badgeText,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.diamond, color: Colors.white, size: 12),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -138,7 +327,7 @@ class SubscriptionScreen extends StatelessWidget {
             elevation: 0,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: theme.dividerColor.withOpacity(0.1))),
+                side: BorderSide(color: theme.dividerColor.withAlpha(25))),
             color: theme.cardColor,
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -162,14 +351,6 @@ class SubscriptionScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          FutureBuilder<List<ProductDetails>?>(
-            future: iapService?.getAvailableProducts(),
-            builder: (context, snapshot) {
-              // Only show available products if needed, otherwise hide
-              // For Pro members, we might want to just show "Manage Subscription"
-              return const SizedBox.shrink();
-            },
-          ),
           SizedBox(
             width: double.infinity,
             height: 56,
@@ -188,20 +369,6 @@ class SubscriptionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureList(ThemeData theme) {
-    return Column(
-      children: [
-        _buildFeatureItem(theme, 'Unlimited content generation (Free: 3/week)'),
-        _buildFeatureItem(theme, 'Unlimited folders (Free: 2 max)'),
-        _buildFeatureItem(theme, 'Unlimited Flashcards (Free: 50 max)'),
-        _buildFeatureItem(theme, 'Offline Access'),
-        _buildFeatureItem(theme, 'Full Spaced Repetition System'),
-        _buildFeatureItem(theme, 'Progress analytics & exports'),
-        _buildFeatureItem(theme, 'Daily missions & rewards'),
-      ],
-    );
-  }
-
   Widget _buildFeatureItem(ThemeData theme, String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -215,82 +382,24 @@ class SubscriptionScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _showIAPProducts(
-      BuildContext context, IAPService? iapService) async {
-    if (iapService == null) {
-      _showError(context, 'IAP service not available');
-      return;
-    }
-
-    try {
-      final products = await iapService.getAvailableProducts();
-      if (!context.mounted) return;
-      if (products.isEmpty) {
-        _showError(context, 'No products available');
-        return;
-      }
-
-      await showModalBottomSheet(
-        context: context,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (context) => Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Choose a Plan',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 24),
-              ...products.map((p) => _buildProductTile(context, p, iapService)),
-              const SizedBox(height: 24),
-            ],
+  Widget _buildFeatureListItem(ThemeData theme, String text, bool isUnlocked) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          isUnlocked
+              ? const Icon(Icons.check_box, size: 22, color: Color(0xFF34C759))
+              : const Icon(Icons.lock, size: 22, color: Colors.amber),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
-        ),
-      );
-    } catch (e) {
-      if (context.mounted) _showError(context, 'Failed to load products: $e');
-    }
-  }
-
-  Widget _buildProductTile(
-      BuildContext context, ProductDetails product, IAPService iapService) {
-    final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        title: Text(product.title,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(product.description,
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(20)),
-          child: Text(product.price,
-              style: TextStyle(
-                  color: theme.colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold)),
-        ),
-        onTap: () async {
-          Navigator.of(context).pop();
-          final success = await iapService.purchaseProduct(product.id);
-          if (success && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Welcome to SumQuiz Pro! 🎉'),
-                  backgroundColor: Colors.green),
-            );
-          }
-        },
+        ],
       ),
     );
   }
@@ -337,8 +446,9 @@ class SubscriptionScreen extends StatelessWidget {
             const SnackBar(content: Text('Restore request sent')));
       }
     } catch (e) {
-      if (context.mounted)
+      if (context.mounted) {
         _showError(context, 'Failed to restore purchases: $e');
+      }
     }
   }
 
@@ -347,44 +457,22 @@ class SubscriptionScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer.withOpacity(0.2),
+        color: theme.colorScheme.errorContainer.withAlpha(51),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.error.withOpacity(0.5)),
+        border: Border.all(color: theme.colorScheme.error.withAlpha(128)),
       ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
+      padding: const EdgeInsets.all(16),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text('Please verify your email to access Pro features.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.bold)),
+          Icon(Icons.warning_amber_rounded,
+              color: theme.colorScheme.error, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Please verify your email to purchase subscriptions',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () async {
-                try {
-                  final authService = context.read<AuthService>();
-                  await authService.resendVerificationEmail();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Verification email sent!')));
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    _showError(context, 'Error: $e');
-                  }
-                }
-              },
-              child: const Text('Resend Verification Email'),
             ),
           ),
         ],
@@ -394,7 +482,11 @@ class SubscriptionScreen extends StatelessWidget {
 
   void _showError(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

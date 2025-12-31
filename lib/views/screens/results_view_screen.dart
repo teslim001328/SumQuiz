@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/services/local_database_service.dart';
-import 'package:sumquiz/models/folder.dart';
+
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/models/local_quiz.dart';
 import 'package:sumquiz/models/local_flashcard_set.dart';
+import 'package:flutter/services.dart';
+import 'package:sumquiz/models/flashcard.dart';
+import 'package:sumquiz/views/widgets/summary_view.dart';
+import 'package:sumquiz/views/widgets/quiz_view.dart';
+import 'package:sumquiz/views/widgets/flashcards_view.dart';
 import 'package:go_router/go_router.dart';
 
 class ResultsViewScreen extends StatefulWidget {
@@ -21,10 +26,11 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  Folder? _folder;
   LocalSummary? _summary;
   LocalQuiz? _quiz;
   LocalFlashcardSet? _flashcardSet;
+  final List<Flashcard> _incorrectFlashcards = [];
+  bool _reviewFinished = false;
 
   @override
   void initState() {
@@ -35,7 +41,7 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
   Future<void> _loadData() async {
     try {
       final db = context.read<LocalDatabaseService>();
-      _folder = await db.getFolder(widget.folderId);
+
       final contents = await db.getFolderContents(widget.folderId);
 
       for (var content in contents) {
@@ -43,7 +49,7 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
           _summary = await db.getSummary(content.contentId);
         } else if (content.contentType == 'quiz') {
           _quiz = await db.getQuiz(content.contentId);
-        } else if (content.contentType == 'flashcards') {
+        } else if (content.contentType == 'flashcardSet') {
           _flashcardSet = await db.getFlashcardSet(content.contentId);
         }
       }
@@ -82,16 +88,21 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.library_add_check_outlined, color: theme.iconTheme.color),
+            icon: Icon(Icons.library_add_check_outlined,
+                color: theme.iconTheme.color),
             tooltip: 'Save to Library',
             onPressed: _saveToLibrary,
           ),
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: theme.colorScheme.secondary))
+          ? Center(
+              child:
+                  CircularProgressIndicator(color: theme.colorScheme.secondary))
           : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.error)))
+              ? Center(
+                  child: Text(_errorMessage!,
+                      style: TextStyle(color: theme.colorScheme.error)))
               : Column(
                   children: [
                     _buildOutputSelector(),
@@ -125,14 +136,18 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
               onTap: () => setState(() => _selectedTab = index),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected ? theme.colorScheme.secondary : Colors.transparent,
+                  color: isSelected
+                      ? theme.colorScheme.secondary
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Center(
                   child: Text(
                     tabs[index],
                     style: theme.textTheme.labelLarge?.copyWith(
-                       color: isSelected ? theme.colorScheme.onSecondary : theme.textTheme.bodyLarge?.color,
+                      color: isSelected
+                          ? theme.colorScheme.onSecondary
+                          : theme.textTheme.bodyLarge?.color,
                     ),
                   ),
                 ),
@@ -157,115 +172,47 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
     }
   }
 
-  Widget _buildAIGeneratedCard() {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.auto_awesome, color: theme.colorScheme.secondary, size: 40),
-          const SizedBox(height: 8),
-          Text('AI GENERATED', style: theme.textTheme.headlineSmall),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSummaryTab() {
     final theme = Theme.of(context);
-    if (_summary == null) return Center(child: Text('No summary available.', style: theme.textTheme.bodyMedium));
-
-    final mainConcepts = _summary!.tags.isNotEmpty
-        ? _summary!.tags
-        : ['Cognitive Load Theory', 'Progressive Disclosure', 'User Engagement'];
+    if (_summary == null) {
+      return Center(
+          child:
+              Text('No summary available.', style: theme.textTheme.bodyMedium));
+    }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildAIGeneratedCard(),
-          const SizedBox(height: 24),
-          Text('Key Takeaways', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 12),
-          Text(
-            _summary!.content,
-            style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-          ),
-          const SizedBox(height: 32),
-          Text('Main Concepts', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 12),
-          ...mainConcepts.map((concept) => _buildConceptCard(concept, 'Minimizing mental effort leads to better learning outcomes.')),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConceptCard(String title, String subtitle) {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: theme.colorScheme.secondary),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(subtitle, style: theme.textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SummaryView(
+          title: _summary!.title,
+          content: _summary!.content,
+          tags: _summary!.tags,
+          showActions: true,
+          onCopy: () {
+            Clipboard.setData(ClipboardData(text: _summary!.content));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Summary copied to clipboard')),
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildQuizzesTab() {
     final theme = Theme.of(context);
-    if (_quiz == null) return Center(child: Text('No quiz available.', style: theme.textTheme.bodyMedium));
+    if (_quiz == null) {
+      return Center(
+          child: Text('No quiz available.', style: theme.textTheme.bodyMedium));
+    }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _quiz!.questions.length,
-      itemBuilder: (context, index) {
-        final question = _quiz!.questions[index];
-        return Card(
-          color: theme.cardColor,
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Question ${index + 1}', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.secondary)),
-                const SizedBox(height: 8),
-                Text(question.question, style: theme.textTheme.bodyLarge),
-                const SizedBox(height: 16),
-                ...question.options.map((opt) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text('• $opt', style: theme.textTheme.bodyMedium),
-                )),
-                 const SizedBox(height: 8),
-                Text('Answer: ${question.correctAnswer}', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.greenAccent)),
-
-              ],
-            ),
-          ),
+    return QuizView(
+      title: _quiz!.title,
+      questions: _quiz!.questions,
+      onAnswer: (isCorrect) {}, // Optional: track score locally if needed
+      onFinish: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Quiz practice finished!')),
         );
       },
     );
@@ -274,35 +221,87 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
   Widget _buildFlashcardsTab() {
     final theme = Theme.of(context);
     if (_flashcardSet == null || _flashcardSet!.flashcards.isEmpty) {
-      return Center(child: Text('No flashcards available.', style: theme.textTheme.bodyMedium));
+      return Center(
+          child: Text('No flashcards available.',
+              style: theme.textTheme.bodyMedium));
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _flashcardSet!.flashcards.length,
-      itemBuilder: (context, index) {
-        final card = _flashcardSet!.flashcards[index];
-        return Card(
-          color: theme.cardColor,
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Front', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.secondary)),
-                const SizedBox(height: 8),
-                Text(card.question, style: theme.textTheme.bodyLarge),
-                Divider(color: theme.dividerColor, height: 32),
-                Text('Back', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.secondary)),
-                const SizedBox(height: 8),
-                Text(card.answer, style: theme.textTheme.bodyLarge),
-              ],
-            ),
-          ),
-        );
+    final flashcards = _flashcardSet!.flashcards
+        .map((f) => Flashcard(
+              id: f.id,
+              question: f.question,
+              answer: f.answer,
+            ))
+        .toList();
+
+    if (_reviewFinished) {
+      return _buildFlashcardCompletionScreen(flashcards.length);
+    }
+
+    return FlashcardsView(
+      title: _flashcardSet!.title,
+      flashcards: flashcards,
+      onReview: (index, knewIt) {
+        if (!knewIt) {
+          if (!_incorrectFlashcards.contains(flashcards[index])) {
+            _incorrectFlashcards.add(flashcards[index]);
+          }
+        }
+      },
+      onFinish: () {
+        setState(() {
+          _reviewFinished = true;
+        });
       },
     );
+  }
+
+  Widget _buildFlashcardCompletionScreen(int totalCards) {
+    final theme = Theme.of(context);
+    final correctCount = totalCards - _incorrectFlashcards.length;
+
+    return SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.check_circle_outline, color: Colors.green, size: 80),
+          const SizedBox(height: 20),
+          Text('Review Complete!', style: theme.textTheme.headlineMedium),
+          const SizedBox(height: 10),
+          Text('You got $correctCount out of $totalCards correct.',
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: 30),
+          if (_incorrectFlashcards.isNotEmpty) ...[
+            Text('Flashcards to review again:', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _incorrectFlashcards.length,
+              itemBuilder: (context, index) {
+                final card = _incorrectFlashcards[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: ListTile(
+                    title: Text(card.question),
+                    subtitle: Text(card.answer),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _reviewFinished = false;
+                  _incorrectFlashcards.clear();
+                });
+              },
+              child: const Text('Review Again'),
+            ),
+          ),
+        ]));
   }
 }

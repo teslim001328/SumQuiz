@@ -117,7 +117,7 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
 
       if (mounted) {
         // Navigate to the results screen, which shows what was just created
-        context.go('/results-view/$folderId');
+        context.go('/library/results-view/$folderId');
       }
     } on EnhancedAIServiceException catch (e) {
       _showError(

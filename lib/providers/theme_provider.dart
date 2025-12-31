@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider with ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.light; // Default to light mode as per new design
+  ThemeMode _themeMode = ThemeMode.light;
   double _fontScale = 1.0;
+
+  static const String _themeModeKey = 'themeMode';
+  static const String _fontScaleKey = 'fontScale';
 
   // --- Color Palette ---
   static const Color primaryDeepBlue = Color(0xFF1E3A8A);
@@ -20,23 +24,38 @@ class ThemeProvider with ChangeNotifier {
   static const Color darkTextPrimary = Color(0xFFF1F5F9);
   static const Color darkTextSecondary = Color(0xFF94A3B8);
 
-
   ThemeMode get themeMode => _themeMode;
   double get fontScale => _fontScale;
 
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeModeString = prefs.getString(_themeModeKey) ?? ThemeMode.light.toString();
+    _themeMode = ThemeMode.values.firstWhere((e) => e.toString() == themeModeString);
+    _fontScale = prefs.getDouble(_fontScaleKey) ?? 1.0;
+    notifyListeners();
+  }
+
+  Future<void> _savePreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeModeKey, _themeMode.toString());
+    await prefs.setDouble(_fontScaleKey, _fontScale);
+  }
+
   void toggleTheme() {
-    _themeMode =
-        _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    _savePreferences();
     notifyListeners();
   }
 
   void setSystemTheme() {
     _themeMode = ThemeMode.system;
+    _savePreferences();
     notifyListeners();
   }
 
   void setFontScale(double scale) {
     _fontScale = scale;
+    _savePreferences();
     notifyListeners();
   }
 
@@ -46,7 +65,6 @@ class ThemeProvider with ChangeNotifier {
   }
 
   ThemeData _applyFontScaling(ThemeData theme) {
-    // This function can be expanded if more specific scaling is needed
     return theme.copyWith(
       textTheme: GoogleFonts.latoTextTheme(theme.textTheme).copyWith(
          displayLarge: theme.textTheme.displayLarge?.copyWith(fontSize: 57 * _fontScale),
@@ -79,7 +97,7 @@ class ThemeProvider with ChangeNotifier {
       onTertiary: textDarkGray,
       error: Colors.redAccent,
       onError: Colors.white,
-      surface: cardsLightGray, // Used for cards
+      surface: cardsLightGray,
       onSurface: textDarkGray,
     ),
     scaffoldBackgroundColor: backgroundOffWhite,
@@ -122,7 +140,6 @@ class ThemeProvider with ChangeNotifier {
     final latoTextTheme = GoogleFonts.latoTextTheme(baseTheme.textTheme);
 
     final textTheme = latoTextTheme.copyWith(
-      // Headings with Poppins
       displayLarge: poppinsTextTheme.displayLarge?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
       displayMedium: poppinsTextTheme.displayMedium?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
       displaySmall: poppinsTextTheme.displaySmall?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
@@ -131,13 +148,12 @@ class ThemeProvider with ChangeNotifier {
       headlineSmall: poppinsTextTheme.headlineSmall?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
       titleLarge: poppinsTextTheme.titleLarge?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
 
-      // Body text with Lato
       titleMedium: latoTextTheme.titleMedium?.copyWith(color: primaryTextColor),
       titleSmall: latoTextTheme.titleSmall?.copyWith(color: secondaryTextColor),
       bodyLarge: latoTextTheme.bodyLarge?.copyWith(color: primaryTextColor),
       bodyMedium: latoTextTheme.bodyMedium?.copyWith(color: secondaryTextColor),
       bodySmall: latoTextTheme.bodySmall?.copyWith(color: secondaryTextColor),
-      labelLarge: latoTextTheme.labelLarge?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
+      labelLarge: latoTextTheme.labelLarge?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
       labelMedium: latoTextTheme.labelMedium?.copyWith(color: secondaryTextColor),
       labelSmall: latoTextTheme.labelSmall?.copyWith(color: secondaryTextColor),
     );
@@ -174,7 +190,7 @@ class ThemeProvider with ChangeNotifier {
           textStyle: textTheme.labelLarge,
         ),
       ),
-       textButtonTheme: TextButtonThemeData(
+      textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: colorScheme.primary,
           textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),

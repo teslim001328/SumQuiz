@@ -15,7 +15,6 @@ import '../../models/summary_model.dart';
 import '../../models/quiz_model.dart';
 import '../../models/flashcard_set.dart';
 import '../../models/folder.dart'; // Added
-import '../screens/edit_content_screen.dart';
 import '../screens/summary_screen.dart';
 import '../screens/quiz_screen.dart';
 import '../screens/flashcards_screen.dart';
@@ -744,12 +743,12 @@ class LibraryScreenState extends State<LibraryScreen>
         break;
     }
 
-    if (mounted && editableContent != null) {
+    if (mounted) {
       Navigator.push(
           context,
           MaterialPageRoute(
               builder: (context) =>
-                  EditContentScreen(content: editableContent!)));
+                  editsummaryScreen(content: editableContent!)));
     }
   }
 
@@ -806,4 +805,6 @@ class LibraryScreenState extends State<LibraryScreen>
       }
     }
   }
+  
+  editsummaryScreen({required EditableContent content}) {}
 }

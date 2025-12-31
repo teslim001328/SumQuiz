@@ -30,13 +30,21 @@ The application uses a modern, clean design with a consistent color scheme and t
 
 ## Current Plan
 
-### Bug Fixes
+### Onboarding Screen Revamp
 
-- **Fixed**: The library screen was not displaying the content from the Firestore database. This was fixed by adding a synchronization service that is triggered when the user logs in.
+The onboarding screen is the first impression a user has of the app. The current design is functional, but it can be improved to be more immersive, visually appealing, and persuasive.
 
-### Refactoring
+**Strategy:**
 
-- **Refactored**: The `SummaryScreen`, `QuizScreen`, and `FlashcardsScreen` were refactored to use a state enum and improve the overall code structure.
+1.  **Immersive Visuals:** Each onboarding step will feature a full-screen, high-quality, dark-themed image with a subtle noise texture and a vignette effect. This will create a premium and focused atmosphere.
+
+2.  **Strategic Content Alignment:** The headline and subtitle of each step will be repositioned to the top of the screen, ensuring they are the first thing the user reads. This placement immediately communicates the app's value propositions.
+
+3.  **Engaging Titles & subtitles:** The titles will be more benefit-oriented and punchier. I'll use a more premium and authoritative font to match the new visual style.
+
+4.  **Animated Illustrations:** I will add animations to the illustrations to make them more dynamic and engaging.
+
+5.  **Clear & Actionable Buttons:** The buttons will be redesigned for better visibility and to create a stronger call to action.
 
 ### Next Steps
 

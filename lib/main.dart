@@ -86,7 +86,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()..load()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         Provider<AuthService>.value(value: authService),
         Provider<NotificationService>.value(value: notificationService),
@@ -173,8 +173,8 @@ class MyApp extends StatelessWidget {
           return NotificationNavigator(
             child: MaterialApp.router(
               title: 'SumQuiz',
-              theme: ThemeProvider.lightTheme,
-              darkTheme: ThemeProvider.darkTheme,
+              theme: themeProvider.getTheme(),
+              darkTheme: themeProvider.getTheme(),
               themeMode: themeProvider.themeMode,
               routerConfig: router,
               debugShowCheckedModeBanner: false,

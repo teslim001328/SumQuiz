@@ -10,8 +10,6 @@ import 'package:sumquiz/services/referral_service.dart';
 import 'package:sumquiz/services/user_service.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sumquiz/services/sync_service.dart';
-import 'package:sumquiz/services/local_database_service.dart';
 import 'package:flutter/material.dart';
 
 class AuthService {

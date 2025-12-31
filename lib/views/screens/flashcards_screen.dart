@@ -1,15 +1,11 @@
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
-import 'package:flutter_card_swiper/flutter_card_swiper.dart';
-import 'package:flip_card/flip_card.dart';
+
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 import 'package:sumquiz/models/spaced_repetition.dart';
 import 'package:sumquiz/services/firestore_service.dart';
-import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:sumquiz/models/local_flashcard_set.dart';
-import 'package:sumquiz/models/local_quiz.dart';
-import 'package:sumquiz/models/local_summary.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../services/local_database_service.dart';
@@ -19,8 +15,8 @@ import '../../services/usage_service.dart';
 import '../../models/user_model.dart';
 import '../../models/flashcard.dart';
 import '../../models/flashcard_set.dart';
-import '../../models/summary_model.dart';
 import '../widgets/upgrade_dialog.dart';
+import 'package:sumquiz/views/widgets/flashcards_view.dart';
 
 enum FlashcardState { creation, loading, review, finished, error }
 
@@ -35,7 +31,6 @@ class FlashcardsScreen extends StatefulWidget {
 class _FlashcardsScreenState extends State<FlashcardsScreen> {
   final TextEditingController _textController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
-  final CardSwiperController _swiperController = CardSwiperController();
   final EnhancedAIService _aiService = EnhancedAIService();
   final Uuid _uuid = const Uuid();
   late SpacedRepetitionService _srsService;
@@ -46,7 +41,6 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   String _errorMessage = '';
 
   List<Flashcard> _flashcards = [];
-  int _currentIndex = 0;
   int _correctCount = 0;
   bool get _isCreationMode => widget.flashcardSet == null;
 
@@ -66,7 +60,8 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   Future<void> _initializeServices() async {
     _localDbService = LocalDatabaseService();
     await _localDbService.init();
-    _srsService = SpacedRepetitionService(_localDbService as Box<SpacedRepetitionItem>);
+    _srsService =
+        SpacedRepetitionService(_localDbService as Box<SpacedRepetitionItem>);
   }
 
   Future<void> _generateFlashcards() async {
@@ -81,7 +76,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     final userModel = Provider.of<UserModel?>(context, listen: false);
     final usageService = Provider.of<UsageService?>(context, listen: false);
     if (userModel == null || usageService == null) {
-       setState(() {
+      setState(() {
         _state = FlashcardState.error;
         _errorMessage = 'User not found.';
       });
@@ -110,7 +105,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     try {
       developer.log('Generating flashcards for content...',
           name: 'flashcards.generation');
-      
+
       final folderId = await _aiService.generateAndStoreOutputs(
         text: _textController.text,
         title: _titleController.text,
@@ -129,18 +124,22 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
       }
 
       final content = await _localDbService.getFolderContents(folderId);
-      final flashcardSetId = content.firstWhere((c) => c.contentType == 'flashcardSet').contentId;
-      final flashcardSet = await _localDbService.getFlashcardSet(flashcardSetId);
+      final flashcardSetId =
+          content.firstWhere((c) => c.contentType == 'flashcardSet').contentId;
+      final flashcardSet =
+          await _localDbService.getFlashcardSet(flashcardSetId);
 
       if (flashcardSet != null && flashcardSet.flashcards.isNotEmpty) {
         if (mounted) {
           setState(() {
             _flashcards = flashcardSet.flashcards
-                .map((f) => Flashcard(id: f.id, question: f.question, answer: f.answer))
+                .map((f) =>
+                    Flashcard(id: f.id, question: f.question, answer: f.answer))
                 .toList();
             _state = FlashcardState.review;
           });
-          developer.log('${_flashcards.length} flashcards generated successfully.',
+          developer.log(
+              '${_flashcards.length} flashcards generated successfully.',
               name: 'flashcards.generation');
         }
       } else {
@@ -148,17 +147,17 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
       }
     } catch (e, s) {
       if (mounted) {
-         setState(() {
-            _state = FlashcardState.error;
-            _errorMessage = 'Error generating flashcards: $e';
-          });
+        setState(() {
+          _state = FlashcardState.error;
+          _errorMessage = 'Error generating flashcards: $e';
+        });
         if (e.toString().contains('quota')) {
           showDialog(
             context: context,
             builder: (context) =>
                 const UpgradeDialog(featureName: 'flashcards'),
           );
-        } 
+        }
         developer.log('Error generating flashcards',
             name: 'flashcards.generation', error: e, stackTrace: s);
       }
@@ -198,7 +197,8 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
       if (_isCreationMode) {
         await firestoreService.addFlashcardSet(userModel.uid, set);
       } else {
-        await firestoreService.updateFlashcardSet(userModel.uid, set.id, set.title, set.flashcards);
+        await firestoreService.updateFlashcardSet(
+            userModel.uid, set.id, set.title, set.flashcards);
       }
 
       for (final flashcard in _flashcards) {
@@ -229,31 +229,10 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     }
   }
 
-  void _handleFlashcardReview(int index, bool knewIt) {
-    final flashcardId = _flashcards[index].id;
-    _srsService.updateReview(flashcardId, knewIt);
-    if (knewIt) _correctCount++;
-    _swiperController.swipe(CardSwiperDirection.right);
-  }
-
-  bool _onSwipe(
-      int previousIndex, int? currentIndex, CardSwiperDirection direction) {
-    if (currentIndex == null) {
-      setState(() => _state = FlashcardState.finished);
-    } else {
-      setState(() {
-        _currentIndex = currentIndex;
-      });
-    }
-    return true;
-  }
-
   void _reviewAgain() {
     setState(() {
       _state = FlashcardState.review;
-      _currentIndex = 0;
       _correctCount = 0;
-      _swiperController.moveTo(0);
     });
   }
 
@@ -268,7 +247,8 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text(_isCreationMode ? 'Create Flashcards' : 'Review Flashcards'),
+          title:
+              Text(_isCreationMode ? 'Create Flashcards' : 'Review Flashcards'),
           actions: [
             if (_flashcards.isNotEmpty && _state == FlashcardState.review)
               IconButton(
@@ -321,7 +301,9 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         children: [
           const Icon(Icons.error_outline, color: Colors.red, size: 64),
           const SizedBox(height: 16),
-          Text('Oops! Something went wrong.', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
+          Text('Oops! Something went wrong.',
+              style: Theme.of(context).textTheme.headlineSmall,
+              textAlign: TextAlign.center),
           const SizedBox(height: 8),
           Text(_errorMessage, textAlign: TextAlign.center),
           const SizedBox(height: 24),
@@ -336,14 +318,16 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         children: [
-          Text('Create a New Flashcard Set', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Create a New Flashcard Set',
+              style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 24),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Set Title', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Set Title',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _titleController,
@@ -353,13 +337,15 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Text('Content to Generate From', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Content to Generate From',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _textController,
                     maxLines: 10,
                     decoration: const InputDecoration(
-                      hintText: 'Paste your notes, an article, or any text here.',
+                      hintText:
+                          'Paste your notes, an article, or any text here.',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -384,99 +370,17 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   }
 
   Widget _buildReviewInterface() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(
-                  children: [
-                    Text(_titleController.text,
-                        style: Theme.of(context).textTheme.headlineSmall),
-                    Text('Question ${_currentIndex + 1}/${_flashcards.length}',
-                        style: Theme.of(context).textTheme.bodyMedium),
-                  ],
-                ),
-              ],
-            ),
-            Expanded(
-              child: CardSwiper(
-                controller: _swiperController,
-                cardsCount: _flashcards.length,
-                onSwipe: _onSwipe,
-                padding: const EdgeInsets.symmetric(vertical: 30.0),
-                cardBuilder:
-                    (context, index, percentThresholdX, percentThresholdY) {
-                  final card = _flashcards[index];
-                  return FlipCard(
-                    front: _buildCardSide(card.question, isFront: true),
-                    back: _buildCardSide(card.answer,
-                        isFront: false, cardIndex: index),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardSide(String text, {required bool isFront, int? cardIndex}) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Column(
-        children: [
-          Expanded(
-              child: Center(
-                  child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Text(text,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleLarge)))),
-          if (!isFront)
-            Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildFeedbackButton("Didn't Know",
-                        () => _handleFlashcardReview(cardIndex!, false), false),
-                    _buildFeedbackButton("Knew It",
-                        () => _handleFlashcardReview(cardIndex!, true), true),
-                  ],
-                ))
-          else
-            Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text("Tap to Flip",
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic, color: Colors.grey))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeedbackButton(
-      String text, VoidCallback onPressed, bool knewIt) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor:
-            knewIt ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-        foregroundColor: knewIt ? Colors.green.shade800 : Colors.red.shade800,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-                color: knewIt ? Colors.green.shade300 : Colors.red.shade300,
-                width: 1.5)),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      ),
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold)),
+    return FlashcardsView(
+      title: _titleController.text,
+      flashcards: _flashcards,
+      onReview: (index, knewIt) {
+        final flashcardId = _flashcards[index].id;
+        _srsService.updateReview(flashcardId, knewIt);
+        if (knewIt) _correctCount++;
+      },
+      onFinish: () {
+        setState(() => _state = FlashcardState.finished);
+      },
     );
   }
 
@@ -489,9 +393,11 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
           const Icon(Icons.check_circle_outline,
               color: Colors.green, size: 100),
           const SizedBox(height: 24),
-          Text('Set Complete!', style: Theme.of(context).textTheme.headlineMedium),
+          Text('Set Complete!',
+              style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 12),
-           Text('You got $_correctCount out of ${_flashcards.length} correct.', style: Theme.of(context).textTheme.titleMedium),
+          Text('You got $_correctCount out of ${_flashcards.length} correct.',
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 40),
           if (_isCreationMode) ...[
             SizedBox(

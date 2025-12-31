@@ -401,8 +401,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         },
       ),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         final items = snapshot.data as List<dynamic>;
 
         if (items.isEmpty) {
