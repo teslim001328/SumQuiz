@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -5,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:sumquiz/services/content_extraction_service.dart';
 import 'package:provider/provider.dart';
 import 'dart:typed_data';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/user_model.dart';
 
@@ -65,6 +68,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         _resetInputs(except: ContentType.pdf);
         _pdfName = result.files.single.name;
         _pdfBytes = result.files.single.bytes;
+        _activeContentType = ContentType.pdf;
       });
     }
   }
@@ -77,6 +81,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         _resetInputs(except: ContentType.image);
         _imageName = image.name;
         _imageBytes = bytes;
+        _activeContentType = ContentType.image;
       });
     }
   }
@@ -155,257 +160,338 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Create Content'),
+        title: Text('Create Content',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.person),
+            onPressed: () {}, // Profile action placeholder
+            icon: const Icon(Icons.person, color: Colors.white),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RichText(
-              text: TextSpan(
-                style: theme.textTheme.headlineMedium,
+      body: Stack(
+        children: [
+          // Animated Gradient Background
+          Animate(
+            onPlay: (controller) => controller.repeat(reverse: true),
+            effects: [
+              CustomEffect(
+                duration: 10.seconds,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF1A237E), // Indigo 900
+                          Color.lerp(
+                              const Color(0xFF1A237E),
+                              const Color(0xFF311B92),
+                              value)!, // Deep Purple 900
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  );
+                },
+              )
+            ],
+            child: Container(),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const TextSpan(text: 'What do you want to '),
-                  TextSpan(
-                      text: 'learn',
-                      style: TextStyle(color: theme.colorScheme.secondary)),
-                  const TextSpan(text: ' today?'),
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.poppins(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.2),
+                      children: [
+                        const TextSpan(text: 'What do you want to \n'),
+                        TextSpan(
+                            text: 'learn',
+                            style:
+                                TextStyle(color: Colors.blueAccent.shade100)),
+                        const TextSpan(text: ' today?'),
+                      ],
+                    ),
+                  ).animate().fadeIn().slideX(),
+                  const SizedBox(height: 32),
+                  _buildSectionHeader('PASTE TEXT', Icons.edit)
+                      .animate()
+                      .fadeIn(delay: 100.ms),
+                  _buildPasteTextSection().animate().fadeIn(delay: 150.ms),
+                  const SizedBox(height: 32),
+                  _buildSectionHeader('IMPORT WEBPAGE', Icons.link)
+                      .animate()
+                      .fadeIn(delay: 200.ms),
+                  _buildImportWebpageSection().animate().fadeIn(delay: 250.ms),
+                  const SizedBox(height: 32),
+                  _buildSectionHeader('UPLOAD PDF', Icons.picture_as_pdf)
+                      .animate()
+                      .fadeIn(delay: 300.ms),
+                  _buildUploadPdfSection().animate().fadeIn(delay: 350.ms),
+                  const SizedBox(height: 32),
+                  _buildSectionHeader('SCAN IMAGE', Icons.fullscreen)
+                      .animate()
+                      .fadeIn(delay: 400.ms),
+                  _buildScanImageSection().animate().fadeIn(delay: 450.ms),
+                  const SizedBox(height: 100), // Extra space for FAB
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-            _buildSectionHeader('PASTE TEXT', Icons.edit),
-            _buildPasteTextSection(),
-            const SizedBox(height: 32),
-            _buildSectionHeader('IMPORT WEBPAGE', Icons.link),
-            _buildImportWebpageSection(),
-            const SizedBox(height: 32),
-            _buildSectionHeader('UPLOAD PDF', Icons.picture_as_pdf),
-            _buildUploadPdfSection(),
-            const SizedBox(height: 32),
-            _buildSectionHeader('SCAN IMAGE', Icons.fullscreen),
-            _buildScanImageSection(),
-            const SizedBox(height: 100), // Extra space for FAB
-          ],
-        ),
+          ),
+        ],
       ),
-      floatingActionButton: _buildGenerateButton(),
+      floatingActionButton: _buildGenerateButton()
+          .animate()
+          .fadeIn(delay: 500.ms)
+          .slideY(begin: 0.2),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
   Widget _buildSectionHeader(String title, IconData icon) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Icon(icon, color: theme.colorScheme.secondary, size: 18),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: theme.textTheme.labelMedium?.copyWith(letterSpacing: 1.2),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blueAccent.shade100, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: Colors.white70,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassContainer(
+      {required Widget child, bool isSelected = false}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: AnimatedContainer(
+          duration: 300.ms,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Colors.blueAccent.withValues(alpha: 0.2)
+                : Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? Colors.blueAccent.withValues(alpha: 0.5)
+                  : Colors.white.withValues(alpha: 0.2),
+              width: 1.5,
+            ),
+          ),
+          child: child,
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildPasteTextSection() {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(8),
-      height: 150,
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TextField(
-        onTap: () => setState(() => _resetInputs(except: ContentType.text)),
-        controller: _textController,
-        maxLines: null,
-        expands: true,
-        style: theme.textTheme.bodyMedium,
-        decoration: InputDecoration(
-          hintText: 'Type or paste your notes here for AI summary...',
-          hintStyle: theme.textTheme.bodySmall,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
+    return _buildGlassContainer(
+      isSelected: _activeContentType == ContentType.text,
+      child: Container(
+        height: 150,
+        padding: const EdgeInsets.all(16),
+        child: TextField(
+          onTap: () => setState(() {
+            _resetInputs(except: ContentType.text);
+            _activeContentType = ContentType.text;
+          }),
+          controller: _textController,
+          maxLines: null,
+          expands: true,
+          style: GoogleFonts.inter(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Type or paste your notes here for AI summary...',
+            hintStyle: GoogleFonts.inter(color: Colors.white38),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildImportWebpageSection() {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.public, color: theme.iconTheme.color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              onTap: () =>
-                  setState(() => _resetInputs(except: ContentType.link)),
-              controller: _linkController,
-              style: theme.textTheme.bodyMedium,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/article',
-                hintStyle: theme.textTheme.bodySmall,
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () =>
-                setState(() => _activeContentType = ContentType.link),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.secondary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: Text('Add',
-                style: TextStyle(color: theme.colorScheme.onSecondary)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUploadPdfSection() {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: _pickPdf,
-      child: Container(
-        margin: const EdgeInsets.only(top: 8),
-        height: 120,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-              color: theme.dividerColor, width: 1, style: BorderStyle.solid),
-        ),
-        child: _pdfName == null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.upload_file,
-                      color: theme.colorScheme.secondary, size: 36),
-                  const SizedBox(height: 8),
-                  Text('Tap to browse', style: theme.textTheme.bodyMedium),
-                  Text('PDF files up to 10MB',
-                      style: theme.textTheme.bodySmall),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.check_circle,
-                      color: theme.colorScheme.secondary, size: 36),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text(_pdfName!,
-                        style: theme.textTheme.bodyMedium,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _buildScanImageSection() {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      child: Row(
-        children: [
-          Expanded(
-              child: _buildScanButton('Camera', Icons.camera_alt,
-                  () => _pickImage(ImageSource.camera))),
-          const SizedBox(width: 16),
-          Expanded(
-              child: _buildScanButton('Gallery', Icons.photo_library,
-                  () => _pickImage(ImageSource.gallery))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScanButton(String label, IconData icon, VoidCallback onPressed) {
-    final theme = Theme.of(context);
-    bool isSelected =
-        _activeContentType == ContentType.image && _imageName != null;
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        height: 120,
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return _buildGlassContainer(
+      isSelected: _activeContentType == ContentType.link,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
           children: [
-            Icon(isSelected ? Icons.check_circle : icon,
-                color: theme.colorScheme.secondary, size: 36),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(isSelected ? _imageName! : label,
-                  style: theme.textTheme.bodyMedium,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center),
+            Icon(Icons.public, color: Colors.white70),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                onTap: () => setState(() {
+                  _resetInputs(except: ContentType.link);
+                  _activeContentType = ContentType.link;
+                }),
+                controller: _linkController,
+                style: GoogleFonts.inter(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'https://example.com/article',
+                  hintStyle: GoogleFonts.inter(color: Colors.white38),
+                  border: InputBorder.none,
+                ),
+              ),
             ),
+            if (_activeContentType == ContentType.link)
+              Icon(Icons.check_circle, color: Colors.blueAccent, size: 20),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildUploadPdfSection() {
+    bool isSelected = _activeContentType == ContentType.pdf && _pdfName != null;
+    return GestureDetector(
+      onTap: _pickPdf,
+      child: _buildGlassContainer(
+        isSelected: isSelected,
+        child: SizedBox(
+          height: 100,
+          width: double.infinity,
+          child: _pdfName == null
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.upload_file, color: Colors.white60, size: 32),
+                    const SizedBox(height: 8),
+                    Text('Tap to browse PDF',
+                        style: GoogleFonts.inter(color: Colors.white70)),
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle,
+                        color: Colors.blueAccent, size: 32),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text(
+                        _pdfName!,
+                        style: GoogleFonts.inter(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanImageSection() {
+    return Row(
+      children: [
+        Expanded(
+            child: _buildScanButton('Camera', Icons.camera_alt,
+                () => _pickImage(ImageSource.camera))),
+        const SizedBox(width: 16),
+        Expanded(
+            child: _buildScanButton('Gallery', Icons.photo_library,
+                () => _pickImage(ImageSource.gallery))),
+      ],
+    );
+  }
+
+  Widget _buildScanButton(String label, IconData icon, VoidCallback onPressed) {
+    bool isSelected =
+        _activeContentType == ContentType.image && _imageName != null;
+    return GestureDetector(
+      onTap: onPressed,
+      child: _buildGlassContainer(
+        isSelected: isSelected,
+        child: SizedBox(
+          height: 100,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(isSelected ? Icons.check_circle : icon,
+                  color: isSelected ? Colors.blueAccent : Colors.white60,
+                  size: 32),
+              const SizedBox(height: 8),
+              Text(
+                isSelected ? _imageName! : label,
+                style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildGenerateButton() {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: SizedBox(
         width: double.infinity,
-        height: 56,
-        child: ElevatedButton.icon(
-          onPressed: _isLoading ? null : _processAndNavigate,
-          icon: _isLoading
-              ? const SizedBox.shrink()
-              : Icon(Icons.double_arrow_rounded,
-                  color: theme.colorScheme.onSecondary),
-          label: _isLoading
-              ? CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      theme.colorScheme.onSecondary))
-              : Text('Extract Content',
-                  style: theme.textTheme.labelLarge
-                      ?.copyWith(color: theme.colorScheme.onSecondary)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.colorScheme.secondary,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        height: 60,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _processAndNavigate,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent.withValues(alpha: 0.8),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Extract Content',
+                            style: GoogleFonts.poppins(
+                                fontSize: 18, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.auto_awesome),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),

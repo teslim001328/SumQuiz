@@ -1,8 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:sumquiz/services/auth_service.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 enum AuthMode { login, signUp }
 
@@ -101,7 +104,7 @@ class _AuthScreenState extends State<AuthScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
+          SnackBar(content: Text(errorMessage, style: GoogleFonts.inter())),
         );
       }
     } catch (e) {
@@ -113,7 +116,7 @@ class _AuthScreenState extends State<AuthScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
+          SnackBar(content: Text(errorMessage, style: GoogleFonts.inter())),
         );
       }
     } finally {
@@ -172,7 +175,7 @@ class _AuthScreenState extends State<AuthScreen>
 
       if (mounted && errorMessage.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
+          SnackBar(content: Text(errorMessage, style: GoogleFonts.inter())),
         );
       }
     } finally {
@@ -186,80 +189,169 @@ class _AuthScreenState extends State<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(opacity: animation, child: child);
+      body: Stack(
+        children: [
+          // Animated Background
+          Animate(
+            onPlay: (controller) => controller.repeat(reverse: true),
+            effects: [
+              CustomEffect(
+                duration: 6.seconds,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFFF3F4F6), // Light Grey
+                          Color.lerp(const Color(0xFFE8EAF6),
+                              const Color(0xFFC5CAE9), value)!, // Pulse Blue
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  );
                 },
-                child: _authMode == AuthMode.login
-                    ? _buildLoginForm(theme)
-                    : _buildSignUpForm(theme),
+              )
+            ],
+            child: Container(),
+          ),
+
+          // Main Content
+          Center(
+            child: SingleChildScrollView(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo Area
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.indigo.withOpacity(0.15),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          )
+                        ]),
+                    child: Image.asset(
+                      'assets/images/sumquiz_logo.png',
+                      width: 60,
+                      height: 60,
+                    ),
+                  )
+                      .animate()
+                      .scale(duration: 500.ms, curve: Curves.easeOutBack),
+
+                  const SizedBox(height: 32),
+
+                  // Glass Card
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.6), width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 30,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 500),
+                          switchInCurve: Curves.easeOutQuart,
+                          switchOutCurve: Curves.easeInQuart,
+                          layoutBuilder: (child, list) =>
+                              Stack(children: [child!, ...list]),
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(
+                                opacity: animation,
+                                child: SizeTransition(
+                                    sizeFactor: animation, child: child));
+                          },
+                          child: _authMode == AuthMode.login
+                              ? _buildLoginForm()
+                              : _buildSignUpForm(),
+                        ),
+                      ),
+                    ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 600.ms, delay: 200.ms)
+                      .slideY(begin: 0.1, end: 0),
+                ],
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildLoginForm(ThemeData theme) {
+  Widget _buildLoginForm() {
     return Form(
       key: _formKey,
       child: Column(
         key: const ValueKey('loginForm'),
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'Welcome Back',
-            style: theme.textTheme.displaySmall,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1A1A1A),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Sign in to continue your learning journey.',
-            style: theme.textTheme.titleMedium,
+            'Sign in to your account',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 32),
           _buildTextField(
-            theme: theme,
             controller: _emailController,
-            labelText: 'Email Address',
+            labelText: 'Email',
+            icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              if (value == null || !value.contains('@')) {
-                return 'Please enter a valid email';
-              }
-              return null;
-            },
+            validator: (value) =>
+                value == null || !value.contains('@') ? 'Invalid email' : null,
           ),
           const SizedBox(height: 16),
           _buildTextField(
-            theme: theme,
             controller: _passwordController,
             labelText: 'Password',
+            icon: Icons.lock_outline,
             obscureText: true,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your password';
-              }
-              return null;
-            },
+            validator: (value) =>
+                value == null || value.isEmpty ? 'Enter password' : null,
           ),
           const SizedBox(height: 32),
-          _buildAuthButton('Sign In', _submit, theme),
-          const SizedBox(height: 24),
-          _buildGoogleButton(theme),
+          _buildAuthButton('Sign In', _submit),
+          const SizedBox(height: 16),
+          _buildGoogleButton(),
           const SizedBox(height: 24),
           _buildSwitchAuthModeButton(
-            theme,
             'Don\'t have an account? ',
             'Sign Up',
             _switchAuthMode,
@@ -269,75 +361,70 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildSignUpForm(ThemeData theme) {
+  Widget _buildSignUpForm() {
     return Form(
       key: _formKey,
       child: Column(
         key: const ValueKey('signUpForm'),
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'Create Account',
-            style: theme.textTheme.displaySmall,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1A1A1A),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Start your learning adventure with us.',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 48),
-          _buildTextField(
-            theme: theme,
-            controller: _fullNameController,
-            labelText: 'Full Name',
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your full name';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            theme: theme,
-            controller: _emailController,
-            labelText: 'Email Address',
-            keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              if (value == null || !value.contains('@')) {
-                return 'Please enter a valid email';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            theme: theme,
-            controller: _passwordController,
-            labelText: 'Password',
-            obscureText: true,
-            validator: (value) {
-              if (value == null || value.length < 6) {
-                return 'Password must be at least 6 characters';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            theme: theme,
-            controller: _referralCodeController,
-            labelText: 'Referral Code (Optional)',
-            validator: null, // Optional field
+            'Join SumQuiz for free',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
           ),
           const SizedBox(height: 32),
-          _buildAuthButton('Sign Up', _submit, theme),
-          const SizedBox(height: 24),
-          _buildGoogleButton(theme),
+          _buildTextField(
+            controller: _fullNameController,
+            labelText: 'Full Name',
+            icon: Icons.person_outline,
+            validator: (value) =>
+                value == null || value.isEmpty ? 'Enter full name' : null,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _emailController,
+            labelText: 'Email',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) =>
+                value == null || !value.contains('@') ? 'Invalid email' : null,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _passwordController,
+            labelText: 'Password',
+            icon: Icons.lock_outline,
+            obscureText: true,
+            validator: (value) =>
+                value == null || value.length < 6 ? 'Min 6 characters' : null,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _referralCodeController,
+            labelText: 'Referral Code (Optional)',
+            icon: Icons.card_giftcard,
+            validator: null,
+          ),
+          const SizedBox(height: 32),
+          _buildAuthButton('Sign Up', _submit),
+          const SizedBox(height: 16),
+          _buildGoogleButton(),
           const SizedBox(height: 24),
           _buildSwitchAuthModeButton(
-            theme,
             'Already have an account? ',
             'Sign In',
             _switchAuthMode,
@@ -348,99 +435,117 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   Widget _buildTextField({
-    required ThemeData theme,
     required TextEditingController controller,
     required String labelText,
+    required IconData icon,
     bool obscureText = false,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
-      style: TextStyle(color: theme.colorScheme.onSurface),
-      decoration: InputDecoration(
-        labelText: labelText,
-        labelStyle: TextStyle(
-            color: Color.fromRGBO(
-                theme.colorScheme.onSurface.red,
-                theme.colorScheme.onSurface.green,
-                theme.colorScheme.onSurface.blue,
-                0.6)),
-      ),
+      style: GoogleFonts.inter(fontSize: 15, color: Colors.black87),
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
+      decoration: InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+        prefixIcon: Icon(icon, color: Colors.indigo[300], size: 20),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.withOpacity(0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF1A237E), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+        ),
+      ),
     );
   }
 
-  Widget _buildAuthButton(
-      String text, VoidCallback onPressed, ThemeData theme) {
+  Widget _buildAuthButton(String text, VoidCallback onPressed) {
     return SizedBox(
-      width: double.infinity,
+      height: 52,
       child: ElevatedButton(
         onPressed: _isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1A237E),
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shadowColor: const Color(0xFF1A237E).withOpacity(0.4),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
         child: _isLoading
-            ? SizedBox(
+            ? const SizedBox(
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                        theme.colorScheme.onPrimary),
-                    strokeWidth: 3))
+                    strokeWidth: 2.5, color: Colors.white))
             : Text(
                 text,
+                style: GoogleFonts.inter(
+                    fontSize: 16, fontWeight: FontWeight.w600),
               ),
       ),
     );
   }
 
-  Widget _buildGoogleButton(ThemeData theme) {
+  Widget _buildGoogleButton() {
     return SizedBox(
-      width: double.infinity,
+      height: 52,
       child: OutlinedButton.icon(
-        icon: SvgPicture.asset('assets/icons/google_logo.svg', height: 20),
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(
-              color: Color.fromRGBO(
-                  theme.colorScheme.onSurface.red,
-                  theme.colorScheme.onSurface.green,
-                  theme.colorScheme.onSurface.blue,
-                  0.4)),
-          padding: const EdgeInsets.symmetric(vertical: 18),
-        ),
         onPressed: _isLoading ? null : _googleSignIn,
+        icon: SvgPicture.asset('assets/icons/google_logo.svg', height: 22),
         label: Text(
           'Continue with Google',
-          style: TextStyle(
-            color: theme.colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
-          ),
+          style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800]),
+        ),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );
   }
 
   Widget _buildSwitchAuthModeButton(
-      ThemeData theme, String text, String buttonText, VoidCallback onPressed) {
-    return Center(
-      child: TextButton(
-        onPressed: onPressed,
-        child: RichText(
-          text: TextSpan(
-            text: text,
-            style: theme.textTheme.bodyMedium,
-            children: [
-              TextSpan(
-                text: buttonText,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+      String text, String buttonText, VoidCallback onPressed) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(text,
+            style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14)),
+        GestureDetector(
+          onTap: onPressed,
+          child: Text(
+            buttonText,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF1A237E),
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

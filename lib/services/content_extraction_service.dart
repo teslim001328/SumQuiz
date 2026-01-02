@@ -1,4 +1,4 @@
-import 'package:sumquiz/services/ai_service.dart';
+import 'package:sumquiz/services/enhanced_ai_service.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
@@ -7,31 +7,39 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 class ContentExtractionService {
   final YoutubeExplode _yt = YoutubeExplode();
-  final AIService _aiService;
+  final EnhancedAIService _enhancedAiService;
 
-  ContentExtractionService(this._aiService);
+  ContentExtractionService(this._enhancedAiService);
 
   Future<String> extractContent({
     required String type, // 'text', 'link', 'pdf', 'image'
     dynamic input,
   }) async {
+    String rawText;
     switch (type) {
       case 'text':
-        return input as String;
+        rawText = input as String;
+        break;
       case 'link':
         final url = input as String;
         if (_isYoutubeUrl(url)) {
-          return await _extractYoutubeTranscript(url);
+          rawText = await _extractYoutubeTranscript(url);
         } else {
-          return await _extractWebContent(url);
+          rawText = await _extractWebContent(url);
         }
+        break;
       case 'pdf':
-        return await _extractFromPdfBytes(input as Uint8List);
+        rawText = await _extractFromPdfBytes(input as Uint8List);
+        break;
       case 'image':
-        return await _extractFromImageBytes(input as Uint8List);
+        rawText = await _extractFromImageBytes(input as Uint8List);
+        break;
       default:
         throw Exception('Unknown content type: $type');
     }
+
+    // Refine the content using AI to remove noise and ensure it's exam-ready
+    return await _enhancedAiService.refineContent(rawText);
   }
 
   bool _isYoutubeUrl(String url) {
@@ -97,21 +105,9 @@ class ContentExtractionService {
 
   Future<String> _extractFromImageBytes(Uint8List imageBytes) async {
     try {
-      return await _aiService.extractTextFromImage(imageBytes);
+      return await _enhancedAiService.extractTextFromImage(imageBytes);
     } catch (e) {
       throw Exception('OCR failed: $e');
-    }
-  }
-
-  // Static helpers for simplified usage if needed, though instance methods are preferred for DI
-  static Future<String> extractFromPdfBytes(Uint8List pdfBytes) async {
-    try {
-      final PdfDocument document = PdfDocument(inputBytes: pdfBytes);
-      final String text = PdfTextExtractor(document).extractText();
-      document.dispose();
-      return text.isNotEmpty ? text : '[No text found in PDF]';
-    } catch (e) {
-      return '[PDF text extraction failed: $e]';
     }
   }
 

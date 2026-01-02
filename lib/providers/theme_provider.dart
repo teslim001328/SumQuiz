@@ -1,9 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ThemeProvider with ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.light; // Default to light mode as per new design
+  ThemeMode _themeMode = ThemeMode.light;
   double _fontScale = 1.0;
+
+  static const String _themeModeKey = 'theme_mode';
+  static const String _fontScaleKey = 'font_scale';
+
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeString = prefs.getString(_themeModeKey);
+    final fontScale = prefs.getDouble(_fontScaleKey);
+
+    if (themeString != null) {
+      _themeMode = themeString == 'dark' ? ThemeMode.dark : ThemeMode.light;
+      if (themeString == 'system') _themeMode = ThemeMode.system;
+    }
+
+    if (fontScale != null) {
+      _fontScale = fontScale;
+    }
+
+    notifyListeners();
+  }
 
   // --- Color Palette ---
   static const Color primaryDeepBlue = Color(0xFF1E3A8A);
@@ -20,24 +41,30 @@ class ThemeProvider with ChangeNotifier {
   static const Color darkTextPrimary = Color(0xFFF1F5F9);
   static const Color darkTextSecondary = Color(0xFF94A3B8);
 
-
   ThemeMode get themeMode => _themeMode;
   double get fontScale => _fontScale;
 
-  void toggleTheme() {
+  Future<void> toggleTheme() async {
     _themeMode =
         _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        _themeModeKey, _themeMode == ThemeMode.dark ? 'dark' : 'light');
   }
 
-  void setSystemTheme() {
+  Future<void> setSystemTheme() async {
     _themeMode = ThemeMode.system;
     notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeModeKey, 'system');
   }
 
-  void setFontScale(double scale) {
+  Future<void> setFontScale(double scale) async {
     _fontScale = scale;
     notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_fontScaleKey, scale);
   }
 
   ThemeData getTheme() {
@@ -49,21 +76,36 @@ class ThemeProvider with ChangeNotifier {
     // This function can be expanded if more specific scaling is needed
     return theme.copyWith(
       textTheme: GoogleFonts.latoTextTheme(theme.textTheme).copyWith(
-         displayLarge: theme.textTheme.displayLarge?.copyWith(fontSize: 57 * _fontScale),
-         displayMedium: theme.textTheme.displayMedium?.copyWith(fontSize: 45 * _fontScale),
-         displaySmall: theme.textTheme.displaySmall?.copyWith(fontSize: 36 * _fontScale),
-         headlineLarge: theme.textTheme.headlineLarge?.copyWith(fontSize: 32 * _fontScale),
-         headlineMedium: theme.textTheme.headlineMedium?.copyWith(fontSize: 28 * _fontScale),
-         headlineSmall: theme.textTheme.headlineSmall?.copyWith(fontSize: 24 * _fontScale),
-         titleLarge: theme.textTheme.titleLarge?.copyWith(fontSize: 22 * _fontScale),
-         titleMedium: theme.textTheme.titleMedium?.copyWith(fontSize: 16 * _fontScale),
-         titleSmall: theme.textTheme.titleSmall?.copyWith(fontSize: 14 * _fontScale),
-         bodyLarge: theme.textTheme.bodyLarge?.copyWith(fontSize: 16 * _fontScale),
-         bodyMedium: theme.textTheme.bodyMedium?.copyWith(fontSize: 14 * _fontScale),
-         bodySmall: theme.textTheme.bodySmall?.copyWith(fontSize: 12 * _fontScale),
-         labelLarge: theme.textTheme.labelLarge?.copyWith(fontSize: 14 * _fontScale),
-         labelMedium: theme.textTheme.labelMedium?.copyWith(fontSize: 12 * _fontScale),
-         labelSmall: theme.textTheme.labelSmall?.copyWith(fontSize: 11 * _fontScale),
+        displayLarge:
+            theme.textTheme.displayLarge?.copyWith(fontSize: 57 * _fontScale),
+        displayMedium:
+            theme.textTheme.displayMedium?.copyWith(fontSize: 45 * _fontScale),
+        displaySmall:
+            theme.textTheme.displaySmall?.copyWith(fontSize: 36 * _fontScale),
+        headlineLarge:
+            theme.textTheme.headlineLarge?.copyWith(fontSize: 32 * _fontScale),
+        headlineMedium:
+            theme.textTheme.headlineMedium?.copyWith(fontSize: 28 * _fontScale),
+        headlineSmall:
+            theme.textTheme.headlineSmall?.copyWith(fontSize: 24 * _fontScale),
+        titleLarge:
+            theme.textTheme.titleLarge?.copyWith(fontSize: 22 * _fontScale),
+        titleMedium:
+            theme.textTheme.titleMedium?.copyWith(fontSize: 16 * _fontScale),
+        titleSmall:
+            theme.textTheme.titleSmall?.copyWith(fontSize: 14 * _fontScale),
+        bodyLarge:
+            theme.textTheme.bodyLarge?.copyWith(fontSize: 16 * _fontScale),
+        bodyMedium:
+            theme.textTheme.bodyMedium?.copyWith(fontSize: 14 * _fontScale),
+        bodySmall:
+            theme.textTheme.bodySmall?.copyWith(fontSize: 12 * _fontScale),
+        labelLarge:
+            theme.textTheme.labelLarge?.copyWith(fontSize: 14 * _fontScale),
+        labelMedium:
+            theme.textTheme.labelMedium?.copyWith(fontSize: 12 * _fontScale),
+        labelSmall:
+            theme.textTheme.labelSmall?.copyWith(fontSize: 11 * _fontScale),
       ),
     );
   }
@@ -89,7 +131,7 @@ class ThemeProvider with ChangeNotifier {
   );
 
   static final ThemeData darkTheme = _buildTheme(
-     colorScheme: const ColorScheme(
+    colorScheme: const ColorScheme(
       brightness: Brightness.dark,
       primary: primaryDeepBlue,
       onPrimary: Colors.white,
@@ -108,28 +150,34 @@ class ThemeProvider with ChangeNotifier {
     secondaryTextColor: darkTextSecondary,
   );
 
-
   static ThemeData _buildTheme({
     required ColorScheme colorScheme,
     required Color scaffoldBackgroundColor,
     required Color cardColor,
     required Color primaryTextColor,
     required Color secondaryTextColor,
-    }) {
-
-    final baseTheme = ThemeData.from(colorScheme: colorScheme, useMaterial3: true);
+  }) {
+    final baseTheme =
+        ThemeData.from(colorScheme: colorScheme, useMaterial3: true);
     final poppinsTextTheme = GoogleFonts.poppinsTextTheme(baseTheme.textTheme);
     final latoTextTheme = GoogleFonts.latoTextTheme(baseTheme.textTheme);
 
     final textTheme = latoTextTheme.copyWith(
       // Headings with Poppins
-      displayLarge: poppinsTextTheme.displayLarge?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
-      displayMedium: poppinsTextTheme.displayMedium?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
-      displaySmall: poppinsTextTheme.displaySmall?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
-      headlineLarge: poppinsTextTheme.headlineLarge?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
-      headlineMedium: poppinsTextTheme.headlineMedium?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
-      headlineSmall: poppinsTextTheme.headlineSmall?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
-      titleLarge: poppinsTextTheme.titleLarge?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
+      displayLarge: poppinsTextTheme.displayLarge
+          ?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
+      displayMedium: poppinsTextTheme.displayMedium
+          ?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
+      displaySmall: poppinsTextTheme.displaySmall
+          ?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
+      headlineLarge: poppinsTextTheme.headlineLarge
+          ?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
+      headlineMedium: poppinsTextTheme.headlineMedium
+          ?.copyWith(color: primaryTextColor, fontWeight: FontWeight.bold),
+      headlineSmall: poppinsTextTheme.headlineSmall
+          ?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
+      titleLarge: poppinsTextTheme.titleLarge
+          ?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
 
       // Body text with Lato
       titleMedium: latoTextTheme.titleMedium?.copyWith(color: primaryTextColor),
@@ -137,11 +185,12 @@ class ThemeProvider with ChangeNotifier {
       bodyLarge: latoTextTheme.bodyLarge?.copyWith(color: primaryTextColor),
       bodyMedium: latoTextTheme.bodyMedium?.copyWith(color: secondaryTextColor),
       bodySmall: latoTextTheme.bodySmall?.copyWith(color: secondaryTextColor),
-      labelLarge: latoTextTheme.labelLarge?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
-      labelMedium: latoTextTheme.labelMedium?.copyWith(color: secondaryTextColor),
+      labelLarge: latoTextTheme.labelLarge
+          ?.copyWith(color: primaryTextColor, fontWeight: FontWeight.w600),
+      labelMedium:
+          latoTextTheme.labelMedium?.copyWith(color: secondaryTextColor),
       labelSmall: latoTextTheme.labelSmall?.copyWith(color: secondaryTextColor),
     );
-
 
     return baseTheme.copyWith(
       scaffoldBackgroundColor: scaffoldBackgroundColor,
@@ -151,7 +200,11 @@ class ThemeProvider with ChangeNotifier {
         elevation: 1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: colorScheme.brightness == Brightness.light ? Colors.grey.shade200 : Colors.grey.shade800, width: 1),
+          side: BorderSide(
+              color: colorScheme.brightness == Brightness.light
+                  ? Colors.grey.shade200
+                  : Colors.grey.shade800,
+              width: 1),
         ),
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 0),
       ),
@@ -174,16 +227,18 @@ class ThemeProvider with ChangeNotifier {
           textStyle: textTheme.labelLarge,
         ),
       ),
-       textButtonTheme: TextButtonThemeData(
+      textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: colorScheme.primary,
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+          textStyle:
+              textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: cardColor,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

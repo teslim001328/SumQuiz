@@ -25,7 +25,9 @@ class EnhancedAIServiceException implements Exception {
 // --- CONFIG ---
 class EnhancedAIConfig {
   static const String textModel =
-      'gemini-3.0-flash-preview'; // Validated 2025 Preview Model
+      'gemini-2.0-flash-001'; // Validated 2025 Model
+  static const String visionModel =
+      'gemini-2.0-pro-exp-02-05'; // Vision capable
   static const int maxRetries = 2;
   static const int requestTimeoutSeconds = 60;
   static const int maxInputLength = 30000;
@@ -35,6 +37,7 @@ class EnhancedAIConfig {
 class EnhancedAIService {
   final GenerativeModel _model;
   final GenerativeModel _stableModel;
+  final GenerativeModel _visionModel;
 
   EnhancedAIService({GenerativeModel? model})
       : _model = model ??
@@ -47,11 +50,18 @@ class EnhancedAIService {
               ),
             ),
         _stableModel = FirebaseAI.vertexAI().generativeModel(
-          model: 'gemini-2.0-flash-001', // Validated 2025 Stable Model
+          model: 'gemini-1.5-flash-002', // Validated Stable Fallback
           generationConfig: GenerationConfig(
             temperature: 0.3,
             maxOutputTokens: 8192,
             responseMimeType: 'application/json',
+          ),
+        ),
+        _visionModel = FirebaseAI.vertexAI().generativeModel(
+          model: EnhancedAIConfig.visionModel,
+          generationConfig: GenerationConfig(
+            temperature: 0.1,
+            maxOutputTokens: 2048,
           ),
         );
 
@@ -120,36 +130,119 @@ class EnhancedAIService {
     return input.replaceAll(RegExp(r'[\n\r]+'), ' ').trim();
   }
 
+  Future<String> refineContent(String rawText) async {
+    final sanitizedText = _sanitizeInput(rawText);
+    final prompt =
+        '''You are an expert study assistant. Your goal is to prepare this raw text for exam studying.
+Clean, organize, and structure the text.
+- Remove ads, navigation menus, boilerplate, and irrelevant interjections.
+- Fix broken sentences or formatting issues.
+- Organize the content into clear, logical sections with headers if needed.
+- Maintain ALL factual information, data, and key concepts. Do not summarize yet, just clean and structure.
+- If the text is already clean, just return it as is.
+- Return ONLY the cleaned text.
+
+Raw Text:
+$sanitizedText''';
+    return _generateWithFallback(prompt);
+  }
+
+  Future<String> extractTextFromImage(var imageBytes) async {
+    // Note: imageBytes is typically Uint8List
+    try {
+      final imagePart = InlineDataPart('image/jpeg', imageBytes);
+      final promptPart = TextPart(
+          'Transcribe all text from this image exactly as it appears. Ignore visuals.');
+
+      final response = await _visionModel.generateContent([
+        Content.multi([promptPart, imagePart])
+      ]).timeout(
+          const Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
+
+      if (response.text == null || response.text!.isEmpty) {
+        throw EnhancedAIServiceException('No text found in image.');
+      }
+      return response.text!;
+    } catch (e) {
+      if (e is EnhancedAIServiceException) rethrow;
+      developer.log('Vision API Error', name: 'EnhancedAIService', error: e);
+      // Fallback or rethrow? For vision, fallback to stable text model is impossible.
+      throw EnhancedAIServiceException(
+          'Failed to extract text from image: ${e.toString()}');
+    }
+  }
+
   Future<String> _generateSummaryJson(String text) async {
     final sanitizedText = _sanitizeInput(text);
-    final prompt = '''Analyze the text and generate a summary.
-Return ONLY a single, valid JSON object. Do not use Markdown formatted code blocks.
-Structure: {"title": "A Concise Title", "content": "The summary.", "tags": ["tag1", "tag2"]}
+    final prompt =
+        '''Create a comprehensive "Exam Study Guide" from the provided text.
+The summary should be structured as a high-yield cheat sheet for a student preparing for a test.
+- Title: A clear, topic-focused title.
+- Content: A detailed summary focusing on core concepts, definitions, dates, formulas, and arguments. Use bullet points or numbered lists in the text for readability.
+- Tags: 3-5 keywords relevant to the exam topic.
 
-Text: $sanitizedText''';
+Return ONLY a single, valid JSON object. Do not use Markdown formatted code blocks (no ```json).
+Structure:
+{
+  "title": "Topic Name - Study Guide",
+  "content": "The refined study guide content...",
+  "tags": ["Concept A", "Concept B", "Subject"]
+}
+
+Text to Analyze:
+$sanitizedText''';
     return _generateWithFallback(prompt);
   }
 
   Future<String> _generateQuizJson(String text) async {
     final sanitizedText = _sanitizeInput(text);
     final prompt =
-        '''Create a multiple-choice quiz with 5-10 questions from the text.
-Each question must have 4 options and one correct answer.
-Return ONLY a single, valid JSON object. Do not use Markdown formatted code blocks.
-Structure: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correctAnswer": "A"}]}
+        '''Create a challenging multiple-choice exam quiz with 5-10 questions based on the text.
+- Questions should mimic real exam questions (application of knowledge, not just keyword matching).
+- Focus on high-yield facts, common misconceptions, and critical details.
+- Each question must have exactly 4 options.
+- The "correctAnswer" must be one of the options.
+- The other 3 options (distractors) must be plausible but incorrect (common mistakes).
 
-Text: $sanitizedText''';
+Return ONLY a single, valid JSON object. Do not use Markdown formatted code blocks (no ```json).
+Structure:
+{
+  "questions": [
+    {
+      "question": "A diagnostic-style question...?",
+      "options": ["Correct Answer", "Plausible Distractor 1", "Plausible Distractor 2", "Plausible Distractor 3"],
+      "correctAnswer": "Correct Answer"
+    }
+  ]
+}
+
+Text Source:
+$sanitizedText''';
     return _generateWithFallback(prompt);
   }
 
   Future<String> _generateFlashcardsJson(String text) async {
     final sanitizedText = _sanitizeInput(text);
-    final prompt = '''Generate 5-15 flashcards from the text.
-Each card must have a question and an answer.
-Return ONLY a single, valid JSON object. Do not use Markdown formatted code blocks.
-Structure: {"flashcards": [{"question": "Term", "answer": "Definition"}]}
+    final prompt =
+        '''Generate 5-15 high-quality flashcards for Active Recall study.
+- Focus on the most important facts likely to appear on an exam.
+- Front (Question): A specific prompt, term, or concept.
+- Back (Answer): The precise definition, explanation, or key fact. Avoid vague answers.
+- Cover: Definitions, Dates, Formulas, Key Figures, Cause-Effect relationships.
 
-Text: $sanitizedText''';
+Return ONLY a single, valid JSON object. Do not use Markdown formatted code blocks (no ```json).
+Structure:
+{
+  "flashcards": [
+    {
+      "question": "What is the primary function of [Concept]?",
+      "answer": "[Precise Explanation]"
+    }
+  ]
+}
+
+Text Source:
+$sanitizedText''';
     return _generateWithFallback(prompt);
   }
 
@@ -274,8 +367,19 @@ Text: $sanitizedText''';
       await localDb.deleteFolder(folderId);
       developer.log('Rolled back folder creation due to error.',
           name: 'EnhancedAIService', error: e);
+
+      if (e is EnhancedAIServiceException) {
+        rethrow;
+      }
+
+      // Check for specific Vertex AI API error
+      if (e.toString().contains('Vertex AI API has not been used')) {
+        throw EnhancedAIServiceException(
+            'Vertex AI API is not enabled. Please enable it in your Google Cloud Console for project sumquiz-158f3.');
+      }
+
       throw EnhancedAIServiceException(
-          'Failed to create content. The AI may have returned an invalid format. Please try again. Error: ${e.toString()}');
+          'Failed to create content. Error: ${e.toString()}');
     }
   }
 }

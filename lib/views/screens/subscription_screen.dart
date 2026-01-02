@@ -1,6 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/iap_service.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
@@ -14,53 +17,88 @@ class SubscriptionScreen extends StatelessWidget {
     final iapService = context.watch<IAPService?>();
     final authUser = context.watch<AuthService>().currentUser;
     final isVerified = authUser?.emailVerified ?? false;
-    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('SumQuiz Pro',
-            style: theme.textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold)),
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF4A3420))), // Dark Brown/Gold
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.onSurface),
+          icon: const Icon(Icons.close_rounded, color: Color(0xFF4A3420)),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Column(
-            children: [
-              if (authUser != null && !isVerified)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: _buildVerificationWarning(context),
-                ),
-              Expanded(
-                child: FutureBuilder<bool>(
-                  future: _checkProStatus(iapService),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+      body: Stack(
+        children: [
+          // Premium Gold/Amber Gradient Background
+          Animate(
+            onPlay: (controller) => controller.repeat(reverse: true),
+            effects: [
+              CustomEffect(
+                duration: 6.seconds,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFFFFF8E1), // Pale Amber
+                          Color.lerp(const Color(0xFFFFECB3),
+                              const Color(0xFFFFE082), value)!,
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  );
+                },
+              )
+            ],
+            child: Container(),
+          ),
 
-                    final hasPro = snapshot.data ?? user?.isPro ?? false;
+          SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Column(
+                  children: [
+                    if (authUser != null && !isVerified)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: _buildVerificationWarning(context),
+                      ).animate().fadeIn().slideY(begin: -0.5),
+                    Expanded(
+                      child: FutureBuilder<bool>(
+                        future: _checkProStatus(iapService),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
 
-                    if (hasPro) {
-                      return _buildProMemberView(context, iapService);
-                    }
+                          final hasPro = snapshot.data ?? user?.isPro ?? false;
 
-                    return _buildUpgradeView(context, iapService);
-                  },
+                          if (hasPro) {
+                            return _buildProMemberView(context, iapService);
+                          }
+
+                          return _buildUpgradeView(context, iapService);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -70,117 +108,153 @@ class SubscriptionScreen extends StatelessWidget {
   }
 
   Widget _buildUpgradeView(BuildContext context, IAPService? iapService) {
-    final theme = Theme.of(context);
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
       child: Column(
         children: [
-          Icon(Icons.workspace_premium_outlined,
-              size: 80, color: theme.colorScheme.primary),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          // Animated Pro Badge
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amber.withValues(alpha: 0.3),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                )
+              ],
+            ),
+            child: const Icon(Icons.workspace_premium_rounded,
+                size: 80, color: Color(0xFFFFA000)), // Amber 700
+          )
+              .animate(onPlay: (c) => c.repeat(reverse: true))
+              .scaleXY(begin: 1.0, end: 1.1, duration: 2.seconds),
+
+          const SizedBox(height: 32),
           Text(
             'Unlock SumQuiz Pro',
-            style: theme.textTheme.headlineMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: GoogleFonts.poppins(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF4A3420)),
             textAlign: TextAlign.center,
-          ),
+          ).animate().fadeIn().slideY(begin: 0.2),
+
           const SizedBox(height: 12),
-          Text('Get unlimited access to all features',
-              style: theme.textTheme.bodyLarge
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 40),
-          _buildFeatureList(theme),
-          const SizedBox(height: 40),
+          Text('Master your learning with unlimited access.',
+                  style: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: const Color(0xFF6D4C41)), // Brown 600
+                  textAlign: TextAlign.center)
+              .animate()
+              .fadeIn(delay: 200.ms),
+
+          const SizedBox(height: 48),
+
+          _buildGlassContainer(
+            padding: const EdgeInsets.all(24),
+            child: _buildFeatureList(context),
+          ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2),
+
+          const SizedBox(height: 48),
+
           SizedBox(
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
               onPressed: () => _showIAPProducts(context, iapService),
               style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
+                backgroundColor: const Color(0xFFFFA000), // Amber 700
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
+                elevation: 8,
+                shadowColor: Colors.amber.withValues(alpha: 0.5),
               ),
-              child: const Text('View Plans',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text('Get Pro Access',
+                  style: GoogleFonts.poppins(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-          ),
+          ).animate().fadeIn(delay: 600.ms).scale(),
+
           const SizedBox(height: 16),
           TextButton(
             onPressed: () => _restorePurchases(context, iapService),
             child: Text('Restore Purchases',
-                style: TextStyle(color: theme.colorScheme.primary)),
+                style: GoogleFonts.inter(
+                    color: const Color(0xFF6D4C41),
+                    fontWeight: FontWeight.w600)),
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
   Widget _buildProMemberView(BuildContext context, IAPService? iapService) {
-    final theme = Theme.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
-          const Icon(Icons.verified, size: 80, color: Colors.amber),
+          const SizedBox(height: 40),
+          const Icon(Icons.verified_rounded, size: 100, color: Colors.green)
+              .animate()
+              .scale(curve: Curves.elasticOut, duration: 800.ms),
           const SizedBox(height: 24),
-          Text('You\'re a Pro Member!',
-              style: theme.textTheme.headlineMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+          Text('You are a Pro Member!',
+              style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF4A3420))),
           const SizedBox(height: 12),
-          Text('Enjoy unlimited access to all features',
-              style: theme.textTheme.bodyLarge, textAlign: TextAlign.center),
-          const SizedBox(height: 32),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: BorderSide(color: theme.dividerColor.withOpacity(0.1))),
-            color: theme.cardColor,
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Pro Benefits',
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 20),
-                  _buildFeatureItem(theme, 'Unlimited content generation'),
-                  _buildFeatureItem(theme, 'Unlimited folders'),
-                  _buildFeatureItem(theme, 'Unlimited Flashcards'),
-                  _buildFeatureItem(theme, 'Offline Access'),
-                  _buildFeatureItem(theme, 'Full Spaced Repetition System'),
-                  _buildFeatureItem(theme, 'Progress analytics with exports'),
-                  _buildFeatureItem(theme, 'Daily missions with full rewards'),
-                  _buildFeatureItem(theme, 'All gamification rewards'),
-                ],
-              ),
+          Text('Thank you for supporting SumQuiz.',
+              style: GoogleFonts.inter(
+                  fontSize: 16, color: const Color(0xFF6D4C41)),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 40),
+          _buildGlassContainer(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.star_rounded, color: Colors.amber[700]),
+                    const SizedBox(width: 8),
+                    Text('Your Pro Benefits',
+                        style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF4A3420))),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildFeatureItem(context, 'Unlimited AI Generation'),
+                _buildFeatureItem(context, 'Unlimited Folders & Decks'),
+                _buildFeatureItem(context, 'Cloud Sync & Offline Mode'),
+                _buildFeatureItem(context, 'Advanced Analytics'),
+                _buildFeatureItem(context, 'Priority Support'),
+              ],
             ),
           ),
-          const SizedBox(height: 32),
-          FutureBuilder<List<ProductDetails>?>(
-            future: iapService?.getAvailableProducts(),
-            builder: (context, snapshot) {
-              // Only show available products if needed, otherwise hide
-              // For Pro members, we might want to just show "Manage Subscription"
-              return const SizedBox.shrink();
-            },
-          ),
+          const SizedBox(height: 40),
           SizedBox(
             width: double.infinity,
             height: 56,
             child: OutlinedButton(
               onPressed: () => _presentIAPManagement(context, iapService),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: theme.colorScheme.primary),
+                side: const BorderSide(color: Color(0xFF6D4C41), width: 1.5),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
               ),
-              child: const Text('Manage Subscription'),
+              child: Text('Manage Subscription',
+                  style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6D4C41))),
             ),
           ),
         ],
@@ -188,28 +262,65 @@ class SubscriptionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureList(ThemeData theme) {
+  Widget _buildGlassContainer(
+      {required Widget child, EdgeInsetsGeometry? padding}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: padding ?? const EdgeInsets.all(0),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.6), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF8D6E63)
+                    .withValues(alpha: 0.1), // Brownish shadow
+                blurRadius: 15,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureList(BuildContext context) {
     return Column(
       children: [
-        _buildFeatureItem(theme, 'Unlimited content generation (Free: 3/week)'),
-        _buildFeatureItem(theme, 'Unlimited folders (Free: 2 max)'),
-        _buildFeatureItem(theme, 'Unlimited Flashcards (Free: 50 max)'),
-        _buildFeatureItem(theme, 'Offline Access'),
-        _buildFeatureItem(theme, 'Full Spaced Repetition System'),
-        _buildFeatureItem(theme, 'Progress analytics & exports'),
-        _buildFeatureItem(theme, 'Daily missions & rewards'),
+        _buildFeatureItem(context, 'Unlimited content generation'),
+        _buildFeatureItem(context, 'Unlimited folders & decks'),
+        _buildFeatureItem(context, 'Smart Spaced Repetition'),
+        _buildFeatureItem(context, 'Offline access & Sync'),
+        _buildFeatureItem(context, 'Detailed progress analytics'),
+        _buildFeatureItem(context, 'Daily missions & rewards'),
       ],
     );
   }
 
-  Widget _buildFeatureItem(ThemeData theme, String text) {
+  Widget _buildFeatureItem(BuildContext context, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
         children: [
-          Icon(Icons.check_circle, size: 22, color: theme.colorScheme.primary),
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                shape: BoxShape.circle),
+            child:
+                const Icon(Icons.check_rounded, size: 18, color: Colors.green),
+          ),
           const SizedBox(width: 16),
-          Expanded(child: Text(text, style: theme.textTheme.bodyLarge)),
+          Expanded(
+              child: Text(text,
+                  style: GoogleFonts.inter(
+                      fontSize: 15, color: const Color(0xFF3E2723)))),
         ],
       ),
     );
@@ -232,18 +343,25 @@ class SubscriptionScreen extends StatelessWidget {
 
       await showModalBottomSheet(
         context: context,
-        shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        builder: (context) => Padding(
-          padding: const EdgeInsets.all(24.0),
+        backgroundColor: Colors.transparent, // Important for glass effect
+        builder: (context) => _buildGlassContainer(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                    color: Colors.grey[400],
+                    borderRadius: BorderRadius.circular(2)),
+              ),
               Text('Choose a Plan',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                  style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF4A3420))),
               const SizedBox(height: 24),
               ...products.map((p) => _buildProductTile(context, p, iapService)),
               const SizedBox(height: 24),
@@ -258,27 +376,36 @@ class SubscriptionScreen extends StatelessWidget {
 
   Widget _buildProductTile(
       BuildContext context, ProductDetails product, IAPService iapService) {
-    final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+      ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         title: Text(product.title,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: const Color(0xFF4A3420))),
         subtitle: Text(product.description,
-            maxLines: 1, overflow: TextOverflow.ellipsis),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(color: const Color(0xFF6D4C41))),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(20)),
+              color: const Color(0xFFFFA000),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.amber.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2))
+              ]),
           child: Text(product.price,
-              style: TextStyle(
-                  color: theme.colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold)),
+              style: GoogleFonts.inter(
+                  color: Colors.white, fontWeight: FontWeight.bold)),
         ),
         onTap: () async {
           Navigator.of(context).pop();
@@ -305,19 +432,26 @@ class SubscriptionScreen extends StatelessWidget {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Manage Subscription'),
-        content: const Text(
-            'You can restore purchases or manage your subscription through your device\'s app store.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Manage Subscription',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text(
+            'You can restore purchases or manage your subscription through your device\'s app store.',
+            style: GoogleFonts.inter()),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close')),
+              child:
+                  Text('Close', style: GoogleFonts.inter(color: Colors.grey))),
           TextButton(
             onPressed: () async {
               Navigator.of(context).pop();
               await _restorePurchases(context, iapService);
             },
-            child: const Text('Restore Purchases'),
+            child: Text('Restore Purchases',
+                style: GoogleFonts.inter(
+                    color: const Color(0xFFFFA000),
+                    fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -337,32 +471,25 @@ class SubscriptionScreen extends StatelessWidget {
             const SnackBar(content: Text('Restore request sent')));
       }
     } catch (e) {
-      if (context.mounted)
+      if (context.mounted) {
         _showError(context, 'Failed to restore purchases: $e');
+      }
     }
   }
 
   Widget _buildVerificationWarning(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.error.withOpacity(0.5)),
-      ),
+    return _buildGlassContainer(
       padding: const EdgeInsets.all(12),
       child: Column(
         children: [
           Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+              const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
               const SizedBox(width: 12),
               Expanded(
                 child: Text('Please verify your email to access Pro features.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.bold)),
+                    style: GoogleFonts.inter(
+                        color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -384,7 +511,8 @@ class SubscriptionScreen extends StatelessWidget {
                   }
                 }
               },
-              child: const Text('Resend Verification Email'),
+              child: Text('Resend Verification Email',
+                  style: GoogleFonts.inter(color: Colors.redAccent)),
             ),
           ),
         ],

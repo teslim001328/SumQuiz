@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:ui';
 import 'dart:developer' as developer;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -7,14 +7,15 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import '../../models/summary_model.dart';
 import '../../models/user_model.dart';
-import '../../services/firestore_service.dart';
 import '../../services/local_database_service.dart';
 import '../../services/enhanced_ai_service.dart';
 import '../../services/usage_service.dart';
 import '../widgets/upgrade_dialog.dart';
+import '../widgets/summary_view.dart';
 
 enum ScreenState { initial, loading, error, success }
 
@@ -30,7 +31,7 @@ class SummaryScreen extends StatefulWidget {
 class SummaryScreenState extends State<SummaryScreen> {
   final TextEditingController _textController = TextEditingController();
   String? _pdfFileName;
-  Uint8List? _pdfBytes;
+  // Uint8List? _pdfBytes; // Removed unused field
   ScreenState _state = ScreenState.initial;
   String _summaryContent = '';
   String _summaryTitle = '';
@@ -66,12 +67,13 @@ class SummaryScreenState extends State<SummaryScreen> {
 
       if (result != null) {
         setState(() {
-          _pdfBytes = result.files.single.bytes;
+          // _pdfBytes = result.files.single.bytes; // Removed unused assignment
           _pdfFileName = result.files.single.name;
         });
       }
     } catch (e, s) {
-      developer.log('Error picking or reading PDF', name: 'summary.screen', error: e, stackTrace: s);
+      developer.log('Error picking or reading PDF',
+          name: 'summary.screen', error: e, stackTrace: s);
       setState(() {
         _state = ScreenState.error;
         _errorMessage = "Error picking or reading PDF: $e";
@@ -84,12 +86,19 @@ class SummaryScreenState extends State<SummaryScreen> {
     final usageService = Provider.of<UsageService?>(context, listen: false);
     if (userModel == null || usageService == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User not available. Please log in again.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('User not available. Please log in again.')));
       return;
     }
 
-    if (!userModel.isPro && !(await usageService.canPerformAction('summaries'))) {
-      if (mounted) showDialog(context: context, builder: (context) => const UpgradeDialog(featureName: 'summaries'));
+    if (!userModel.isPro &&
+        !(await usageService.canPerformAction('summaries'))) {
+      if (mounted) {
+        showDialog(
+            context: context,
+            builder: (context) =>
+                const UpgradeDialog(featureName: 'summaries'));
+      }
       return;
     }
 
@@ -99,7 +108,7 @@ class SummaryScreenState extends State<SummaryScreen> {
     });
 
     try {
-       final folderId = await _aiService.generateAndStoreOutputs(
+      final folderId = await _aiService.generateAndStoreOutputs(
         text: _textController.text,
         title: _summaryTitle.isNotEmpty ? _summaryTitle : 'Summary',
         requestedOutputs: ['summary'],
@@ -113,7 +122,8 @@ class SummaryScreenState extends State<SummaryScreen> {
       );
 
       final content = await _localDbService.getFolderContents(folderId);
-      final summaryId = content.firstWhere((c) => c.contentType == 'summary').contentId;
+      final summaryId =
+          content.firstWhere((c) => c.contentType == 'summary').contentId;
       final summary = await _localDbService.getSummary(summaryId);
 
       if (summary != null) {
@@ -128,7 +138,8 @@ class SummaryScreenState extends State<SummaryScreen> {
         throw Exception('Failed to retrieve the generated summary.');
       }
     } catch (e, s) {
-      developer.log('An unexpected error occurred during summary generation', name: 'summary.screen', error: e, stackTrace: s);
+      developer.log('An unexpected error occurred during summary generation',
+          name: 'summary.screen', error: e, stackTrace: s);
       setState(() {
         _state = ScreenState.error;
         _errorMessage = "An unexpected error occurred. Please try again.";
@@ -141,13 +152,14 @@ class SummaryScreenState extends State<SummaryScreen> {
         _summaryContent = _summaryTitle = _errorMessage = '';
         _summaryTags = [];
         _textController.clear();
-        _pdfBytes = null;
+        // _pdfBytes = null; // Removed unused field
         _pdfFileName = null;
       });
 
   void _copySummary() {
     Clipboard.setData(ClipboardData(text: _summaryContent));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Summary content copied to clipboard!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Summary content copied to clipboard!')));
   }
 
   void _saveToLibrary() async {
@@ -166,11 +178,14 @@ class SummaryScreenState extends State<SummaryScreen> {
       );
       await _localDbService.saveSummary(summaryToSave);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Summary saved to library!')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Summary saved to library!')));
     } catch (e, s) {
-      developer.log('Error saving summary', name: 'summary.screen', error: e, stackTrace: s);
+      developer.log('Error saving summary',
+          name: 'summary.screen', error: e, stackTrace: s);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error saving summary.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Error saving summary.')));
     }
   }
 
@@ -181,12 +196,16 @@ class SummaryScreenState extends State<SummaryScreen> {
       if (user == null || _summaryContent.isEmpty) return;
 
       if (!mounted) return;
-      context.push('/quiz', extra: {'initialText': _summaryContent, 'initialTitle': _summaryTitle});
-
+      context.push('/quiz', extra: {
+        'initialText': _summaryContent,
+        'initialTitle': _summaryTitle
+      });
     } catch (e, s) {
-      developer.log('Error navigating to quiz generation', name: 'summary.screen', error: e, stackTrace: s);
+      developer.log('Error navigating to quiz generation',
+          name: 'summary.screen', error: e, stackTrace: s);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not start quiz generation.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not start quiz generation.')));
     } finally {
       if (mounted) setState(() => _isGeneratingQuiz = false);
     }
@@ -195,38 +214,95 @@ class SummaryScreenState extends State<SummaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.summary == null ? 'Generate Summary' : 'Summary Details')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-            child: _buildBody(),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text(
+            widget.summary == null ? 'Generate Summary' : 'Summary Details',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const BackButton(color: Colors.white),
+      ),
+      body: Stack(
+        children: [
+          // Animated Background
+          Animate(
+            onPlay: (controller) => controller.repeat(reverse: true),
+            effects: [
+              CustomEffect(
+                duration: 8.seconds,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF283593), // Indigo 800
+                          Color.lerp(const Color(0xFF283593),
+                              const Color(0xFF1A237E), value)!, // Indigo 900
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  );
+                },
+              )
+            ],
+            child: Container(),
           ),
-        ),
+          SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0, vertical: 16.0),
+                  child: _buildBody(),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildBody() {
     switch (_state) {
-      case ScreenState.loading: return _buildLoadingState();
-      case ScreenState.error: return _buildErrorState();
-      case ScreenState.success: return _buildSuccessState();
-      default: return _buildInitialState();
+      case ScreenState.loading:
+        return _buildLoadingState();
+      case ScreenState.error:
+        return _buildErrorState();
+      case ScreenState.success:
+        return _buildSuccessState();
+      default:
+        return _buildInitialState();
     }
   }
-  
+
   Widget _buildLoadingState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 20),
-          Text(_loadingMessage),
+          const SizedBox(
+            width: 80,
+            height: 80,
+            child: CircularProgressIndicator(
+              strokeWidth: 6,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.amberAccent),
+            ),
+          ),
+          const SizedBox(height: 32),
+          Text(_loadingMessage,
+              style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white)),
         ],
-      ),
+      ).animate().fadeIn(),
     );
   }
 
@@ -235,99 +311,162 @@ class SummaryScreenState extends State<SummaryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Paste text or upload a file to get started.', style: TextStyle(fontSize: 16)),
-        const SizedBox(height: 24),
-        TextField(
-          controller: _textController,
-          maxLines: 12,
-          decoration: const InputDecoration(hintText: 'Paste your text here...', border: OutlineInputBorder()),
-          onChanged: (text) => setState(() {}),
-        ),
-        const SizedBox(height: 24),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.upload_file),
-          label: Text(_pdfFileName ?? 'Upload PDF'),
-          onPressed: _pickPdf,
-        ),
-        if (_pdfFileName != null)
-          Center(
-            child: TextButton(
-              onPressed: () => setState(() => _pdfBytes = _pdfFileName = null),
-              child: const Text('Clear PDF', style: TextStyle(color: Colors.redAccent)),
+        Text(
+          'Summarize Content',
+          style: GoogleFonts.poppins(
+              fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+        ).animate().fadeIn().slideY(begin: -0.2),
+        const SizedBox(height: 8),
+        Text(
+          'Paste text or upload a PDF to generate a comprehensive summary.',
+          style: GoogleFonts.inter(fontSize: 14, color: Colors.white70),
+        ).animate().fadeIn(delay: 100.ms).slideY(begin: -0.2),
+        const SizedBox(height: 32),
+        _buildGlassContainer(
+          child: Column(
+            children: [
+              TextField(
+                controller: _textController,
+                maxLines: 12,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Paste your text here...',
+                  hintStyle:
+                      TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.1),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none),
+                ),
+                onChanged: (text) => setState(() {}),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: Icon(Icons.upload_file,
+                          color: _pdfFileName != null
+                              ? Colors.greenAccent
+                              : Colors.white),
+                      label: Text(
+                        _pdfFileName ?? 'Upload PDF',
+                        style: const TextStyle(color: Colors.white),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(
+                            color: _pdfFileName != null
+                                ? Colors.greenAccent
+                                : Colors.white70),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: _pickPdf,
+                    ),
+                  ),
+                  if (_pdfFileName != null) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                        onPressed: () => setState(() => _pdfFileName = null),
+                        icon: const Icon(Icons.close, color: Colors.redAccent))
+                  ]
+                ],
+              ),
+            ],
+          ),
+        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
+        const SizedBox(height: 32),
+        SizedBox(
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: canGenerate ? _generateSummary : null,
+            icon: const Icon(Icons.summarize_outlined),
+            label: const Text('Generate Summary',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amberAccent,
+              foregroundColor: const Color(0xFF1A1A1A),
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              disabledBackgroundColor: Colors.grey.withValues(alpha: 0.3),
             ),
           ),
-        const SizedBox(height: 32),
-        ElevatedButton.icon(
-          onPressed: canGenerate ? _generateSummary : null,
-          icon: const Icon(Icons.summarize_outlined),
-          label: const Text('Generate Summary'),
-        ),
+        ).animate().fadeIn(delay: 300.ms).scale(),
       ],
     );
   }
 
   Widget _buildErrorState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 64),
-          const SizedBox(height: 16),
-          Text('Oops! Something went wrong.', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-          Text(_errorMessage, textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          ElevatedButton(onPressed: _retry, child: const Text('Try Again')),
-        ],
+      child: _buildGlassContainer(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline,
+                color: Colors.orangeAccent, size: 64),
+            const SizedBox(height: 16),
+            Text('Oops! Something went wrong.',
+                style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(_errorMessage,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: Colors.white70)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _retry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF1A237E),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
       ),
-    );
+    ).animate().fadeIn();
   }
 
   Widget _buildSuccessState() {
     final isViewingSaved = widget.summary != null;
-    return Column(
-      children: [
-        Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_summaryTitle, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                if (_summaryTags.isNotEmpty)
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    children: _summaryTags.map((tag) => Chip(label: Text(tag), backgroundColor: Theme.of(context).colorScheme.secondaryContainer)).toList(),
-                  ),
-                const Divider(height: 32),
-                Text(_summaryContent, style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5)),
-              ],
-            ),
+    return SummaryView(
+      title: _summaryTitle,
+      content: _summaryContent,
+      tags: _summaryTags,
+      onCopy: _copySummary,
+      onSave: isViewingSaved ? null : _saveToLibrary,
+      onGenerateQuiz: _isGeneratingQuiz ? null : _generateQuiz,
+      showActions: !isViewingSaved,
+    ).animate().fadeIn().slideY(begin: 0.2);
+  }
+
+  Widget _buildGlassContainer(
+      {required Widget child, EdgeInsetsGeometry? padding}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: padding ?? const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.2), width: 1.5),
           ),
+          child: child,
         ),
-        const SizedBox(height: 30),
-        if (!isViewingSaved)
-          Row(
-            children: [
-              Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.copy), onPressed: _copySummary, label: const Text('Copy'))),
-              const SizedBox(width: 16),
-              Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.library_add), onPressed: _saveToLibrary, label: const Text('Save'))),
-            ],
-          ),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: _isGeneratingQuiz ? null : _generateQuiz,
-          icon: _isGeneratingQuiz ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 3)) : const Icon(Icons.psychology_alt_outlined),
-          label: Text(_isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz from Summary"),
-        ),
-        const SizedBox(height: 16),
-        if (!isViewingSaved)
-          Center(child: TextButton(onPressed: _retry, child: const Text('Generate Another Summary'))),
-      ],
+      ),
     );
   }
 }

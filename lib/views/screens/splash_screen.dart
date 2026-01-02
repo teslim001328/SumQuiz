@@ -45,74 +45,132 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // "Strategist" gradient: Deep Professional Blue/Purple
-    final gradientColors = [
-      const Color(0xFF1A237E), // Deep Indigo
-      const Color(0xFF3949AB), // Rich Blue
-    ];
+    // Gradient definitions
+    final colors1 = [
+      const Color(0xFF1A237E),
+      const Color(0xFF3949AB)
+    ]; // Deep Blue
+    final colors2 = [
+      const Color(0xFF311B92),
+      const Color(0xFF5E35B1)
+    ]; // Deep Purple
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradientColors,
-          ),
-        ),
+      body: Animate(
+        onPlay: (controller) => controller.repeat(reverse: true),
+        effects: [
+          CustomEffect(
+            duration: 4.seconds,
+            builder: (context, value, child) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color.lerp(colors1[0], colors2[0], value)!,
+                      Color.lerp(colors1[1], colors2[1], value)!,
+                    ],
+                  ),
+                ),
+                child: child,
+              );
+            },
+          )
+        ],
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo with Entry Animation
+              // Pulsing Logo
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 20,
+                      color: Colors.white.withOpacity(0.3),
+                      blurRadius: 30,
                       spreadRadius: 5,
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(32.0),
                 child: Image.asset(
                   'assets/images/sumquiz_logo.png',
                   width: 100,
                   height: 100,
                 ),
               )
-                  .animate()
-                  .scale(duration: 800.ms, curve: Curves.elasticOut)
-                  .fadeIn(duration: 600.ms),
+                  .animate(
+                      onPlay: (controller) => controller.repeat(reverse: true))
+                  .scale(
+                    duration: 1.5.seconds,
+                    begin: const Offset(1, 1),
+                    end: const Offset(1.1, 1.1),
+                    curve: Curves.easeInOut,
+                  )
+                  .then() // Connecting animation
+                  .shimmer(
+                      duration: 2.seconds,
+                      color: Colors.white.withOpacity(0.5)),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 48),
 
-              // Title with Fade In
+              // Title "Sum"
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Sum',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: 2,
+                        ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 800.ms)
+                      .moveX(begin: -20, end: 0),
+
+                  // Title "Quiz"
+                  Text(
+                    'Quiz',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 800.ms, delay: 300.ms)
+                      .moveX(begin: 20, end: 0),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Tagline tyewriter
               Text(
-                'SumQuiz',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-              ).animate().fadeIn(delay: 400.ms).slideY(
-                  begin: 0.3,
-                  end: 0,
-                  duration: 600.ms,
-                  curve: Curves.easeOutQuad),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Study Smarter, Not Harder',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                'Unlock your potential',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Colors.white70,
-                      letterSpacing: 0.5,
+                      letterSpacing: 1.5,
                     ),
-              ).animate().fadeIn(delay: 600.ms),
+              )
+                  .animate()
+                  .fadeIn(delay: 1000.ms, duration: 800.ms)
+                  .slideY(begin: 0.5, end: 0),
+
+              const SizedBox(height: 64),
+
+              // Loading indicator
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                    color: Colors.white54, strokeWidth: 2),
+              ).animate().fadeIn(delay: 1.5.seconds),
             ],
           ),
         ),

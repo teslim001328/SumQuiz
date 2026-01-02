@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,8 @@ import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/services/usage_service.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ExtractionViewScreen extends StatefulWidget {
   final String? initialText;
@@ -117,7 +120,7 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
 
       if (mounted) {
         // Navigate to the results screen, which shows what was just created
-        context.go('/results-view/$folderId');
+        context.go('/library/results-view/$folderId');
       }
     } on EnhancedAIServiceException catch (e) {
       _showError(
@@ -144,7 +147,7 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: Theme.of(context).colorScheme.error,
+          backgroundColor: Colors.redAccent,
         ),
       );
     }
@@ -152,75 +155,132 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.close, color: theme.iconTheme.color),
+          icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => context.pop(),
         ),
         title: _isEditingTitle
             ? _buildTitleEditor()
             : Text(_titleController.text,
-                style: theme.textTheme.titleLarge,
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold, color: Colors.white),
                 overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             tooltip: 'Edit Title',
             icon: Icon(_isEditingTitle ? Icons.check : Icons.edit_outlined,
-                size: 22),
+                color: Colors.white, size: 22),
             onPressed: () => setState(() => _isEditingTitle = !_isEditingTitle),
           ),
         ],
       ),
       body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100), // Space for FAB
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('1. Choose what to generate:',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                _buildOutputSelector(),
-                const SizedBox(height: 24),
-                Text('2. Review your text:',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Expanded(child: _buildDocumentDisplayArea()),
-              ],
+          // Animated Gradient Background
+          Animate(
+            onPlay: (controller) => controller.repeat(reverse: true),
+            effects: [
+              CustomEffect(
+                duration: 10.seconds,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF1565C0), // Blue 800
+                          Color.lerp(const Color(0xFF1565C0),
+                              const Color(0xFF283593), value)!, // Indigo 800
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  );
+                },
+              )
+            ],
+            child: Container(),
+          ),
+          SafeArea(
+            child: Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(16, 0, 16, 100), // Space for FAB
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('1. Choose content to create:',
+                          style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.white))
+                      .animate()
+                      .fadeIn()
+                      .slideX(),
+                  const SizedBox(height: 12),
+                  _buildOutputSelector().animate().fadeIn(delay: 100.ms),
+                  const SizedBox(height: 24),
+                  Text('2. Review your text:',
+                          style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.white))
+                      .animate()
+                      .fadeIn(delay: 200.ms)
+                      .slideX(),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: _buildDocumentDisplayArea()
+                        .animate()
+                        .fadeIn(delay: 300.ms)
+                        .scale(begin: const Offset(0.95, 0.95)),
+                  ),
+                ],
+              ),
             ),
           ),
           if (!_isLoading)
             Align(
               alignment: Alignment.bottomCenter,
-              child: _buildGenerateButton(),
+              child: _buildGenerateButton()
+                  .animate()
+                  .fadeIn(delay: 400.ms)
+                  .slideY(begin: 0.2),
             ),
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               child: Center(
-                child: Card(
-                  margin: const EdgeInsets.all(32),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 24),
-                        Text(
-                          _loadingMessage,
-                          style: theme.textTheme.bodyLarge,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2)),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(color: Colors.white),
+                          const SizedBox(height: 24),
+                          Text(
+                            _loadingMessage,
+                            style: GoogleFonts.inter(
+                                color: Colors.white, fontSize: 16),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -235,85 +295,124 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
     return TextField(
       controller: _titleController,
       autofocus: true,
-      style: Theme.of(context).textTheme.titleLarge,
-      decoration: const InputDecoration(
+      style: GoogleFonts.poppins(
+          fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20),
+      cursorColor: Colors.white,
+      decoration: InputDecoration(
         border: InputBorder.none,
         hintText: 'Enter a title...',
+        hintStyle: GoogleFonts.poppins(color: Colors.white54),
       ),
       onSubmitted: (_) => setState(() => _isEditingTitle = false),
     );
   }
 
   Widget _buildOutputSelector() {
-    final theme = Theme.of(context);
     return Wrap(
       spacing: 12.0,
       runSpacing: 8.0,
       children: OutputType.values.map((type) {
         final isSelected = _selectedOutputs.contains(type);
-        return FilterChip(
-          label: Text(StringExtension(type.name).capitalize()),
-          selected: isSelected,
-          onSelected: (_) => _toggleOutput(type),
-          showCheckmark: true, // Explicitly show the checkmark
-          backgroundColor: theme.cardColor,
-          selectedColor: theme.colorScheme.secondary,
-          labelStyle: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: isSelected
-                ? theme.colorScheme.onSecondary
-                : theme.textTheme.bodyLarge?.color,
+        return GestureDetector(
+          onTap: () => _toggleOutput(type),
+          child: AnimatedContainer(
+            duration: 200.ms,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Colors.greenAccent.withValues(alpha: 0.2)
+                  : Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected
+                    ? Colors.greenAccent.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  StringExtension(type.name).capitalize(),
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? Colors.greenAccent : Colors.white70,
+                  ),
+                ),
+                if (isSelected) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.check, size: 16, color: Colors.greenAccent),
+                ]
+              ],
+            ),
           ),
-          checkmarkColor: theme.colorScheme.onSecondary,
-          shape: StadiumBorder(
-              side: BorderSide(
-                  color: isSelected ? Colors.transparent : theme.dividerColor)),
         );
       }).toList(),
     );
   }
 
   Widget _buildDocumentDisplayArea() {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TextField(
-        readOnly: false, // Always editable
-        controller: _textController,
-        maxLines: null,
-        expands: true,
-        style: theme.textTheme.bodyMedium,
-        decoration: InputDecoration.collapsed(
-          hintText:
-              'Your extracted or pasted text appears here. You can edit it before generating.',
-          hintStyle: theme.textTheme.bodySmall,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: TextField(
+            readOnly: false, // Always editable
+            controller: _textController,
+            maxLines: null,
+            expands: true,
+            style: GoogleFonts.inter(color: Colors.white, height: 1.5),
+            cursorColor: Colors.white,
+            decoration: InputDecoration.collapsed(
+              hintText:
+                  'Your extracted or pasted text appears here. You can edit it before generating.',
+              hintStyle: GoogleFonts.inter(color: Colors.white38),
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildGenerateButton() {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: SizedBox(
         width: double.infinity,
-        height: 56,
-        child: ElevatedButton.icon(
-          onPressed: _handleGenerate,
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('Generate Selected Content'),
-          style: ElevatedButton.styleFrom(
-            foregroundColor: theme.colorScheme.onSecondary,
-            backgroundColor: theme.colorScheme.secondary,
-            textStyle: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        height: 60,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: ElevatedButton(
+              onPressed: _handleGenerate,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.auto_awesome, color: Colors.amberAccent),
+                  const SizedBox(width: 12),
+                  Text('Generate Content',
+                      style: GoogleFonts.poppins(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
           ),
         ),
       ),

@@ -1,10 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-
-import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
-import '../widgets/pro_status_widget.dart';
+import 'package:sumquiz/models/user_model.dart';
+import 'package:sumquiz/services/auth_service.dart';
+import 'package:sumquiz/views/widgets/pro_status_widget.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AccountProfileScreen extends StatelessWidget {
   const AccountProfileScreen({super.key});
@@ -13,7 +15,6 @@ class AccountProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<UserModel?>();
     final authService = context.read<AuthService>();
-    final theme = Theme.of(context);
 
     if (user == null) {
       return const Scaffold(
@@ -22,84 +23,157 @@ class AccountProfileScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Account',
-            style: theme.textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold)),
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.onSurface),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => context.pop(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              children: <Widget>[
-                _buildHeader(context, user),
-                const SizedBox(height: 32),
-                const ProStatusWidget(),
-                const SizedBox(height: 24),
-                _buildAccountActions(context, authService, user),
-                const SizedBox(height: 32),
-                _buildSignOutButton(context, authService),
-              ],
+      body: Stack(
+        children: [
+          // Animated Gradient Background
+          Animate(
+            onPlay: (controller) => controller.repeat(reverse: true),
+            effects: [
+              CustomEffect(
+                duration: 10.seconds,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF0F2027), // Dark slate
+                          Color.lerp(const Color(0xFF203A43),
+                              const Color(0xFF2C5364), value)!, // Tealish dark
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  );
+                },
+              )
+            ],
+            child: Container(),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Column(
+                    children: <Widget>[
+                      _buildHeader(context, user)
+                          .animate()
+                          .fadeIn(delay: 100.ms)
+                          .slideY(begin: 0.1),
+                      const SizedBox(height: 32),
+                      const ProStatusWidget()
+                          .animate()
+                          .fadeIn(delay: 200.ms)
+                          .scale(),
+                      const SizedBox(height: 24),
+                      _buildAccountActions(context, authService, user)
+                          .animate()
+                          .fadeIn(delay: 300.ms),
+                      const SizedBox(height: 32),
+                      _buildSignOutButton(context, authService)
+                          .animate()
+                          .fadeIn(delay: 400.ms),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassContainer({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: child,
         ),
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context, UserModel user) {
-    final theme = Theme.of(context);
     return Column(
       children: [
-        CircleAvatar(
-          radius: 50,
-          backgroundColor: theme.colorScheme.primaryContainer,
-          child: Text(
-            user.displayName.isNotEmpty
-                ? user.displayName[0].toUpperCase()
-                : '?',
-            style: theme.textTheme.displayMedium?.copyWith(
-              color: theme.colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.bold,
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 15,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: CircleAvatar(
+            radius: 50,
+            backgroundColor: Colors.blueAccent.withValues(alpha: 0.2),
+            child: Text(
+              user.displayName.isNotEmpty
+                  ? user.displayName[0].toUpperCase()
+                  : '?',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 40,
+              ),
             ),
           ),
         ),
         const SizedBox(height: 16),
         Text(
           user.displayName,
-          style:
-              theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          style: GoogleFonts.poppins(
+              fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 4),
         Text(
           user.email,
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: GoogleFonts.inter(color: Colors.white70),
         ),
         if (user.subscriptionExpiry != null)
           Padding(
-            padding: const EdgeInsets.only(top: 8.0),
+            padding: const EdgeInsets.only(top: 12.0),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.amberAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: Colors.amberAccent.withValues(alpha: 0.3)),
               ),
               child: Text(
                 'Pro until ${user.subscriptionExpiry!.toLocal().toString().split(' ')[0]}',
-                style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                    color: Colors.amberAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12),
               ),
             ),
           ),
@@ -109,14 +183,7 @@ class AccountProfileScreen extends StatelessWidget {
 
   Widget _buildAccountActions(
       BuildContext context, AuthService authService, UserModel user) {
-    final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
-      ),
-      color: theme.cardColor,
+    return _buildGlassContainer(
       child: Column(
         children: [
           _buildListTile(
@@ -129,6 +196,7 @@ class AccountProfileScreen extends StatelessWidget {
                 const SnackBar(
                   content: Text('Password reset email sent.'),
                   duration: Duration(seconds: 3),
+                  backgroundColor: Colors.green,
                 ),
               );
             },
@@ -136,7 +204,7 @@ class AccountProfileScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child:
-                Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.1)),
           ),
           _buildListTile(
             context,
@@ -151,7 +219,7 @@ class AccountProfileScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child:
-                Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.1)),
           ),
           _buildListTile(
             context,
@@ -172,32 +240,37 @@ class AccountProfileScreen extends StatelessWidget {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    final theme = Theme.of(context);
-    final color =
-        isDestructive ? theme.colorScheme.error : theme.colorScheme.onSurface;
+    final color = isDestructive ? Colors.redAccent : Colors.white;
 
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
           color: isDestructive
-              ? theme.colorScheme.error
-              : theme.colorScheme.primary),
-      title:
-          Text(title, style: theme.textTheme.bodyLarge?.copyWith(color: color)),
+              ? Colors.redAccent.withValues(alpha: 0.1)
+              : Colors.blueAccent.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(title, style: GoogleFonts.inter(color: color, fontSize: 16)),
       trailing: Icon(Icons.arrow_forward_ios,
-          size: 16, color: theme.colorScheme.onSurface.withOpacity(0.3)),
+          size: 14, color: Colors.white.withValues(alpha: 0.3)),
     );
   }
 
   void _showDeleteAccountDialog(BuildContext context, AuthService authService) {
-    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Delete Account'),
-          content: const Text(
-              'Are you sure you want to permanently delete your account? This action cannot be undone.'),
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: Text('Delete Account',
+              style: GoogleFonts.poppins(color: Colors.white)),
+          content: Text(
+              'Are you sure you want to permanently delete your account? This action cannot be undone.',
+              style: GoogleFonts.inter(color: Colors.white70)),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
@@ -205,7 +278,8 @@ class AccountProfileScreen extends StatelessWidget {
             ),
             TextButton(
               child: Text('Delete',
-                  style: TextStyle(color: theme.colorScheme.error)),
+                  style: GoogleFonts.inter(
+                      color: Colors.redAccent, fontWeight: FontWeight.bold)),
               onPressed: () {
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -220,17 +294,27 @@ class AccountProfileScreen extends StatelessWidget {
   }
 
   Widget _buildSignOutButton(BuildContext context, AuthService authService) {
-    return SizedBox(
-      width: double.infinity,
-      child: TextButton.icon(
-        icon: const Icon(Icons.logout, color: Colors.red),
-        label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
-        onPressed: () => authService.signOut(),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          backgroundColor: Colors.red.withOpacity(0.1),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.redAccent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+          ),
+          child: TextButton.icon(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            label: Text('Sign Out',
+                style: GoogleFonts.inter(
+                    color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            onPressed: () => authService.signOut(),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
         ),
       ),
     );

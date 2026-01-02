@@ -49,221 +49,215 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: _onPageChanged,
-                children: const [
-                  OnboardingPage(
-                    title: 'From Lecture to Legend',
-                    subtitle:
-                        'Transform raw notes into powerful summaries and quizzes instantly.',
-                    imagePath: 'assets/images/onboarding_learn.svg',
-                    highlightColor: Color(0xFF1A237E), // Deep Indigo
-                  ),
-                  OnboardingPage(
-                    title: 'Your Knowledge, Supercharged',
-                    subtitle:
-                        'Generate flashcards, track momentum, and conquer any subject.',
-                    imagePath: 'assets/images/onboarding_notes.svg',
-                    highlightColor: Color(0xFF00695C), // Teal
-                  ),
-                  OnboardingPage(
-                    title: 'Master It All',
-                    subtitle:
-                        'Start for free today. Upgrade your study strategy forever.',
-                    imagePath: 'assets/images/onboarding_rocket.svg',
-                    highlightColor: Color(0xFFC62828), // Red
-                  ),
-                ],
+      body: Stack(
+        children: [
+          // Content
+          PageView(
+            controller: _pageController,
+            onPageChanged: _onPageChanged,
+            children: [
+              OnboardingPage(
+                pageIndex: 0,
+                controller: _pageController, // Pass controller for parallax
+                title: 'From Lecture to Legend',
+                subtitle:
+                    'Transform raw notes into powerful summaries and quizzes instantly.',
+                imagePath: 'assets/images/onboarding_learn.svg',
               ),
-            ),
-            _buildBottomControls(),
-          ],
-        ),
+              OnboardingPage(
+                pageIndex: 1,
+                controller: _pageController,
+                title: 'Your Knowledge,\nSupercharged',
+                subtitle:
+                    'Generate flashcards, track momentum, and conquer any subject.',
+                imagePath: 'assets/images/onboarding_notes.svg',
+              ),
+              OnboardingPage(
+                pageIndex: 2,
+                controller: _pageController,
+                title: 'Master It All',
+                subtitle:
+                    'Start for free today. Upgrade your study strategy forever.',
+                imagePath: 'assets/images/onboarding_rocket.svg',
+              ),
+            ],
+          ),
+
+          // Bottom Controls
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 48,
+            child: _buildBottomControls(),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildBottomControls() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 48.0),
+      padding: const EdgeInsets.symmetric(horizontal: 32.0),
       child: Column(
         children: [
+          // Dots
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(3, (index) => _buildDot(index)),
           ),
-          const SizedBox(height: 56),
+          const SizedBox(height: 32),
 
-          // Adaptive Button Area
-          SizedBox(
-            height: 120, // Fixed height to prevent layout jumps
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              child: _currentPage == 2
-                  ? _buildGetStartedButtons()
-                  : _buildNextButton(),
+          // Button
+          AnimatedContainer(
+            duration: 300.ms,
+            width: _currentPage == 2 ? 300 : 80, // Morph width
+            height: 64,
+            child: ElevatedButton(
+              onPressed:
+                  _currentPage == 2 ? _finishOnboarding : _navigateToNextPage,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A237E),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(32)),
+                padding: EdgeInsets.zero,
+                elevation: 8,
+                shadowColor: const Color(0xFF1A237E).withOpacity(0.4),
+              ),
+              child: AnimatedSwitcher(
+                duration: 200.ms,
+                child: _currentPage == 2
+                    ? Text(
+                        'Get Started',
+                        key: const ValueKey('text'),
+                        style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      )
+                    : const Icon(
+                        Icons.arrow_forward_rounded,
+                        key: ValueKey('icon'),
+                        color: Colors.white,
+                        size: 30,
+                      ),
+              ),
             ),
           ),
+
+          if (_currentPage == 2)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: TextButton(
+                onPressed: _finishOnboarding,
+                child: Text(
+                  'Already have an account? Sign In',
+                  style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w600),
+                ),
+              ).animate().fadeIn(),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildGetStartedButtons() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      key: const ValueKey('getStartedButtons'),
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: _finishOnboarding,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A237E), // Brand Color
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shadowColor: const Color(0xFF1A237E).withOpacity(0.4),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              textStyle:
-                  GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            child: const Text('Get Started Free'),
-          ),
-        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0),
-        const SizedBox(height: 16),
-        TextButton(
-          onPressed: _finishOnboarding,
-          child: Text(
-            'Already have an account? Sign In',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
-            ),
-          ),
-        ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-      ],
-    );
-  }
-
-  Widget _buildNextButton() {
-    return Align(
-        alignment: Alignment.bottomCenter,
-        key: const ValueKey('nextButton'),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: _navigateToNextPage,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey[100],
-              foregroundColor: Colors.black87,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.grey.shade300)),
-              textStyle:
-                  GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            child: const Text('Next'),
-          ),
-        ));
-  }
-
   Widget _buildDot(int index) {
     bool isActive = _currentPage == index;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-      margin: const EdgeInsets.symmetric(horizontal: 6),
+      duration: 300.ms,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
       height: 8,
-      width: isActive ? 32 : 8,
+      width: isActive ? 24 : 8,
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF1A237E) : Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(12),
+        color: isActive ? const Color(0xFF1A237E) : Colors.grey[300],
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }
 }
 
 class OnboardingPage extends StatelessWidget {
+  final int pageIndex;
+  final PageController controller;
   final String title;
   final String subtitle;
   final String imagePath;
-  final Color highlightColor;
 
   const OnboardingPage({
     super.key,
+    required this.pageIndex,
+    required this.controller,
     required this.title,
     required this.subtitle,
     required this.imagePath,
-    required this.highlightColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Illustration with Animation
-          Expanded(
-            flex: 5,
-            child: Center(
-              child: SvgPicture.asset(
-                imagePath,
-                width: double.infinity,
-                placeholderBuilder: (context) =>
-                    const Center(child: CircularProgressIndicator()),
-              ).animate(target: 1).scale(
-                  duration: 600.ms,
-                  curve: Curves.easeOutBack,
-                  begin: const Offset(0.9, 0.9)),
-            ),
-          ),
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        double pageOffset = 0;
+        if (controller.position.haveDimensions) {
+          pageOffset = controller.page! - pageIndex;
+        }
 
-          Expanded(
-            flex: 3,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                const SizedBox(height: 32),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                    height: 1.2,
-                  ),
-                ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0),
-                const SizedBox(height: 16),
-                Text(
-                  subtitle,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                    height: 1.5,
-                  ),
+        // Parallax Effect: Move content slightly slower than the page scroll
+        // pageOffset goes from 0 to 1 when scrolling away
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Image Parallax (Moves horizontally)
+              Transform.translate(
+                offset: Offset(pageOffset * -50, 0), // Subtle parallax
+                child: SvgPicture.asset(
+                  imagePath,
+                  height: 300,
                 )
-                    .animate()
-                    .fadeIn(duration: 500.ms, delay: 100.ms)
-                    .slideY(begin: 0.2, end: 0),
-              ],
-            ),
+                    .animate(target: 1)
+                    .scale(duration: 600.ms, curve: Curves.easeOutBack),
+              ),
+              const SizedBox(height: 48),
+
+              // Text Content
+              Transform.translate(
+                offset:
+                    Offset(pageOffset * 50, 0), // Inverse parallax for depth
+                child: Column(
+                  children: [
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      subtitle,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 120), // Spacer for buttons
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

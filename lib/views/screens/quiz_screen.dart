@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sumquiz/models/local_flashcard_set.dart';
-import 'package:sumquiz/models/local_summary.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import 'package:uuid/uuid.dart';
 
 import '../../models/user_model.dart';
@@ -13,6 +15,7 @@ import '../../services/local_database_service.dart';
 import '../../services/usage_service.dart';
 import '../../view_models/quiz_view_model.dart';
 import '../widgets/upgrade_dialog.dart';
+import '../widgets/quiz_view.dart';
 
 enum QuizState { creation, loading, inProgress, finished, error }
 
@@ -43,9 +46,7 @@ class _QuizScreenState extends State<QuizScreen> {
   String _errorMessage = '';
 
   late List<LocalQuizQuestion> _questions;
-  int _currentQuestionIndex = 0;
-  int? _selectedAnswerIndex;
-  bool _answerWasSelected = false;
+
   int _score = 0;
   String? _quizId;
 
@@ -105,7 +106,7 @@ class _QuizScreenState extends State<QuizScreen> {
     });
 
     try {
-       final folderId = await _aiService.generateAndStoreOutputs(
+      final folderId = await _aiService.generateAndStoreOutputs(
         text: _textController.text,
         title: _titleController.text,
         requestedOutputs: ['quiz'],
@@ -123,7 +124,8 @@ class _QuizScreenState extends State<QuizScreen> {
       }
 
       final content = await _localDbService.getFolderContents(folderId);
-      final quizId = content.firstWhere((c) => c.contentType == 'quiz').contentId;
+      final quizId =
+          content.firstWhere((c) => c.contentType == 'quiz').contentId;
       final quiz = await _localDbService.getQuiz(quizId);
 
       if (quiz != null && quiz.questions.isNotEmpty) {
@@ -140,11 +142,13 @@ class _QuizScreenState extends State<QuizScreen> {
         _state = QuizState.error;
         _errorMessage = 'Error generating quiz: $e';
       });
-    } 
+    }
   }
 
   Future<void> _saveInProgress() async {
-    if (_questions.isEmpty || _titleController.text.isEmpty || _quizId == null) {
+    if (_questions.isEmpty ||
+        _titleController.text.isEmpty ||
+        _quizId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Cannot save an empty quiz."),
@@ -187,7 +191,8 @@ class _QuizScreenState extends State<QuizScreen> {
     final quizViewModel = Provider.of<QuizViewModel>(context, listen: false);
     if (user == null || _quizId == null) return;
 
-    final percentageScore = _questions.isNotEmpty ? (_score / _questions.length) * 100.0 : 0.0;
+    final percentageScore =
+        _questions.isNotEmpty ? (_score / _questions.length) * 100.0 : 0.0;
 
     var quizToSave = await _localDbService.getQuiz(_quizId!);
 
@@ -222,82 +227,87 @@ class _QuizScreenState extends State<QuizScreen> {
     }
   }
 
-  void _onAnswerSelected(int index) {
-    if (_answerWasSelected) return;
-
-    setState(() {
-      _selectedAnswerIndex = index;
-      _answerWasSelected = true;
-      final question = _questions[_currentQuestionIndex];
-      if (question.options[index] == question.correctAnswer) {
-        _score++;
-      }
-    });
-  }
-
-  void _handleNextQuestion() {
-    if (!_answerWasSelected) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select an answer.')),
-        );
-      }
-      return;
-    }
-
-    if (_currentQuestionIndex < _questions.length - 1) {
-      setState(() {
-        _currentQuestionIndex++;
-        _selectedAnswerIndex = null;
-        _answerWasSelected = false;
-      });
-    } else {
-      setState(() {
-        _state = QuizState.finished;
-      });
-    }
-  }
-
   void _resetQuizState() {
     setState(() {
       _state = QuizState.inProgress;
-      _currentQuestionIndex = 0;
-      _selectedAnswerIndex = null;
-      _answerWasSelected = false;
       _score = 0;
     });
   }
-  
+
   void _retry() {
-      setState(() {
-        _state = QuizState.creation;
-        _errorMessage = '';
-      });
+    setState(() {
+      _state = QuizState.creation;
+      _errorMessage = '';
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          title: Text(widget.quiz == null ? 'Create Quiz' : 'Take Quiz'),
+          title: Text(widget.quiz == null ? 'Create Quiz' : 'Take Quiz',
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold, color: const Color(0xFF1A237E))),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF1A237E)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
           actions: [
             if (_state == QuizState.inProgress)
               IconButton(
-                icon: const Icon(Icons.save_alt_outlined),
+                icon: const Icon(Icons.save_alt_outlined,
+                    color: Color(0xFF1A237E)),
                 onPressed: _saveInProgress,
                 tooltip: 'Save Progress',
               )
           ],
         ),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: _buildContent(),
-          ),
+        body: Stack(
+          children: [
+            // Animated Gradient Background
+            Animate(
+              onPlay: (controller) => controller.repeat(reverse: true),
+              effects: [
+                CustomEffect(
+                  duration: 10.seconds,
+                  builder: (context, value, child) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFFE8EAF6), // Indigo 50
+                            Color.lerp(const Color(0xFFE8EAF6),
+                                const Color(0xFFC5CAE9), value)!, // Indigo 100
+                          ],
+                        ),
+                      ),
+                      child: child,
+                    );
+                  },
+                )
+              ],
+              child: Container(),
+            ),
+
+            SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: _buildContent(),
+                ),
+              ),
+            ),
+          ],
         ));
   }
 
-   Widget _buildContent() {
+  Widget _buildContent() {
     switch (_state) {
       case QuizState.loading:
         return _buildLoadingState();
@@ -317,71 +327,152 @@ class _QuizScreenState extends State<QuizScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 20),
-          Text(_loadingMessage),
+          const SizedBox(
+            width: 80,
+            height: 80,
+            child: CircularProgressIndicator(
+              strokeWidth: 6,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1A237E)),
+            ),
+          ),
+          const SizedBox(height: 32),
+          Text(_loadingMessage,
+              style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1A237E))),
+          const SizedBox(height: 16),
+          Text(
+            "Our AI is crafting challenging questions...",
+            style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
+          ),
         ],
-      ),
+      ).animate().fadeIn(),
     );
   }
 
   Widget _buildErrorState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 64),
-          const SizedBox(height: 16),
-          Text('Oops! Something went wrong.', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-          Text(_errorMessage, textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          ElevatedButton(onPressed: _retry, child: const Text('Try Again')),
-        ],
-      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: _buildGlassContainer(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.redAccent, size: 64),
+              const SizedBox(height: 16),
+              Text('Oops! Something went wrong.',
+                  style: GoogleFonts.poppins(
+                      fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Text(_errorMessage,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: Colors.grey[700])),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: _retry,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A237E),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      ).animate().fadeIn().scale(),
     );
   }
 
   Widget _buildCreationForm() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
       child: Column(
         children: [
-          Text('Create a New Quiz', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 24),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Quiz Title', style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(hintText: 'e.g., History Midterm Review', border: OutlineInputBorder()),
+          const SizedBox(height: 20),
+          Text('Create a New Quiz',
+                  style: GoogleFonts.poppins(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1A237E)))
+              .animate()
+              .fadeIn()
+              .slideY(begin: -0.2),
+          const SizedBox(height: 32),
+          _buildGlassContainer(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Quiz Title',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1A1A1A))),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    hintText: 'e.g., History Midterm Review',
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.5),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
                   ),
-                  const SizedBox(height: 24),
-                  Text('Text to Generate From', style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _textController,
-                    maxLines: 8,
-                    decoration: const InputDecoration(hintText: 'Paste your notes or article here.',  border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 24),
+                Text('Text to Generate From',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1A1A1A))),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _textController,
+                  maxLines: 8,
+                  decoration: InputDecoration(
+                    hintText: 'Paste your notes or article here.',
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.5),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
+          ).animate().fadeIn().slideY(begin: 0.2),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24.0),
+            padding: const EdgeInsets.symmetric(vertical: 32.0),
             child: SizedBox(
               width: double.infinity,
+              height: 56,
               child: ElevatedButton.icon(
                 onPressed: _generateQuiz,
                 icon: const Icon(Icons.psychology_alt_outlined),
-                label: const Text('Generate Quiz'),
+                label: const Text('Generate Quiz',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A237E),
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  shadowColor: const Color(0xFF1A237E).withValues(alpha: 0.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
               ),
-            ),
+            ).animate().fadeIn(delay: 200.ms).scale(),
           ),
         ],
       ),
@@ -389,116 +480,126 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Widget _buildQuizInterface() {
-    final question = _questions[_currentQuestionIndex];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Column(
-        children: [
-          Text(_titleController.text,
-              style: Theme.of(context).textTheme.headlineMedium,
-              textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-          Text('Question ${_currentQuestionIndex + 1}/${_questions.length}',
-              style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 24),
-          Text(
-            question.question,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          Expanded(
-            child: ListView.builder(
-              itemCount: question.options.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  elevation: _answerWasSelected ? 4 : 2,
-                  color: _getTileColor(index),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: _selectedAnswerIndex == index ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                  child: ListTile(
-                    title: Text(question.options[index], style: Theme.of(context).textTheme.bodyLarge),
-                    leading: _getTileIcon(index),
-                    onTap: () => _onAnswerSelected(index),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _answerWasSelected ? _handleNextQuestion : null,
-              child: Text(
-                _currentQuestionIndex < _questions.length - 1 ? 'Next Question' : 'Finish Quiz',
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
+    return QuizView(
+      title: _titleController.text,
+      questions: _questions,
+      showSaveButton: false,
+      onFinish: () {
+        setState(() {
+          _state = QuizState.finished;
+        });
+      },
+      onAnswer: (isCorrect) {
+        if (isCorrect) {
+          setState(() {
+            _score++;
+          });
+        }
+      },
     );
   }
 
-  Color? _getTileColor(int index) {
-    if (!_answerWasSelected) return Theme.of(context).cardColor;
-    final question = _questions[_currentQuestionIndex];
-    if (question.options[index] == question.correctAnswer) return Colors.green.shade50;
-    if (index == _selectedAnswerIndex) return Colors.red.shade50;
-    return Theme.of(context).cardColor;
-  }
-
-  Widget _getTileIcon(int index) {
-    if (!_answerWasSelected) return Icon(Icons.circle_outlined, color: Theme.of(context).disabledColor);
-    final question = _questions[_currentQuestionIndex];
-    if (question.options[index] == question.correctAnswer) return const Icon(Icons.check_circle, color: Colors.green);
-    if (index == _selectedAnswerIndex) return const Icon(Icons.cancel, color: Colors.red);
-    return Icon(Icons.circle_outlined, color: Theme.of(context).disabledColor);
-  }
-
   Widget _buildResultScreen() {
-    final percentage = _questions.isNotEmpty ? (_score / _questions.length) * 100 : 0;
-    final theme = Theme.of(context);
+    final percentage =
+        _questions.isNotEmpty ? (_score / _questions.length) * 100 : 0;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Quiz Results', style: theme.textTheme.headlineMedium),
-            const SizedBox(height: 24),
-            Text(
-              '${percentage.toStringAsFixed(0)}%',
-              style: theme.textTheme.displayLarge?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.bold,
+        child: _buildGlassContainer(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.emoji_events_rounded,
+                      size: 80, color: Colors.amber)
+                  .animate()
+                  .scale(duration: 600.ms, curve: Curves.elasticOut)
+                  .then()
+                  .shake(),
+              const SizedBox(height: 24),
+              Text('Quiz Results',
+                  style: GoogleFonts.poppins(
+                      fontSize: 28, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text(
+                '${percentage.toStringAsFixed(0)}%',
+                style: GoogleFonts.poppins(
+                  fontSize: 64,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1A237E),
+                ),
+              ).animate().fadeIn().scale(),
+              const SizedBox(height: 8),
+              Text('Your Score: $_score out of ${_questions.length}',
+                  style:
+                      GoogleFonts.inter(fontSize: 18, color: Colors.grey[700])),
+              const SizedBox(height: 48),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _saveFinalScoreAndExit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A237E),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text('Save & Exit',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
               ),
-            ),
-            Text('Your Score: $_score out of ${_questions.length}', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 48),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saveFinalScoreAndExit,
-                child: const Text('Save & Exit'),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: OutlinedButton(
+                  onPressed: _resetQuizState,
+                  style: OutlinedButton.styleFrom(
+                    side:
+                        const BorderSide(color: Color(0xFF1A237E), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text('Retry Quiz',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A237E))),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _resetQuizState,
-                child: const Text('Retry Quiz'),
+            ],
+          ),
+        ),
+      ).animate().fadeIn().slideY(begin: 0.2),
+    );
+  }
+
+  Widget _buildGlassContainer(
+      {required Widget child, EdgeInsetsGeometry? padding}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: padding ?? const EdgeInsets.all(0),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.6), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 15,
+                offset: const Offset(0, 4),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: child,
         ),
       ),
     );

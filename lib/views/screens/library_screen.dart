@@ -1,9 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../models/user_model.dart';
 import '../../models/library_item.dart';
@@ -14,12 +17,18 @@ import '../../models/editable_content.dart';
 import '../../models/summary_model.dart';
 import '../../models/quiz_model.dart';
 import '../../models/flashcard_set.dart';
-import '../../models/folder.dart'; // Added
-import '../screens/edit_content_screen.dart';
+import '../../models/folder.dart';
+
 import '../screens/summary_screen.dart';
 import '../screens/quiz_screen.dart';
 import '../screens/flashcards_screen.dart';
 import '../../models/local_summary.dart';
+import '../../models/quiz_question.dart';
+import '../../models/flashcard.dart';
+import '../../models/local_quiz.dart';
+import '../../models/local_quiz_question.dart';
+import '../../models/local_flashcard_set.dart';
+import '../../models/local_flashcard.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -115,7 +124,7 @@ class LibraryScreenState extends State<LibraryScreen>
       },
     ).asBroadcastStream();
 
-    // Quizzes: Merge Firestore & Local (via QuizViewModel or direct stream? Let's use direct stream for consistency)
+    // Quizzes: Merge Firestore & Local
     final localQuizzes = _localDb.watchAllQuizzes(userId).map((list) => list
         .map((q) => LibraryItem(
             id: q.id,
@@ -124,15 +133,10 @@ class LibraryScreenState extends State<LibraryScreen>
             timestamp: Timestamp.fromDate(q.timestamp)))
         .toList());
 
-    // Note: Firestore quizzes might be different structurally, but let's assume LibraryItem adapts
-    // If FirestoreService.streamItems returns LibraryItems, we are good.
-
     // All Items
     _allItemsStream = Rx.combineLatest3<List<LibraryItem>, List<LibraryItem>,
             List<LibraryItem>, List<LibraryItem>>(
-        _summariesStream!,
-        _flashcardsStream!,
-        localQuizzes, // Using local quizzes stream directly here
+        _summariesStream!, _flashcardsStream!, localQuizzes,
         (summaries, flashcards, quizzes) {
       final all = [...summaries, ...flashcards, ...quizzes];
       all.sort((a, b) => b.timestamp.compareTo(a.timestamp));
@@ -168,34 +172,69 @@ class LibraryScreenState extends State<LibraryScreen>
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel?>(context);
-    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: _buildAppBar(context, theme),
-      body: user == null
-          ? _buildLoggedOutView(theme)
-          : _buildLibraryContent(user, theme),
+      extendBodyBehindAppBar: true,
+      appBar: _buildAppBar(context),
+      body: Stack(
+        children: [
+          // Animated Background
+          Animate(
+            onPlay: (controller) => controller.repeat(reverse: true),
+            effects: [
+              CustomEffect(
+                duration: 10.seconds,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFFE3F2FD), // Light Blue 50
+                          Color.lerp(const Color(0xFFE3F2FD),
+                              const Color(0xFFBBDEFB), value)!, // Blue 100
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  );
+                },
+              )
+            ],
+            child: Container(),
+          ),
+          SafeArea(
+            child: user == null
+                ? _buildLoggedOutView()
+                : _buildLibraryContent(user),
+          ),
+        ],
+      ),
       floatingActionButton: user != null && !_isOfflineMode
           ? FloatingActionButton(
               onPressed: () => _showCreateOptions(context),
-              backgroundColor: theme.cardColor,
-              foregroundColor: theme.iconTheme.color,
+              backgroundColor: const Color(0xFF1A237E),
+              foregroundColor: Colors.white,
               child: const Icon(Icons.add),
-            )
+            ).animate().scale(delay: 500.ms)
           : null,
     );
   }
 
-  AppBar _buildAppBar(BuildContext context, ThemeData theme) {
+  AppBar _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.transparent,
       elevation: 0,
-      title: Text('Library', style: theme.textTheme.headlineMedium),
+      title: Text('Library',
+          style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1A237E))),
       centerTitle: true,
       actions: [
         IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(Icons.settings_outlined, color: Color(0xFF1A237E)),
             onPressed: () {
               if (mounted) {
                 context.push('/settings');
@@ -205,69 +244,78 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildLoggedOutView(ThemeData theme) {
+  Widget _buildLoggedOutView() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off_outlined,
-                size: 80, color: theme.iconTheme.color),
-            const SizedBox(height: 24),
-            Text('Please Log In', style: theme.textTheme.headlineMedium),
-            const SizedBox(height: 12),
-            Text(
-              'Log in to access your synchronized library across all your devices.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ],
+        child: _buildGlassContainer(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_outlined,
+                  size: 80, color: Color(0xFF1A237E)),
+              const SizedBox(height: 24),
+              Text('Please Log In',
+                  style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1A237E))),
+              const SizedBox(height: 12),
+              Text(
+                'Log in to access your synchronized library across all your devices.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: Colors.black54),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildOfflineState(ThemeData theme) {
+  Widget _buildOfflineState() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.signal_wifi_off_outlined,
-                size: 80, color: theme.iconTheme.color),
-            const SizedBox(height: 24),
-            Text('Offline Mode', style: theme.textTheme.headlineMedium),
-            const SizedBox(height: 12),
-            Text(
-              'You are currently in offline mode. Only locally stored content is available.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ],
+        child: _buildGlassContainer(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.signal_wifi_off_outlined,
+                  size: 80, color: Color(0xFF1A237E)),
+              const SizedBox(height: 24),
+              Text('Offline Mode',
+                  style: GoogleFonts.poppins(
+                      fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Text(
+                'You are currently in offline mode. Only locally stored content is available.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: Colors.black54),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildLibraryContent(UserModel user, ThemeData theme) {
+  Widget _buildLibraryContent(UserModel user) {
     if (_isOfflineMode) {
-      return _buildOfflineState(theme);
+      return _buildOfflineState();
     }
     return Column(
       children: [
-        _buildSearchAndTabs(theme),
+        _buildSearchAndTabs(),
         Expanded(
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildFolderList(user.uid, theme),
-              _buildCombinedList(user.uid, theme),
-              _buildLibraryList(user.uid, 'summaries', _summariesStream, theme),
-              _buildQuizList(user.uid, theme),
-              _buildLibraryList(
-                  user.uid, 'flashcards', _flashcardsStream, theme),
+              _buildFolderList(user.uid),
+              _buildCombinedList(user.uid),
+              _buildLibraryList(user.uid, 'summaries', _summariesStream),
+              _buildQuizList(user.uid),
+              _buildLibraryList(user.uid, 'flashcards', _flashcardsStream),
             ],
           ),
         ),
@@ -275,35 +323,43 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildSearchAndTabs(ThemeData theme) {
+  Widget _buildSearchAndTabs() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         children: [
-          TextField(
-            controller: _searchController,
-            style: TextStyle(color: theme.colorScheme.onSurface),
-            decoration: InputDecoration(
-              hintText: 'Search Library...',
-              hintStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
-              prefixIcon:
-                  Icon(Icons.search, color: theme.textTheme.bodySmall?.color),
-              filled: true,
-              fillColor: theme.cardColor,
-              contentPadding: const EdgeInsets.symmetric(vertical: 15.0),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
             ),
-          ),
+            child: TextField(
+              controller: _searchController,
+              style: GoogleFonts.inter(color: Colors.black87),
+              decoration: InputDecoration(
+                hintText: 'Search Library...',
+                hintStyle: const TextStyle(color: Colors.black45),
+                prefixIcon: const Icon(Icons.search, color: Colors.black45),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 15.0),
+              ),
+            ),
+          ).animate().fadeIn().slideY(begin: -0.2),
           const SizedBox(height: 16),
-          _buildTabBar(theme),
+          _buildTabBar(),
         ],
       ),
     );
   }
 
-  Widget _buildTabBar(ThemeData theme) {
+  Widget _buildTabBar() {
     return TabBar(
       controller: _tabController,
       isScrollable: true,
@@ -315,16 +371,25 @@ class LibraryScreenState extends State<LibraryScreen>
         Tab(text: 'Flashcards'),
       ],
       indicator: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          color: theme.colorScheme.secondaryContainer),
-      labelStyle: GoogleFonts.roboto(fontWeight: FontWeight.bold),
-      unselectedLabelColor: theme.textTheme.bodySmall?.color,
-      labelColor: theme.colorScheme.onSecondaryContainer,
+        borderRadius: BorderRadius.circular(30),
+        color: const Color(0xFF1A237E),
+      ),
+      labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
+      unselectedLabelColor: Colors.black54,
+      labelColor: Colors.white,
       dividerColor: Colors.transparent,
-    );
+      splashFactory: NoSplash.splashFactory,
+      overlayColor: WidgetStateProperty.resolveWith<Color?>(
+        (Set<WidgetState> states) {
+          return states.contains(WidgetState.focused)
+              ? null
+              : Colors.transparent;
+        },
+      ),
+    ).animate().fadeIn(delay: 100.ms).slideX();
   }
 
-  Widget _buildFolderList(String userId, ThemeData theme) {
+  Widget _buildFolderList(String userId) {
     return FutureBuilder<List<Folder>>(
       future: _localDb.getAllFolders(userId),
       builder: (context, snapshot) {
@@ -337,7 +402,7 @@ class LibraryScreenState extends State<LibraryScreen>
 
         final folders = snapshot.data ?? [];
         if (folders.isEmpty) {
-          return _buildNoContentState('folders', theme);
+          return _buildNoContentState('folders');
         }
 
         folders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -347,27 +412,25 @@ class LibraryScreenState extends State<LibraryScreen>
           itemCount: folders.length,
           itemBuilder: (context, index) {
             final folder = folders[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading:
-                    const Icon(Icons.folder, size: 40, color: Colors.amber),
-                title: Text(folder.name, style: theme.textTheme.titleMedium),
-                subtitle: Text(
-                    'Created: ${folder.createdAt.toString().split(' ')[0]}'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () {
-                  context.push('/results-view/${folder.id}');
-                },
-              ),
-            );
+            return _buildGlassListTile(
+              title: folder.name,
+              subtitle: 'Created: ${folder.createdAt.toString().split(' ')[0]}',
+              icon: Icons.folder,
+              iconColor: Colors.amber,
+              onTap: () {
+                context.push('/library/results-view/${folder.id}');
+              },
+            )
+                .animate()
+                .fadeIn(delay: (50 * index).ms)
+                .slideY(begin: 0.1, duration: 300.ms);
           },
         );
       },
     );
   }
 
-  Widget _buildCombinedList(String userId, ThemeData theme) {
+  Widget _buildCombinedList(String userId) {
     return StreamBuilder<List<LibraryItem>>(
       stream: _allItemsStream,
       builder: (context, snapshot) {
@@ -379,14 +442,14 @@ class LibraryScreenState extends State<LibraryScreen>
         final allItems = snapshot.data ?? [];
 
         if (allItems.isEmpty) {
-          return _buildNoContentState('all', theme);
+          return _buildNoContentState('all');
         }
-        return _buildContentList(allItems, userId, theme);
+        return _buildContentList(allItems, userId);
       },
     );
   }
 
-  Widget _buildQuizList(String userId, ThemeData theme) {
+  Widget _buildQuizList(String userId) {
     return Consumer<QuizViewModel>(
       builder: (context, quizViewModel, child) {
         if (quizViewModel.isLoading) {
@@ -394,7 +457,7 @@ class LibraryScreenState extends State<LibraryScreen>
         }
 
         if (quizViewModel.quizzes.isEmpty) {
-          return _buildNoContentState('quizzes', theme);
+          return _buildNoContentState('quizzes');
         }
 
         final quizItems = quizViewModel.quizzes
@@ -405,13 +468,13 @@ class LibraryScreenState extends State<LibraryScreen>
                 timestamp: Timestamp.fromDate(quiz.timestamp)))
             .toList();
 
-        return _buildContentList(quizItems, userId, theme);
+        return _buildContentList(quizItems, userId);
       },
     );
   }
 
-  Widget _buildLibraryList(String userId, String type,
-      Stream<List<LibraryItem>>? stream, ThemeData theme) {
+  Widget _buildLibraryList(
+      String userId, String type, Stream<List<LibraryItem>>? stream) {
     return StreamBuilder<List<LibraryItem>>(
       stream: stream,
       builder: (context, snapshot) {
@@ -422,32 +485,25 @@ class LibraryScreenState extends State<LibraryScreen>
         if (!snapshot.hasData ||
             snapshot.data == null ||
             snapshot.data!.isEmpty) {
-          return _buildNoContentState(type, theme);
+          return _buildNoContentState(type);
         }
-        return _buildContentList(snapshot.data!, userId, theme);
+        return _buildContentList(snapshot.data!, userId);
       },
     );
   }
 
-  Widget _buildContentList(
-      List<LibraryItem> items, String userId, ThemeData theme) {
+  Widget _buildContentList(List<LibraryItem> items, String userId) {
     final filteredItems = items
         .where((item) => item.title.toLowerCase().contains(_searchQuery))
         .toList();
 
     if (filteredItems.isEmpty) {
       if (items.isNotEmpty && _searchQuery.isNotEmpty) {
-        return _buildNoSearchResultsState(theme);
+        return _buildNoSearchResultsState();
       }
-      return _buildNoContentState(
-          _tabController.index == 0
-              ? 'all'
-              : [
-                  'summaries',
-                  'quizzes',
-                  'flashcards'
-                ][_tabController.index - 1],
-          theme);
+      return _buildNoContentState(_tabController.index == 0
+          ? 'all'
+          : ['summaries', 'quizzes', 'flashcards'][_tabController.index - 1]);
     }
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -456,7 +512,10 @@ class LibraryScreenState extends State<LibraryScreen>
           padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 80.0),
           itemCount: filteredItems.length,
           itemBuilder: (context, index) =>
-              _buildLibraryCard(filteredItems[index], userId, theme),
+              _buildLibraryCard(filteredItems[index], userId)
+                  .animate()
+                  .fadeIn(delay: (50 * index).ms)
+                  .slideY(begin: 0.1, duration: 300.ms),
         );
       } else {
         return GridView.builder(
@@ -469,65 +528,160 @@ class LibraryScreenState extends State<LibraryScreen>
           ),
           itemCount: filteredItems.length,
           itemBuilder: (context, index) =>
-              _buildLibraryCard(filteredItems[index], userId, theme),
+              _buildLibraryCard(filteredItems[index], userId)
+                  .animate()
+                  .fadeIn(delay: (50 * index).ms)
+                  .scale(duration: 300.ms),
         );
       }
     });
   }
 
-  Widget _buildLibraryCard(LibraryItem item, String userId, ThemeData theme) {
-    return Card(
-      color: theme.cardColor,
-      margin: const EdgeInsets.only(bottom: 12.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        onTap: () => _navigateToContent(context, userId, item),
-        borderRadius: BorderRadius.circular(15),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              _getIconForType(item.type),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.title,
-                        style: theme.textTheme.titleMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Text(item.type.toString().split('.').last,
-                        style: TextStyle(
-                            color: theme.textTheme.bodySmall?.color,
-                            fontSize: 12)),
-                  ],
+  Widget _buildLibraryCard(LibraryItem item, String userId) {
+    IconData icon;
+    Color iconColor;
+    switch (item.type) {
+      case LibraryItemType.summary:
+        icon = Icons.article_outlined;
+        iconColor = Colors.blueAccent;
+        break;
+      case LibraryItemType.quiz:
+        icon = Icons.quiz_outlined;
+        iconColor = Colors.greenAccent;
+        break;
+      case LibraryItemType.flashcards:
+        icon = Icons.style_outlined;
+        iconColor = Colors.orangeAccent;
+        break;
+    }
+
+    return Dismissible(
+      key: Key(item.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withValues(alpha: 0.8),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      confirmDismiss: (direction) async {
+        return await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              title: const Text("Confirm Delete"),
+              content: const Text("Are you sure you want to delete this item?"),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("Cancel"),
                 ),
-              ),
-              IconButton(
-                icon: Icon(Icons.more_horiz, color: theme.iconTheme.color),
-                onPressed: () => _showItemMenu(context, userId, item, theme),
-              ),
-            ],
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text("Delete",
+                      style: TextStyle(color: Colors.redAccent)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      onDismissed: (direction) {
+        _deleteContent(userId, item);
+      },
+      child: _buildGlassListTile(
+        title: item.title,
+        subtitle: item.type.toString().split('.').last.toUpperCase(),
+        icon: icon,
+        iconColor: iconColor,
+        onTap: () => _navigateToContent(userId, item),
+        trailing: IconButton(
+          icon: const Icon(Icons.more_horiz, color: Colors.black54),
+          onPressed: () => _showItemMenu(userId, item),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassListTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+    Widget? trailing,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.7), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text(subtitle,
+                          style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+                if (trailing != null)
+                  trailing
+                else
+                  const Icon(Icons.chevron_right, color: Colors.black26),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Icon _getIconForType(LibraryItemType type) {
-    switch (type) {
-      case LibraryItemType.summary:
-        return const Icon(Icons.article_outlined, color: Colors.blueAccent);
-      case LibraryItemType.quiz:
-        return const Icon(Icons.quiz_outlined, color: Colors.greenAccent);
-      case LibraryItemType.flashcards:
-        return const Icon(Icons.style_outlined, color: Colors.orangeAccent);
-    }
-  }
-
-  Widget _buildNoContentState(String type, ThemeData theme) {
+  Widget _buildNoContentState(String type) {
     final typeName = type == 'all' ? 'content' : type.replaceAll('s', '');
     return Center(
       child: Padding(
@@ -536,22 +690,27 @@ class LibraryScreenState extends State<LibraryScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.school_outlined,
-                size: 100, color: theme.iconTheme.color),
+                size: 100,
+                color: const Color(0xFF1A237E).withValues(alpha: 0.2)),
             const SizedBox(height: 24),
-            Text('No $typeName yet', style: theme.textTheme.headlineMedium),
+            Text('No $typeName yet',
+                style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54)),
             const SizedBox(height: 12),
             Text(
               'Tap the + button to create your first set of study materials!',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
+              style: GoogleFonts.inter(color: Colors.black45),
             ),
           ],
         ),
       ),
-    );
+    ).animate().fadeIn();
   }
 
-  Widget _buildNoSearchResultsState(ThemeData theme) {
+  Widget _buildNoSearchResultsState() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40.0),
@@ -559,14 +718,80 @@ class LibraryScreenState extends State<LibraryScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.search_off_outlined,
-                size: 100, color: theme.iconTheme.color),
+                size: 100,
+                color: const Color(0xFF1A237E).withValues(alpha: 0.2)),
             const SizedBox(height: 24),
-            Text('No Results Found', style: theme.textTheme.headlineMedium),
+            Text('No Results Found',
+                style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54)),
             const SizedBox(height: 12),
             Text(
               'Your search for "$_searchQuery" did not match any content. Try a different search term.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
+              style: GoogleFonts.inter(color: Colors.black45),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn();
+  }
+
+  void _showCreateOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Wrap(
+          runSpacing: 16,
+          children: [
+            Text("Create New",
+                style: GoogleFonts.poppins(
+                    fontSize: 20, fontWeight: FontWeight.bold)),
+            _buildCreationOption(
+              icon: Icons.article_outlined,
+              title: "Create Summary",
+              subtitle: "Summarize text or PDFs",
+              color: Colors.blueAccent,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const SummaryScreen()));
+              },
+            ),
+            _buildCreationOption(
+              icon: Icons.quiz_outlined,
+              title: "Create Quiz",
+              subtitle: "Generate a quiz from any topic",
+              color: Colors.greenAccent,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const QuizScreen()));
+              },
+            ),
+            _buildCreationOption(
+              icon: Icons.style_outlined,
+              title: "Create Flashcards",
+              subtitle: "Make flashcards for study",
+              color: Colors.orangeAccent,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const FlashcardsScreen()));
+              },
             ),
           ],
         ),
@@ -574,66 +799,82 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  void _showCreateOptions(BuildContext context) {
-    final theme = Theme.of(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: theme.cardColor,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Wrap(
+  Widget _buildCreationOption(
+      {required IconData icon,
+      required String title,
+      required String subtitle,
+      required Color color,
+      required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Row(
         children: [
-          ListTile(
-            leading: Icon(Icons.article_outlined, color: theme.iconTheme.color),
-            title: Text('Create Summary', style: theme.textTheme.bodyMedium),
-            onTap: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const SummaryScreen()));
-            },
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 28),
           ),
-          ListTile(
-            leading: Icon(Icons.quiz_outlined, color: theme.iconTheme.color),
-            title: Text('Create Quiz', style: theme.textTheme.bodyMedium),
-            onTap: () {
-              Navigator.pop(ctx);
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const QuizScreen()));
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.style_outlined, color: theme.iconTheme.color),
-            title: Text('Create Flashcards', style: theme.textTheme.bodyMedium),
-            onTap: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const FlashcardsScreen()));
-            },
-          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(subtitle,
+                  style:
+                      GoogleFonts.inter(color: Colors.black54, fontSize: 12)),
+            ],
+          )
         ],
       ),
     );
   }
 
-  void _showItemMenu(
-      BuildContext context, String userId, LibraryItem item, ThemeData theme) {
+  Widget _buildGlassContainer({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.9), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  void _showItemMenu(String userId, LibraryItem item) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: theme.cardColor,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Wrap(
         children: [
           ListTile(
-            leading: Icon(Icons.edit_outlined, color: theme.iconTheme.color),
-            title: Text('Edit', style: theme.textTheme.bodyMedium),
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit'),
             onTap: () {
               Navigator.pop(ctx);
-              _editContent(context, userId, item);
+              _editContent(userId, item);
             },
           ),
           ListTile(
@@ -642,7 +883,7 @@ class LibraryScreenState extends State<LibraryScreen>
                 const Text('Delete', style: TextStyle(color: Colors.redAccent)),
             onTap: () {
               Navigator.pop(ctx);
-              _deleteContent(context, userId, item);
+              _deleteContent(userId, item);
             },
           ),
         ],
@@ -650,8 +891,7 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Future<void> _navigateToContent(
-      BuildContext context, String userId, LibraryItem item) async {
+  Future<void> _navigateToContent(String userId, LibraryItem item) async {
     Widget? screen;
     switch (item.type) {
       case LibraryItemType.summary:
@@ -663,6 +903,7 @@ class LibraryScreenState extends State<LibraryScreen>
           return;
         }
         final content = await _firestoreService.getSpecificItem(userId, item);
+        if (!mounted) return;
 
         if (content != null) {
           final summary = content as Summary;
@@ -677,6 +918,7 @@ class LibraryScreenState extends State<LibraryScreen>
         break;
       case LibraryItemType.quiz:
         final localQuiz = await _localDb.getQuiz(item.id);
+        if (!mounted) return;
         if (localQuiz != null) {
           screen = QuizScreen(quiz: localQuiz);
         }
@@ -690,114 +932,149 @@ class LibraryScreenState extends State<LibraryScreen>
           return;
         }
         final content = await _firestoreService.getSpecificItem(userId, item);
+        if (!mounted) return;
         if (content != null) {
           screen = FlashcardsScreen(flashcardSet: content as FlashcardSet);
         }
         break;
     }
 
+    if (!mounted) return;
+
     if (screen != null) {
-      if (mounted) {
-        Navigator.push(
-            context, MaterialPageRoute(builder: (context) => screen!));
-      }
+      Navigator.push(context, MaterialPageRoute(builder: (context) => screen!));
     } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error: Could not load content.')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Could not load content.')));
     }
   }
 
-  Future<void> _editContent(
-      BuildContext context, String userId, LibraryItem item) async {
-    if (_isOfflineMode) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Editing is disabled in offline mode.')));
-      }
-      return;
-    }
-
-    final content = await _firestoreService.getSpecificItem(userId, item);
-    if (content == null) return;
-
+  Future<void> _editContent(String userId, LibraryItem item) async {
     EditableContent? editableContent;
+
+    // Fetch from Local DB first
     switch (item.type) {
       case LibraryItemType.summary:
-        final summary = content as Summary;
-        editableContent = EditableContent.fromSummary(summary.id, summary.title,
-            summary.content, summary.tags, summary.timestamp);
+        var summary = await _localDb.getSummary(item.id);
+        if (summary == null && !_isOfflineMode) {
+          final cloudContent =
+              await _firestoreService.getSpecificItem(userId, item);
+          if (cloudContent is Summary) {
+            summary = LocalSummary(
+                id: cloudContent.id,
+                userId: userId,
+                title: cloudContent.title,
+                content: cloudContent.content,
+                tags: cloudContent.tags,
+                timestamp: cloudContent.timestamp.toDate(),
+                isSynced: true);
+          }
+        }
+
+        if (summary != null) {
+          editableContent = EditableContent.fromSummary(
+              summary.id,
+              summary.title,
+              summary.content,
+              summary.tags,
+              Timestamp.fromDate(summary.timestamp));
+        }
         break;
       case LibraryItemType.quiz:
-        final quiz = content as Quiz;
-        editableContent = EditableContent.fromQuiz(
-            quiz.id, quiz.title, quiz.questions, quiz.timestamp);
+        var quiz = await _localDb.getQuiz(item.id);
+        if (quiz == null && !_isOfflineMode) {
+          final cloudContent =
+              await _firestoreService.getSpecificItem(userId, item);
+          if (cloudContent is Quiz) {
+            quiz = LocalQuiz(
+                id: cloudContent.id,
+                userId: userId,
+                title: cloudContent.title,
+                questions: cloudContent.questions
+                    .map((q) => LocalQuizQuestion(
+                        question: q.question,
+                        options: q.options,
+                        correctAnswer: q.correctAnswer))
+                    .toList(),
+                timestamp: cloudContent.timestamp.toDate(),
+                isSynced: true);
+          }
+        }
+
+        if (quiz != null) {
+          editableContent = EditableContent.fromQuiz(
+              quiz.id,
+              quiz.title,
+              quiz.questions
+                  .map((q) => QuizQuestion(
+                      question: q.question,
+                      options: q.options,
+                      correctAnswer: q.correctAnswer))
+                  .toList(),
+              Timestamp.fromDate(quiz.timestamp));
+        }
         break;
       case LibraryItemType.flashcards:
-        final flashcardSet = content as FlashcardSet;
-        editableContent = EditableContent.fromFlashcardSet(
-            flashcardSet.id,
-            flashcardSet.title,
-            flashcardSet.flashcards,
-            flashcardSet.timestamp);
+        var flashcardSet = await _localDb.getFlashcardSet(item.id);
+        if (flashcardSet == null && !_isOfflineMode) {
+          final cloudContent =
+              await _firestoreService.getSpecificItem(userId, item);
+          if (cloudContent is FlashcardSet) {
+            flashcardSet = LocalFlashcardSet(
+                id: cloudContent.id,
+                userId: userId,
+                title: cloudContent.title,
+                flashcards: cloudContent.flashcards
+                    .map((f) =>
+                        LocalFlashcard(question: f.question, answer: f.answer))
+                    .toList(),
+                timestamp: cloudContent.timestamp.toDate(),
+                isSynced: true);
+          }
+        }
+
+        if (flashcardSet != null) {
+          editableContent = EditableContent.fromFlashcardSet(
+              flashcardSet.id,
+              flashcardSet.title,
+              flashcardSet.flashcards
+                  .map((f) => Flashcard(
+                      id: const Uuid().v4(),
+                      question: f.question,
+                      answer: f.answer))
+                  .toList(),
+              Timestamp.fromDate(flashcardSet.timestamp));
+        }
         break;
     }
 
-    if (mounted && editableContent != null) {
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) =>
-                  EditContentScreen(content: editableContent!)));
+    if (!mounted) return;
+
+    if (editableContent != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Edit feature coming soon!")));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Could not load for editing.')));
     }
   }
 
-  Future<void> _deleteContent(
-      BuildContext context, String userId, LibraryItem item) async {
-    final theme = Theme.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: theme.cardColor,
-        title: Text('Delete Content', style: theme.textTheme.headlineSmall),
-        content: Text('Are you sure you want to delete this item?',
-            style: theme.textTheme.bodyMedium),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text('Cancel',
-                  style: TextStyle(color: theme.colorScheme.onSurface))),
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Delete',
-                  style: TextStyle(color: Colors.redAccent))),
-        ],
-      ),
-    );
-
-    if (confirmed == null || !confirmed) return;
-
+  Future<void> _deleteContent(String userId, LibraryItem item) async {
     try {
-      if (item.type == LibraryItemType.quiz) {
-        await _localDb.deleteQuiz(item.id);
-        if (mounted) {
-          Provider.of<QuizViewModel>(context, listen: false).refresh();
-        }
-      } else {
-        if (_isOfflineMode) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text(
-                    'Deletion of cloud items is disabled in offline mode.')));
-          }
-          return;
-        }
+      if (!_isOfflineMode) {
         await _firestoreService.deleteItem(userId, item);
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Item deleted')));
+
+      switch (item.type) {
+        case LibraryItemType.summary:
+          await _localDb.deleteSummary(item.id);
+          break;
+        case LibraryItemType.quiz:
+          await _localDb.deleteQuiz(item.id);
+          break;
+        case LibraryItemType.flashcards:
+          await _localDb.deleteFlashcardSet(item.id);
+          break;
       }
     } catch (e) {
       if (mounted) {

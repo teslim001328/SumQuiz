@@ -1,5 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key, required this.navigationShell});
@@ -19,43 +21,119 @@ class MainScreen extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 600) {
-          // Use BottomNavigationBar for narrow screens
+          // Mobile: Glassmorphic Bottom Navigation
           return Scaffold(
+            extendBody: true, // Allow body to extend behind the nav bar
             body: navigationShell,
-            bottomNavigationBar: BottomNavigationBar(
-              items: const <BottomNavigationBarItem>[
-                BottomNavigationBarItem(icon: Icon(Icons.book_outlined), activeIcon: Icon(Icons.book), label: 'Library'),
-                BottomNavigationBarItem(icon: Icon(Icons.school_outlined), activeIcon: Icon(Icons.school), label: 'Review'),
-                BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), activeIcon: Icon(Icons.add_circle), label: 'Create'),
-                BottomNavigationBarItem(icon: Icon(Icons.show_chart_outlined), activeIcon: Icon(Icons.show_chart), label: 'Progress'),
-              ],
-              currentIndex: navigationShell.currentIndex,
-              onTap: _onTap,
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: theme.colorScheme.primary,
-              unselectedItemColor: theme.colorScheme.onSurface.withOpacity(0.6),
+            bottomNavigationBar: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withValues(alpha: 0.7),
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: BottomNavigationBar(
+                    items: const <BottomNavigationBarItem>[
+                      BottomNavigationBarItem(
+                          icon: Icon(Icons.book_outlined),
+                          activeIcon: Icon(Icons.book),
+                          label: 'Library'),
+                      BottomNavigationBarItem(
+                          icon: Icon(Icons.school_outlined),
+                          activeIcon: Icon(Icons.school),
+                          label: 'Review'),
+                      BottomNavigationBarItem(
+                          icon: Icon(Icons.add_circle_outline),
+                          activeIcon: Icon(Icons.add_circle),
+                          label: 'Create'),
+                      BottomNavigationBarItem(
+                          icon: Icon(Icons.show_chart_outlined),
+                          activeIcon: Icon(Icons.show_chart),
+                          label: 'Progress'),
+                    ],
+                    currentIndex: navigationShell.currentIndex,
+                    onTap: _onTap,
+                    type: BottomNavigationBarType.fixed,
+                    backgroundColor: Colors.transparent, // Important
+                    elevation: 0,
+                    selectedItemColor: theme.colorScheme.primary,
+                    unselectedItemColor:
+                        theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    selectedLabelStyle: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600, fontSize: 12),
+                    unselectedLabelStyle:
+                        GoogleFonts.inter(fontWeight: FontWeight.w400),
+                  ),
+                ),
+              ),
             ),
           );
         } else {
-          // Use NavigationRail for wider screens
+          // Desktop/Tablet: Glassmorphic Navigation Rail
           return Scaffold(
             body: Row(
               children: [
-                NavigationRail(
-                  selectedIndex: navigationShell.currentIndex,
-                  onDestinationSelected: _onTap,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: const <NavigationRailDestination>[
-                    NavigationRailDestination(icon: Icon(Icons.book_outlined), selectedIcon: Icon(Icons.book), label: Text('Library')),
-                    NavigationRailDestination(icon: Icon(Icons.school_outlined), selectedIcon: Icon(Icons.school), label: Text('Review')),
-                    NavigationRailDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle), label: Text('Create')),
-                    NavigationRailDestination(icon: Icon(Icons.show_chart_outlined), selectedIcon: Icon(Icons.show_chart), label: Text('Progress')),
-                  ],
-                  selectedIconTheme: IconThemeData(color: theme.colorScheme.primary),
-                  unselectedIconTheme: IconThemeData(color: theme.colorScheme.onSurface.withOpacity(0.6)),
-                  selectedLabelTextStyle: TextStyle(color: theme.colorScheme.primary),
+                ClipRRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface.withValues(alpha: 0.7),
+                        border: Border(
+                          right: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: NavigationRail(
+                        selectedIndex: navigationShell.currentIndex,
+                        onDestinationSelected: _onTap,
+                        labelType: NavigationRailLabelType.all,
+                        backgroundColor: Colors.transparent,
+                        destinations: const <NavigationRailDestination>[
+                          NavigationRailDestination(
+                              icon: Icon(Icons.book_outlined),
+                              selectedIcon: Icon(Icons.book),
+                              label: Text('Library')),
+                          NavigationRailDestination(
+                              icon: Icon(Icons.school_outlined),
+                              selectedIcon: Icon(Icons.school),
+                              label: Text('Review')),
+                          NavigationRailDestination(
+                              icon: Icon(Icons.add_circle_outline),
+                              selectedIcon: Icon(Icons.add_circle),
+                              label: Text('Create')),
+                          NavigationRailDestination(
+                              icon: Icon(Icons.show_chart_outlined),
+                              selectedIcon: Icon(Icons.show_chart),
+                              label: Text('Progress')),
+                        ],
+                        selectedIconTheme:
+                            IconThemeData(color: theme.colorScheme.primary),
+                        unselectedIconTheme: IconThemeData(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.5)),
+                        selectedLabelTextStyle: GoogleFonts.inter(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        unselectedLabelTextStyle: GoogleFonts.inter(
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                const VerticalDivider(thickness: 1, width: 1),
                 Expanded(
                   child: navigationShell,
                 ),

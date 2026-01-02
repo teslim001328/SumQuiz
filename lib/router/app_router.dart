@@ -15,6 +15,8 @@ import 'package:sumquiz/views/screens/summary_screen.dart';
 import 'package:sumquiz/views/screens/quiz_screen.dart';
 import 'package:sumquiz/views/screens/flashcards_screen.dart';
 import 'package:sumquiz/views/screens/edit_content_screen.dart';
+import 'package:sumquiz/views/screens/edit_quiz_screen.dart';
+import 'package:sumquiz/views/screens/edit_flashcards_screen.dart';
 import 'package:sumquiz/views/screens/preferences_screen.dart';
 import 'package:sumquiz/views/screens/data_storage_screen.dart';
 import 'package:sumquiz/views/screens/subscription_screen.dart';
@@ -212,8 +214,16 @@ GoRouter createAppRouter(AuthService authService) {
                       parentNavigatorKey: _rootNavigatorKey,
                       builder: (context, state) {
                         if (state.extra is EditableContent) {
-                          return EditContentScreen(
-                              content: state.extra as EditableContent);
+                          final content = state.extra as EditableContent;
+                          if (content.type == 'quiz') {
+                            return EditQuizScreen(content: content);
+                          } else if (content.type == 'flashcards' ||
+                              content.type == 'flashcardSet' ||
+                              content.type == 'flashcard') {
+                            // Check likely values
+                            return EditFlashcardsScreen(content: content);
+                          }
+                          return EditContentScreen(content: content);
                         } else {
                           // Should return a valid widget, like an error screen
                           return const Scaffold(

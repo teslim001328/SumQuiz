@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +10,7 @@ import '../../services/spaced_repetition_service.dart';
 import '../../models/local_flashcard.dart';
 import '../../models/spaced_repetition.dart';
 import 'package:flip_card/flip_card.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class SpacedRepetitionScreen extends StatefulWidget {
   const SpacedRepetitionScreen({super.key});
@@ -26,7 +28,6 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
   bool _isLoading = true;
   bool _isFlipping = false;
   String _message = '';
-  Color _backgroundColor = const Color(0xFF1A237E); // Initial Blue
 
   final GlobalKey<FlipCardState> _flipCardKey = GlobalKey<FlipCardState>();
 
@@ -80,7 +81,6 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
           _dueFlashcards = flashcards;
           _isLoading = false;
           _currentIndex = 0;
-          _backgroundColor = const Color(0xFF1A237E); // Reset to blue
           if (flashcards.isEmpty) {
             _message = 'No items are due for review right now. Great job!';
           }
@@ -106,7 +106,6 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
       _flipCardKey.currentState?.toggleCard();
       setState(() {
         _isFlipping = true;
-        _backgroundColor = const Color(0xFF1B5E20); // Animate to Green
       });
     }
   }
@@ -123,7 +122,6 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
         setState(() {
           _currentIndex++;
           _isFlipping = false;
-          _backgroundColor = const Color(0xFF1A237E); // Animate back to Blue
         });
         _flipCardKey.currentState?.toggleCard(); // Flip back to question
       } else {
@@ -144,19 +142,51 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text('Daily Review',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.white)),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: Stack(
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-            color: _backgroundColor,
+          // Animated Background
+          Animate(
+            onPlay: (controller) => controller.repeat(reverse: true),
+            effects: [
+              CustomEffect(
+                duration: 10.seconds,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF0F2027), // Dark slate
+                          Color.lerp(const Color(0xFF203A43),
+                              const Color(0xFF2C5364), value)!, // Tealish dark
+                        ],
+                      ),
+                    ),
+                    child: child,
+                  );
+                },
+              )
+            ],
+            child: Container(),
           ),
           SafeArea(
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white)))
+                    child: CircularProgressIndicator(color: Colors.white))
                 : _dueFlashcards.isEmpty
                     ? _buildCompletionOrMessageView()
                     : _buildFlashcardReview(),
@@ -181,6 +211,30 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
     );
   }
 
+  Widget _buildGlassCard({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   Widget _buildCompletionOrMessageView() {
     return Center(
       child: Padding(
@@ -188,14 +242,20 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.task_alt, size: 100, color: Color(0xFF2ECC71)),
+            const Icon(Icons.task_alt, size: 100, color: Color(0xFF2ECC71))
+                .animate()
+                .scale()
+                .fadeIn(),
             const SizedBox(height: 24),
             Text(_message,
-                style: GoogleFonts.oswald(
-                    fontSize: 28,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
+                    style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center)
+                .animate()
+                .fadeIn(delay: 200.ms)
+                .slideY(begin: 0.1),
             const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () => Navigator.of(context).pop(),
@@ -208,7 +268,7 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                       borderRadius: BorderRadius.circular(30)),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 30, vertical: 15)),
-            ),
+            ).animate().fadeIn(delay: 400.ms),
           ],
         ),
       ),
@@ -228,25 +288,26 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
         children: [
           Row(
             children: [
-              IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop()),
+              const SizedBox(width: 48), // Spacer to balance
               Expanded(
-                child: LinearProgressIndicator(
-                  value: (_currentIndex + 1) / _dueFlashcards.length,
-                  backgroundColor: Colors.white.withAlpha(77),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                      Colors.lightGreenAccent),
-                  minHeight: 8,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (_currentIndex + 1) / _dueFlashcards.length,
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.lightGreenAccent),
+                    minHeight: 8,
+                  ),
                 ),
               ),
-              const SizedBox(width: 50), // Balance the close button
+              const SizedBox(width: 16),
+              Text('${_currentIndex + 1}/${_dueFlashcards.length}',
+                  style: GoogleFonts.inter(
+                      color: Colors.white70, fontWeight: FontWeight.bold)),
             ],
           ),
-          const SizedBox(height: 8),
-          Text('Card ${_currentIndex + 1}/${_dueFlashcards.length}',
-              style: GoogleFonts.roboto(color: Colors.white70)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
           Expanded(
             child: FlipCard(
@@ -256,10 +317,22 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
               back: _buildCardSide('Answer', flashcard.answer, false),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
           // Action buttons based on flip state
-          _isFlipping ? _buildAnswerButtons() : _buildShowAnswerButton(),
+          SizedBox(
+            height: 80,
+            child: _isFlipping
+                ? _buildAnswerButtons()
+                    .animate()
+                    .fadeIn(duration: 200.ms)
+                    .slideY(begin: 0.2)
+                : _buildShowAnswerButton()
+                    .animate()
+                    .fadeIn(duration: 200.ms)
+                    .slideY(begin: 0.2),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -268,38 +341,42 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
   Widget _buildCardSide(String title, String content, bool isQuestion) {
     return GestureDetector(
       onTap: isQuestion ? _flipCard : null,
-      child: Card(
-        color: Colors.black.withAlpha(102),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        elevation: 10,
-        shadowColor: Colors.black.withAlpha(128),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+      child: _buildGlassCard(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          padding: const EdgeInsets.all(32.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: GoogleFonts.oswald(
-                      color: Colors.white70,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold)),
-              const Divider(color: Colors.white54, thickness: 1, height: 24),
+              Text(title.toUpperCase(),
+                  style: GoogleFonts.inter(
+                      color: isQuestion
+                          ? Colors.amberAccent
+                          : Colors.lightBlueAccent,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5)),
+              const SizedBox(height: 24),
               Expanded(
                 child: Center(
-                  child: Text(content,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.roboto(
-                          color: Colors.white,
-                          fontSize: 28,
-                          height: 1.5,
-                          fontWeight: FontWeight.w500)),
+                  child: SingleChildScrollView(
+                    child: Text(content,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 24,
+                            height: 1.5,
+                            fontWeight: FontWeight.w500)),
+                  ),
                 ),
               ),
               if (isQuestion)
-                const Center(
+                Center(
                     child: Text('Tap to reveal answer',
-                        style: TextStyle(
-                            color: Colors.white70,
+                        style: GoogleFonts.inter(
+                            color: Colors.white54,
+                            fontSize: 12,
                             fontStyle: FontStyle.italic)))
             ],
           ),
@@ -312,33 +389,25 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
     return ElevatedButton(
       onPressed: _flipCard,
       style: ElevatedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 60),
-        backgroundColor: Colors.white.withAlpha(230),
+        minimumSize: const Size(200, 56),
+        backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        elevation: 0,
       ),
       child: Text('Show Answer',
-          style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.bold)),
+          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
     );
   }
 
   Widget _buildAnswerButtons() {
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Text('Did you remember the answer?',
-            style: GoogleFonts.roboto(color: Colors.white70, fontSize: 16)),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-                child: _buildFeedbackButton('No', Icons.close,
-                    Colors.red.shade400, () => _processReview(false))),
-            const SizedBox(width: 16),
-            Expanded(
-                child: _buildFeedbackButton('Yes', Icons.check,
-                    Colors.green.shade400, () => _processReview(true))),
-          ],
-        ),
+        _buildFeedbackButton(
+            'Hard', Icons.close, Colors.redAccent, () => _processReview(false)),
+        _buildFeedbackButton('Easy', Icons.check, Colors.greenAccent.shade700,
+            () => _processReview(true)),
       ],
     );
   }
@@ -347,16 +416,15 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
       String label, IconData icon, Color color, VoidCallback onPressed) {
     return ElevatedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 28),
+      icon: Icon(icon, size: 24),
       label: Text(label,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
-        minimumSize: const Size(140, 60),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        elevation: 5,
-        shadowColor: color.withAlpha(128),
+        minimumSize: const Size(140, 56),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        elevation: 0,
       ),
     );
   }

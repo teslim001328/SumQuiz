@@ -17,6 +17,7 @@ import 'package:sumquiz/services/usage_service.dart';
 import 'package:sumquiz/view_models/quiz_view_model.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:sumquiz/router/app_router.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sumquiz/providers/navigation_provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -73,7 +74,7 @@ void main() async {
       authService: authService, notificationService: notificationService));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final AuthService authService;
   final NotificationService notificationService;
 
@@ -83,13 +84,26 @@ class MyApp extends StatelessWidget {
       required this.notificationService});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = createAppRouter(widget.authService);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()..init()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
-        Provider<AuthService>.value(value: authService),
-        Provider<NotificationService>.value(value: notificationService),
+        Provider<AuthService>.value(value: widget.authService),
+        Provider<NotificationService>.value(value: widget.notificationService),
         Provider<FirestoreService>(create: (_) => FirestoreService()),
         Provider<LocalDatabaseService>(create: (_) => LocalDatabaseService()),
         Provider<SpacedRepetitionService>(
@@ -116,7 +130,7 @@ class MyApp extends StatelessWidget {
                 AIService(iapService: context.read<IAPService?>())),
         Provider<ContentExtractionService>(
             create: (context) =>
-                ContentExtractionService(context.read<AIService>())),
+                ContentExtractionService(context.read<EnhancedAIService>())),
         Provider<UserService>(create: (_) => UserService()),
         Provider<EnhancedAIService>(create: (_) => EnhancedAIService()),
         Provider<SyncService>(
@@ -169,14 +183,13 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          final router = createAppRouter(authService);
           return NotificationNavigator(
             child: MaterialApp.router(
               title: 'SumQuiz',
               theme: ThemeProvider.lightTheme,
               darkTheme: ThemeProvider.darkTheme,
               themeMode: themeProvider.themeMode,
-              routerConfig: router,
+              routerConfig: _router,
               debugShowCheckedModeBanner: false,
               localizationsDelegates: const [
                 GlobalMaterialLocalizations.delegate,
