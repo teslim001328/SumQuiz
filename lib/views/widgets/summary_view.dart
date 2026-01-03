@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:google_fonts/google_fonts.dart';
-
 class SummaryView extends StatelessWidget {
   final String title;
   final String content;
@@ -24,11 +22,12 @@ class SummaryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
@@ -37,7 +36,7 @@ class SummaryView extends StatelessWidget {
                 offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Padding(
             padding: const EdgeInsets.all(32.0),
@@ -46,10 +45,9 @@ class SummaryView extends StatelessWidget {
               children: [
                 SelectableText(
                   title,
-                  style: GoogleFonts.inter(
-                    fontSize: 28,
+                  style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: theme.colorScheme.onSurface,
                     height: 1.3,
                   ),
                 ),
@@ -64,15 +62,14 @@ class SummaryView extends StatelessWidget {
                                   horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
                                 color:
-                                    const Color(0xFF1A237E).withOpacity(0.05),
+                                    theme.colorScheme.primary.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(100),
                               ),
                               child: Text(
                                 '#$tag',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
+                                style: theme.textTheme.labelMedium?.copyWith(
                                   fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF1A237E),
+                                  color: theme.colorScheme.primary,
                                 ),
                               ),
                             ))
@@ -81,10 +78,9 @@ class SummaryView extends StatelessWidget {
                 const SizedBox(height: 32),
                 SelectableText(
                   content,
-                  style: GoogleFonts.sourceSerif4(
-                    fontSize: 16,
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     height: 1.8,
-                    color: const Color(0xFF333333),
+                    color: theme.colorScheme.onSurface.withOpacity(0.8),
                   ),
                 ),
               ],
@@ -96,9 +92,9 @@ class SummaryView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[200]!),
+                border: Border.all(color: theme.dividerColor),
                 boxShadow: [
                   BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -113,13 +109,11 @@ class SummaryView extends StatelessWidget {
                     label: 'Copy',
                     icon: Icons.copy_rounded,
                     onPressed: onCopy,
+                    theme: theme,
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                    width: 1,
-                    height: 24,
-                    color: Colors.grey.withValues(alpha: 0.3)),
+                Container(width: 1, height: 24, color: theme.dividerColor),
                 const SizedBox(width: 8),
                 if (onSave != null) ...[
                   Expanded(
@@ -128,6 +122,7 @@ class SummaryView extends StatelessWidget {
                       label: 'Save',
                       icon: Icons.bookmark_border_rounded,
                       onPressed: onSave,
+                      theme: theme,
                     ),
                   ),
                 ],
@@ -141,15 +136,17 @@ class SummaryView extends StatelessWidget {
               height: 54,
               child: ElevatedButton.icon(
                 onPressed: onGenerateQuiz,
-                icon: const Icon(Icons.psychology_alt, color: Colors.white),
+                icon: Icon(Icons.psychology_alt,
+                    color: theme.colorScheme.onPrimary),
                 label: Text("Generate Quiz from Summary",
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600, fontSize: 16)),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onPrimary)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A237E),
-                  foregroundColor: Colors.white,
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
                   elevation: 2,
-                  shadowColor: const Color(0xFF1A237E).withValues(alpha: 0.4),
+                  shadowColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -165,13 +162,14 @@ class SummaryView extends StatelessWidget {
   Widget _buildActionButton(BuildContext context,
       {required String label,
       required IconData icon,
-      VoidCallback? onPressed}) {
+      VoidCallback? onPressed,
+      required ThemeData theme}) {
     return TextButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 20, color: const Color(0xFF1A237E)),
+      icon: Icon(icon, size: 20, color: theme.colorScheme.primary),
       label: Text(label,
-          style: GoogleFonts.inter(
-              fontWeight: FontWeight.w600, color: const Color(0xFF1A237E))),
+          style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

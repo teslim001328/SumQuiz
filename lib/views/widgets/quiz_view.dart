@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/local_quiz_question.dart';
 
 class QuizView extends StatefulWidget {
@@ -63,10 +62,12 @@ class _QuizViewState extends State<QuizView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     if (widget.questions.isEmpty) {
       return Center(
           child: Text("No questions available.",
-              style: GoogleFonts.poppins(color: Colors.white)));
+              style: theme.textTheme.bodyLarge
+                  ?.copyWith(color: theme.colorScheme.onSurface)));
     }
 
     final question = widget.questions[_currentQuestionIndex];
@@ -77,7 +78,7 @@ class _QuizViewState extends State<QuizView> {
     return Column(
       children: [
         // Top Bar with progress
-        _buildTopBar(progress),
+        _buildTopBar(progress, theme),
 
         Expanded(
           child: Padding(
@@ -89,23 +90,23 @@ class _QuizViewState extends State<QuizView> {
                   const SizedBox(height: 20),
                   // Question Card
                   _buildGlassContainer(
+                    theme: theme,
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
                         Text(
                           'Question ${_currentQuestionIndex + 1}',
-                          style: GoogleFonts.inter(
-                              color: const Color(0xFF1A1A1A)
-                                  .withValues(alpha: 0.6),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.6),
                               fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           question.question,
-                          style: GoogleFonts.poppins(
-                            fontSize: 20,
+                          style: theme.textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1A1A1A),
+                            color: theme.colorScheme.onSurface,
                             height: 1.4,
                           ),
                           textAlign: TextAlign.center,
@@ -123,7 +124,7 @@ class _QuizViewState extends State<QuizView> {
                   ...List.generate(question.options.length, (index) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12.0),
-                      child: _buildOptionTile(index, question),
+                      child: _buildOptionTile(index, question, theme),
                     );
                   }).animate(interval: 100.ms).slideX(begin: 0.2).fade(),
 
@@ -138,8 +139,8 @@ class _QuizViewState extends State<QuizView> {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey[200]!)),
+            color: theme.cardColor,
+            border: Border(top: BorderSide(color: theme.dividerColor)),
           ),
           child: SizedBox(
             width: double.infinity,
@@ -147,22 +148,23 @@ class _QuizViewState extends State<QuizView> {
             child: ElevatedButton(
               onPressed: _answerWasSelected ? _handleNextQuestion : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A237E),
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 elevation: 4,
-                shadowColor: const Color(0xFF1A237E).withValues(alpha: 0.4),
+                shadowColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                disabledBackgroundColor: Colors.grey.withValues(alpha: 0.3),
+                disabledBackgroundColor:
+                    theme.disabledColor.withValues(alpha: 0.3),
               ),
               child: Text(
                 _currentQuestionIndex < widget.questions.length - 1
                     ? 'Next Question'
                     : 'Finish Quiz',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: theme.colorScheme.onPrimary,
                 ),
               ),
             ),
@@ -172,7 +174,7 @@ class _QuizViewState extends State<QuizView> {
     );
   }
 
-  Widget _buildTopBar(double progress) {
+  Widget _buildTopBar(double progress, ThemeData theme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Column(
@@ -183,10 +185,9 @@ class _QuizViewState extends State<QuizView> {
               Expanded(
                 child: Text(
                   widget.title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1A237E),
+                    color: theme.colorScheme.primary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -194,10 +195,8 @@ class _QuizViewState extends State<QuizView> {
               ),
               if (widget.showSaveButton && widget.onSaveProgress != null)
                 IconButton(
-                  icon: const Icon(
-                      Icons
-                          .enhance_photo_translate, // Using as a save icon placeholder if intended
-                      color: Color(0xFF1A237E)),
+                  icon: Icon(Icons.enhance_photo_translate,
+                      color: theme.colorScheme.primary),
                   onPressed: widget.onSaveProgress,
                   // Actually, let's stick to save_alt
                 ).animate().scale(),
@@ -208,9 +207,9 @@ class _QuizViewState extends State<QuizView> {
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor: Colors.grey.withValues(alpha: 0.2),
+              backgroundColor: theme.disabledColor.withValues(alpha: 0.2),
               valueColor:
-                  const AlwaysStoppedAnimation<Color>(Color(0xFF1A237E)),
+                  AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
               minHeight: 8,
             ),
           ),
@@ -219,15 +218,16 @@ class _QuizViewState extends State<QuizView> {
     );
   }
 
-  Widget _buildOptionTile(int index, LocalQuizQuestion question) {
+  Widget _buildOptionTile(
+      int index, LocalQuizQuestion question, ThemeData theme) {
     bool isSelected = _selectedAnswerIndex == index;
     bool isCorrect = question.options[index] == question.correctAnswer;
 
     // Determine visuals state
     Color borderColor = Colors.transparent;
-    Color backgroundColor = Colors.white.withValues(alpha: 0.6);
+    Color backgroundColor = theme.cardColor.withValues(alpha: 0.6);
     IconData icon = Icons.circle_outlined;
-    Color iconColor = Colors.grey;
+    Color iconColor = theme.disabledColor;
 
     if (_answerWasSelected) {
       if (isCorrect) {
@@ -242,11 +242,10 @@ class _QuizViewState extends State<QuizView> {
         iconColor = Colors.red;
       } else {
         // Unselected and not correct - fade it out slightly
-        backgroundColor = Colors.white.withValues(alpha: 0.4);
+        backgroundColor = theme.cardColor.withValues(alpha: 0.4);
       }
     } else if (isSelected) {
-      // Just selected (before confirmation logic if we had it, strictly here it applies immediately)
-      // Since logic sets _answerWasSelected immediately, this block mainly serves hypothetical delay states
+      // Just selected
     }
 
     return GestureDetector(
@@ -260,7 +259,7 @@ class _QuizViewState extends State<QuizView> {
             border: Border.all(
               color: _answerWasSelected && (isCorrect || isSelected)
                   ? borderColor
-                  : Colors.grey[200]!,
+                  : theme.dividerColor,
               width: 1.5,
             ),
             boxShadow: [
@@ -281,9 +280,8 @@ class _QuizViewState extends State<QuizView> {
             Expanded(
               child: Text(
                 question.options[index],
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: const Color(0xFF1A1A1A),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -295,13 +293,15 @@ class _QuizViewState extends State<QuizView> {
   }
 
   Widget _buildGlassContainer(
-      {required Widget child, EdgeInsetsGeometry? padding}) {
+      {required Widget child,
+      EdgeInsetsGeometry? padding,
+      required ThemeData theme}) {
     return Container(
       padding: padding ?? const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),

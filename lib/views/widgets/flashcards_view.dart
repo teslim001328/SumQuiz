@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'dart:developer' as developer;
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:flip_card/flip_card.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../models/flashcard.dart';
 
@@ -54,12 +53,14 @@ class _FlashcardsViewState extends State<FlashcardsView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     developer.log('FlashcardsView build: ${widget.flashcards.length} cards',
         name: 'flashcards.view');
     if (widget.flashcards.isEmpty) {
       return Center(
           child: Text("No flashcards available.",
-              style: GoogleFonts.poppins(color: Colors.white)));
+              style: theme.textTheme.bodyLarge
+                  ?.copyWith(color: theme.colorScheme.onSurface)));
     }
 
     // Progress bar value
@@ -74,10 +75,10 @@ class _FlashcardsViewState extends State<FlashcardsView> {
             child: Column(
               children: [
                 Text(widget.title,
-                    style: GoogleFonts.poppins(
+                    style: theme.textTheme.titleLarge?.copyWith(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white)),
+                        color: theme.colorScheme.onPrimary)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -86,9 +87,10 @@ class _FlashcardsViewState extends State<FlashcardsView> {
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: progress,
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              Colors.amberAccent),
+                          backgroundColor: theme.colorScheme.onPrimary
+                              .withValues(alpha: 0.2),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.colorScheme.secondary),
                           minHeight: 6,
                         ),
                       ),
@@ -96,8 +98,9 @@ class _FlashcardsViewState extends State<FlashcardsView> {
                     const SizedBox(width: 12),
                     Text(
                       '${_currentIndex + 1}/${widget.flashcards.length}',
-                      style: GoogleFonts.inter(
-                          color: Colors.white.withValues(alpha: 0.8),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.onPrimary
+                              .withValues(alpha: 0.8),
                           fontWeight: FontWeight.w500),
                     ),
                   ],
@@ -117,9 +120,10 @@ class _FlashcardsViewState extends State<FlashcardsView> {
                   (context, index, percentThresholdX, percentThresholdY) {
                 final card = widget.flashcards[index];
                 return FlipCard(
-                  front: _buildCardSide(card.question, isFront: true),
+                  front: _buildCardSide(card.question,
+                      isFront: true, theme: theme),
                   back: _buildCardSide(card.answer,
-                      isFront: false, cardIndex: index),
+                      isFront: false, cardIndex: index, theme: theme),
                 );
               },
             ),
@@ -129,8 +133,10 @@ class _FlashcardsViewState extends State<FlashcardsView> {
     );
   }
 
-  Widget _buildCardSide(String text, {required bool isFront, int? cardIndex}) {
+  Widget _buildCardSide(String text,
+      {required bool isFront, int? cardIndex, required ThemeData theme}) {
     return _buildGlassCard(
+      theme: theme,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -139,10 +145,10 @@ class _FlashcardsViewState extends State<FlashcardsView> {
             padding: const EdgeInsets.only(bottom: 16.0),
             child: Text(
               isFront ? "QUESTION" : "ANSWER",
-              style: GoogleFonts.inter(
+              style: theme.textTheme.labelMedium?.copyWith(
                 color: isFront
-                    ? const Color(0xFF1A237E).withValues(alpha: 0.6)
-                    : const Color(0xFFE65100).withValues(alpha: 0.6),
+                    ? theme.colorScheme.primary.withValues(alpha: 0.8)
+                    : theme.colorScheme.tertiary.withValues(alpha: 0.8),
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
@@ -157,10 +163,9 @@ class _FlashcardsViewState extends State<FlashcardsView> {
                 child: Text(
                   text,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
+                  style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF1A1A1A),
+                    color: theme.colorScheme.onSurface,
                     height: 1.4,
                   ),
                 ),
@@ -180,12 +185,14 @@ class _FlashcardsViewState extends State<FlashcardsView> {
                     icon: Icons.refresh_rounded,
                     color: Colors.orange,
                     onPressed: () => _handleReview(cardIndex!, false),
+                    theme: theme,
                   ),
                   _buildGlassButton(
                     label: "Got It",
                     icon: Icons.check_circle_outline_rounded,
                     color: Colors.green,
                     onPressed: () => _handleReview(cardIndex!, true),
+                    theme: theme,
                   ),
                 ],
               ),
@@ -197,14 +204,16 @@ class _FlashcardsViewState extends State<FlashcardsView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.touch_app_outlined,
-                      size: 20, color: Colors.grey[400]),
+                      size: 20,
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.4)),
                   const SizedBox(width: 8),
                   Text(
                     "Tap to Flip",
-                    style: GoogleFonts.inter(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       fontSize: 14,
                       fontStyle: FontStyle.italic,
-                      color: Colors.grey[400],
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                     ),
                   ),
                 ],
@@ -215,7 +224,7 @@ class _FlashcardsViewState extends State<FlashcardsView> {
     );
   }
 
-  Widget _buildGlassCard({required Widget child}) {
+  Widget _buildGlassCard({required Widget child, required ThemeData theme}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
@@ -225,10 +234,10 @@ class _FlashcardsViewState extends State<FlashcardsView> {
           height: double.infinity,
           padding: const EdgeInsets.all(32.0),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
+            color: theme.cardColor.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(30),
             border: Border.all(
-                color: Colors.white.withValues(alpha: 0.9), width: 1.5),
+                color: theme.cardColor.withValues(alpha: 0.9), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.1),
@@ -248,6 +257,7 @@ class _FlashcardsViewState extends State<FlashcardsView> {
     required IconData icon,
     required Color color,
     required VoidCallback onPressed,
+    required ThemeData theme,
   }) {
     return GestureDetector(
       onTap: onPressed,
@@ -264,7 +274,7 @@ class _FlashcardsViewState extends State<FlashcardsView> {
             const SizedBox(height: 4),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: color,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,

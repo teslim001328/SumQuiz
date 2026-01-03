@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/services/enhanced_ai_service.dart';
 import 'package:sumquiz/services/local_database_service.dart';
@@ -45,6 +44,18 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
   }
 
   void _toggleOutput(OutputType type) {
+    if (type == OutputType.flashcards) {
+      final user = context.read<UserModel?>();
+      if (user != null && !user.isPro) {
+        showDialog(
+          context: context,
+          builder: (_) =>
+              const UpgradeDialog(featureName: 'Interactive Flashcards'),
+        );
+        return;
+      }
+    }
+
     setState(() {
       if (_selectedOutputs.contains(type)) {
         _selectedOutputs.remove(type);
@@ -67,17 +78,17 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
     }
 
     final user = context.read<UserModel?>();
-    final usageService = context.read<UsageService?>();
 
-    if (user != null && !user.isPro && usageService != null) {
-      for (var output in _selectedOutputs) {
-        if (!await usageService.canPerformAction(output.name)) {
-          if (mounted)
-            showDialog(
-                context: context,
-                builder: (_) => UpgradeDialog(featureName: output.name));
-          return;
+    // Check Limits
+    if (user != null) {
+      final usageService = UsageService();
+      if (!await usageService.canGenerateDeck(user.uid)) {
+        if (mounted) {
+          showDialog(
+              context: context,
+              builder: (_) => const UpgradeDialog(featureName: 'Daily Limit'));
         }
+        return;
       }
     }
 
@@ -107,10 +118,9 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
         },
       );
 
-      if (user != null && !user.isPro && usageService != null) {
-        for (var output in _selectedOutputs) {
-          await usageService.recordAction(output.name);
-        }
+      // Record Usage
+      if (user != null) {
+        await UsageService().recordDeckGeneration(user.uid);
       }
 
       if (mounted) context.go('/library/results-view/$folderId');
@@ -128,18 +138,20 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB), // Light grey background
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
+          icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
         title: Text("Create Content",
-            style: GoogleFonts.poppins(
-                color: Colors.black, fontWeight: FontWeight.bold)),
+            style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.bold)),
       ),
       body: Row(
         children: [
@@ -149,7 +161,7 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
             child: Container(
               margin: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -163,16 +175,17 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
                   Padding(
                     padding: const EdgeInsets.all(24.0),
                     child: Text("Source Text",
-                        style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold)),
                   ),
-                  Divider(height: 1, color: Colors.grey.shade200),
+                  Divider(height: 1, color: theme.dividerColor),
                   Expanded(
                     child: TextField(
                       controller: _textController,
                       maxLines: null,
                       expands: true,
-                      style: GoogleFonts.robotoMono(fontSize: 14, height: 1.5),
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                      cursorColor: theme.colorScheme.primary,
                       decoration: const InputDecoration(
                         contentPadding: EdgeInsets.all(24),
                         border: InputBorder.none,
@@ -190,31 +203,38 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
           Expanded(
             flex: 1,
             child: Container(
-              color: Colors.white,
+              color: theme.cardColor,
               padding: const EdgeInsets.all(32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text("Configuration",
-                      style: GoogleFonts.poppins(
-                          fontSize: 24, fontWeight: FontWeight.bold)),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface)),
                   const SizedBox(height: 32),
 
                   // Title Input
                   Text("Title",
-                      style: GoogleFonts.inter(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[700])),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.7))),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _titleController,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.onSurface),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey.shade50,
+                      fillColor: theme.colorScheme.surface,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none),
                       hintText: "Enter a title for this study set",
+                      hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.5)),
                     ),
                   ),
 
@@ -222,9 +242,10 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
 
                   // Outputs
                   Text("Generate",
-                      style: GoogleFonts.inter(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[700])),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.7))),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 12,
@@ -235,20 +256,21 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
                         selected: isSelected,
                         label: Text(type.name.toUpperCase()),
                         onSelected: (_) => _toggleOutput(type),
-                        backgroundColor: Colors.grey.shade100,
+                        backgroundColor: theme.colorScheme.surface,
                         selectedColor:
-                            const Color(0xFF1A237E).withValues(alpha: 0.1),
-                        labelStyle: TextStyle(
+                            theme.colorScheme.primary.withValues(alpha: 0.1),
+                        labelStyle: theme.textTheme.labelLarge?.copyWith(
                           color: isSelected
-                              ? const Color(0xFF1A237E)
-                              : Colors.grey[700],
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
                           fontWeight: FontWeight.bold,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                           side: BorderSide(
                             color: isSelected
-                                ? const Color(0xFF1A237E)
+                                ? theme.colorScheme.primary
                                 : Colors.transparent,
                           ),
                         ),
@@ -265,8 +287,8 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleGenerate,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1A237E),
-                        foregroundColor: Colors.white,
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
                         // dropdownColor: Colors.white, // REMOVED invalid parameter
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -276,11 +298,12 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
                           ? Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const SizedBox(
+                                SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2)),
+                                        color: theme.colorScheme.onPrimary,
+                                        strokeWidth: 2)),
                                 const SizedBox(width: 12),
                                 Text(_loadingMessage),
                               ],

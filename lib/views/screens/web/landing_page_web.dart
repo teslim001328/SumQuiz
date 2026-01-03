@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class LandingPageWeb extends StatefulWidget {
   const LandingPageWeb({super.key});
@@ -22,8 +21,17 @@ class _LandingPageWebState extends State<LandingPageWeb> {
 
   @override
   Widget build(BuildContext context) {
+    // Landing page often has a specific fixed theme (Dark Marketing Theme)
+    // We will hardcode dark styles for consistency with the design, or use a specific dark theme overlay.
+    // However, to remove GoogleFonts, we use standard text theme but stylized.
+
+    // For specific landing page colors:
+    const backgroundColor = Color(0xFF0F172A);
+    const primaryColor = Color(0xFF6366F1);
+    const secondaryColor = Color(0xFFEC4899);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Dark Navy Background
+      backgroundColor: backgroundColor, // Dark Navy Background
       body: Stack(
         children: [
           // Background Gradients
@@ -37,8 +45,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                 height: 500,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color:
-                      const Color(0xFF6366F1).withValues(alpha: 0.2), // Indigo
+                  color: primaryColor.withValues(alpha: 0.2), // Indigo
                 ),
               ),
             ),
@@ -53,8 +60,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                 height: 600,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color:
-                      const Color(0xFFEC4899).withValues(alpha: 0.15), // Pink
+                  color: secondaryColor.withValues(alpha: 0.15), // Pink
                 ),
               ),
             ),
@@ -80,6 +86,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
   }
 
   Widget _buildNavBar(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
       child: Center(
@@ -103,7 +110,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                   ),
                   const SizedBox(width: 12),
                   Text("SumQuiz",
-                      style: GoogleFonts.poppins(
+                      style: textTheme.headlineSmall?.copyWith(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white)),
@@ -116,14 +123,14 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                   TextButton(
                       onPressed: () {},
                       child: Text("Features",
-                          style: GoogleFonts.inter(
+                          style: textTheme.bodyLarge?.copyWith(
                               color: Colors.white70,
                               fontWeight: FontWeight.w500))),
                   const SizedBox(width: 24),
                   TextButton(
                       onPressed: () => context.go('/auth'),
                       child: Text("Log In",
-                          style: GoogleFonts.inter(
+                          style: textTheme.bodyLarge?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w600))),
                   const SizedBox(width: 16),
@@ -138,7 +145,8 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                           borderRadius: BorderRadius.circular(30)),
                     ),
                     child: Text("Get Started",
-                        style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                        style: textTheme.labelLarge
+                            ?.copyWith(fontWeight: FontWeight.bold)),
                   ),
                 ],
               )
@@ -150,6 +158,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
   }
 
   Widget _buildHeroSection(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       constraints: const BoxConstraints(maxWidth: 1200),
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 80),
@@ -171,15 +180,14 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                         color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
                   ),
                   child: Text("🚀 #1 AI Study Tool for 2024",
-                      style: GoogleFonts.inter(
+                      style: textTheme.bodyMedium?.copyWith(
                           color: const Color(0xFF818CF8),
                           fontWeight: FontWeight.w600)),
                 ).animate().fadeIn(delay: 200.ms),
                 const SizedBox(height: 24),
                 Text(
                   "Crush Your Exams with\nAI Superpowers.",
-                  style: GoogleFonts.poppins(
-                    fontSize: 56,
+                  style: textTheme.displayLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     height: 1.1,
                     color: Colors.white,
@@ -188,7 +196,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                 const SizedBox(height: 24),
                 Text(
                   "Turn any text, PDF, video, or link into summaries, quizzes, and flashcards in seconds. Stop reading. Start mastering.",
-                  style: GoogleFonts.inter(
+                  style: textTheme.bodyLarge?.copyWith(
                       fontSize: 18, color: Colors.white70, height: 1.6),
                 ).animate().fadeIn(delay: 600.ms),
                 const SizedBox(height: 48),
@@ -211,10 +219,12 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                       child: Row(
                         children: [
                           Text("Start Learning for Free",
-                              style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.bold)),
+                              style: textTheme.labelLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white)),
                           const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, size: 20),
+                          const Icon(Icons.arrow_forward_rounded,
+                              size: 20, color: Colors.white),
                         ],
                       ),
                     ),
@@ -233,11 +243,13 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.play_circle_outline, size: 20),
+                          const Icon(Icons.play_circle_outline,
+                              size: 20, color: Colors.white),
                           const SizedBox(width: 8),
                           Text("Watch Demo",
-                              style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w600)),
+                              style: textTheme.labelLarge?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white)),
                         ],
                       ),
                     ),
@@ -364,6 +376,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
   }
 
   Widget _buildFeaturesGrid(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final features = [
       {
         'icon': Icons.bolt,
@@ -396,14 +409,12 @@ class _LandingPageWebState extends State<LandingPageWeb> {
           child: Column(
             children: [
               Text("The Ultimate Exam Tech Stack",
-                  style: GoogleFonts.poppins(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white)),
+                  style: textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.bold, color: Colors.white)),
               const SizedBox(height: 16),
               Text("Everything you need to study smarter, not harder.",
-                  style:
-                      GoogleFonts.inter(fontSize: 18, color: Colors.white60)),
+                  style: textTheme.titleLarge
+                      ?.copyWith(fontSize: 18, color: Colors.white60)),
               const SizedBox(height: 60),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,16 +444,13 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                           ),
                           const SizedBox(height: 24),
                           Text(feature['title'] as String,
-                              style: GoogleFonts.poppins(
-                                  fontSize: 24,
+                              style: textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white)),
                           const SizedBox(height: 12),
                           Text(feature['desc'] as String,
-                              style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  color: Colors.white60,
-                                  height: 1.5)),
+                              style: textTheme.bodyLarge?.copyWith(
+                                  color: Colors.white60, height: 1.5)),
                         ],
                       ),
                     ),
@@ -457,6 +465,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
   }
 
   Widget _buildHowItWorks(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 80),
       color: Colors.black.withValues(alpha: 0.2), // Slightly darker section
@@ -467,10 +476,8 @@ class _LandingPageWebState extends State<LandingPageWeb> {
           child: Column(
             children: [
               Text("How It Works",
-                  style: GoogleFonts.poppins(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white)),
+                  style: textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.bold, color: Colors.white)),
               const SizedBox(height: 60),
 
               // Step 1
@@ -479,6 +486,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                 title: "Import Content",
                 desc: "Paste text, upload a PDF, or drop a YouTube link.",
                 alignRight: false,
+                textTheme: textTheme,
               ),
 
               // Step 2
@@ -488,6 +496,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                 desc:
                     "Our advanced AI extracts key concepts and generates study materials.",
                 alignRight: true,
+                textTheme: textTheme,
               ),
 
               // Step 3
@@ -496,6 +505,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                 title: "Ace the Exam",
                 desc: "Review summaries, take quizzes, and master flashcards.",
                 alignRight: false,
+                textTheme: textTheme,
               ),
             ],
           ),
@@ -508,7 +518,8 @@ class _LandingPageWebState extends State<LandingPageWeb> {
       {required String number,
       required String title,
       required String desc,
-      required bool alignRight}) {
+      required bool alignRight,
+      required TextTheme textTheme}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 60),
       child: Row(
@@ -522,7 +533,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                   : CrossAxisAlignment.start,
               children: [
                 Text(number,
-                    style: GoogleFonts.oswald(
+                    style: textTheme.displayLarge?.copyWith(
                         fontSize: 80,
                         fontWeight: FontWeight.bold,
                         color: Colors.white.withValues(alpha: 0.05))),
@@ -534,14 +545,13 @@ class _LandingPageWebState extends State<LandingPageWeb> {
                         : CrossAxisAlignment.start,
                     children: [
                       Text(title,
-                          style: GoogleFonts.poppins(
-                              fontSize: 32,
+                          style: textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.white)),
                       const SizedBox(height: 8),
                       Text(desc,
-                          style: GoogleFonts.inter(
-                              fontSize: 18, color: Colors.white60),
+                          style: textTheme.titleMedium
+                              ?.copyWith(color: Colors.white60),
                           textAlign:
                               alignRight ? TextAlign.right : TextAlign.left),
                     ],
@@ -558,6 +568,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
   }
 
   Widget _buildCTASection(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 40),
       child: Center(
@@ -582,17 +593,15 @@ class _LandingPageWebState extends State<LandingPageWeb> {
             children: [
               Text(
                 "Ready to revolutionize your study routine?",
-                style: GoogleFonts.poppins(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
+                style: textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.bold, color: Colors.white),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
               Text(
                 "Join thousands of students acing their exams with SumQuiz.",
-                style: GoogleFonts.inter(
-                    fontSize: 18, color: Colors.white.withValues(alpha: 0.9)),
+                style: textTheme.titleLarge
+                    ?.copyWith(color: Colors.white.withValues(alpha: 0.9)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
@@ -618,6 +627,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
   }
 
   Widget _buildFooter(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 40),
       decoration: BoxDecoration(
@@ -627,7 +637,7 @@ class _LandingPageWebState extends State<LandingPageWeb> {
       child: Center(
         child: Text(
           "© 2024 SumQuiz. Built for the future of learning.",
-          style: GoogleFonts.inter(color: Colors.white30),
+          style: textTheme.bodyMedium?.copyWith(color: Colors.white30),
         ),
       ),
     );

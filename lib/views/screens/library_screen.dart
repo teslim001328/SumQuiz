@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rxdart/rxdart.dart';
@@ -172,10 +171,12 @@ class LibraryScreenState extends State<LibraryScreen>
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel?>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: _buildAppBar(context),
+      appBar: _buildAppBar(context, theme),
       body: Stack(
         children: [
           // Animated Background
@@ -190,11 +191,17 @@ class LibraryScreenState extends State<LibraryScreen>
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFE3F2FD), // Light Blue 50
-                          Color.lerp(const Color(0xFFE3F2FD),
-                              const Color(0xFFBBDEFB), value)!, // Blue 100
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFE3F2FD),
+                                Color.lerp(const Color(0xFFE3F2FD),
+                                    const Color(0xFFBBDEFB), value)!,
+                              ],
                       ),
                     ),
                     child: child,
@@ -206,35 +213,34 @@ class LibraryScreenState extends State<LibraryScreen>
           ),
           SafeArea(
             child: user == null
-                ? _buildLoggedOutView()
-                : _buildLibraryContent(user),
+                ? _buildLoggedOutView(theme)
+                : _buildLibraryContent(user, theme),
           ),
         ],
       ),
       floatingActionButton: user != null && !_isOfflineMode
           ? FloatingActionButton(
-              onPressed: () => _showCreateOptions(context),
-              backgroundColor: const Color(0xFF1A237E),
-              foregroundColor: Colors.white,
+              onPressed: () => _showCreateOptions(context, theme),
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
               child: const Icon(Icons.add),
             ).animate().scale(delay: 500.ms)
           : null,
     );
   }
 
-  AppBar _buildAppBar(BuildContext context) {
+  AppBar _buildAppBar(BuildContext context, ThemeData theme) {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
       title: Text('Library',
-          style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A237E))),
+          style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
       centerTitle: true,
       actions: [
         IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Color(0xFF1A237E)),
+            icon:
+                Icon(Icons.settings_outlined, color: theme.colorScheme.primary),
             onPressed: () {
               if (mounted) {
                 context.push('/settings');
@@ -244,27 +250,28 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildLoggedOutView() {
+  Widget _buildLoggedOutView(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32.0),
         child: _buildGlassContainer(
+          theme: theme,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_outlined,
-                  size: 80, color: Color(0xFF1A237E)),
+              Icon(Icons.cloud_off_outlined,
+                  size: 80, color: theme.colorScheme.primary),
               const SizedBox(height: 24),
               Text('Please Log In',
-                  style: GoogleFonts.poppins(
-                      fontSize: 20,
+                  style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1A237E))),
+                      color: theme.colorScheme.primary)),
               const SizedBox(height: 12),
               Text(
                 'Log in to access your synchronized library across all your devices.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.black54),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
               ),
             ],
           ),
@@ -273,25 +280,27 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildOfflineState() {
+  Widget _buildOfflineState(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32.0),
         child: _buildGlassContainer(
+          theme: theme,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.signal_wifi_off_outlined,
-                  size: 80, color: Color(0xFF1A237E)),
+              Icon(Icons.signal_wifi_off_outlined,
+                  size: 80, color: theme.colorScheme.primary),
               const SizedBox(height: 24),
               Text('Offline Mode',
-                  style: GoogleFonts.poppins(
-                      fontSize: 20, fontWeight: FontWeight.bold)),
+                  style: theme.textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Text(
                 'You are currently in offline mode. Only locally stored content is available.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.black54),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
               ),
             ],
           ),
@@ -300,22 +309,23 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildLibraryContent(UserModel user) {
+  Widget _buildLibraryContent(UserModel user, ThemeData theme) {
     if (_isOfflineMode) {
-      return _buildOfflineState();
+      return _buildOfflineState(theme);
     }
     return Column(
       children: [
-        _buildSearchAndTabs(),
+        _buildSearchAndTabs(theme),
         Expanded(
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildFolderList(user.uid),
-              _buildCombinedList(user.uid),
-              _buildLibraryList(user.uid, 'summaries', _summariesStream),
-              _buildQuizList(user.uid),
-              _buildLibraryList(user.uid, 'flashcards', _flashcardsStream),
+              _buildFolderList(user.uid, theme),
+              _buildCombinedList(user.uid, theme),
+              _buildLibraryList(user.uid, 'summaries', _summariesStream, theme),
+              _buildQuizList(user.uid, theme),
+              _buildLibraryList(
+                  user.uid, 'flashcards', _flashcardsStream, theme),
             ],
           ),
         ),
@@ -323,14 +333,14 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildSearchAndTabs() {
+  Widget _buildSearchAndTabs(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         children: [
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: theme.cardColor.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
@@ -342,24 +352,27 @@ class LibraryScreenState extends State<LibraryScreen>
             ),
             child: TextField(
               controller: _searchController,
-              style: GoogleFonts.inter(color: Colors.black87),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Search Library...',
-                hintStyle: const TextStyle(color: Colors.black45),
-                prefixIcon: const Icon(Icons.search, color: Colors.black45),
+                hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                prefixIcon: Icon(Icons.search,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 15.0),
               ),
             ),
           ).animate().fadeIn().slideY(begin: -0.2),
           const SizedBox(height: 16),
-          _buildTabBar(),
+          _buildTabBar(theme),
         ],
       ),
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(ThemeData theme) {
     return TabBar(
       controller: _tabController,
       isScrollable: true,
@@ -372,11 +385,12 @@ class LibraryScreenState extends State<LibraryScreen>
       ],
       indicator: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
-        color: const Color(0xFF1A237E),
+        color: theme.colorScheme.primary,
       ),
-      labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
-      unselectedLabelColor: Colors.black54,
-      labelColor: Colors.white,
+      labelStyle:
+          theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+      unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+      labelColor: theme.colorScheme.onPrimary,
       dividerColor: Colors.transparent,
       splashFactory: NoSplash.splashFactory,
       overlayColor: WidgetStateProperty.resolveWith<Color?>(
@@ -389,7 +403,7 @@ class LibraryScreenState extends State<LibraryScreen>
     ).animate().fadeIn(delay: 100.ms).slideX();
   }
 
-  Widget _buildFolderList(String userId) {
+  Widget _buildFolderList(String userId, ThemeData theme) {
     return FutureBuilder<List<Folder>>(
       future: _localDb.getAllFolders(userId),
       builder: (context, snapshot) {
@@ -402,7 +416,7 @@ class LibraryScreenState extends State<LibraryScreen>
 
         final folders = snapshot.data ?? [];
         if (folders.isEmpty) {
-          return _buildNoContentState('folders');
+          return _buildNoContentState('folders', theme);
         }
 
         folders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -417,6 +431,7 @@ class LibraryScreenState extends State<LibraryScreen>
               subtitle: 'Created: ${folder.createdAt.toString().split(' ')[0]}',
               icon: Icons.folder,
               iconColor: Colors.amber,
+              theme: theme,
               onTap: () {
                 context.push('/library/results-view/${folder.id}');
               },
@@ -430,7 +445,7 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildCombinedList(String userId) {
+  Widget _buildCombinedList(String userId, ThemeData theme) {
     return StreamBuilder<List<LibraryItem>>(
       stream: _allItemsStream,
       builder: (context, snapshot) {
@@ -442,14 +457,14 @@ class LibraryScreenState extends State<LibraryScreen>
         final allItems = snapshot.data ?? [];
 
         if (allItems.isEmpty) {
-          return _buildNoContentState('all');
+          return _buildNoContentState('all', theme);
         }
-        return _buildContentList(allItems, userId);
+        return _buildContentList(allItems, userId, theme);
       },
     );
   }
 
-  Widget _buildQuizList(String userId) {
+  Widget _buildQuizList(String userId, ThemeData theme) {
     return Consumer<QuizViewModel>(
       builder: (context, quizViewModel, child) {
         if (quizViewModel.isLoading) {
@@ -457,7 +472,7 @@ class LibraryScreenState extends State<LibraryScreen>
         }
 
         if (quizViewModel.quizzes.isEmpty) {
-          return _buildNoContentState('quizzes');
+          return _buildNoContentState('quizzes', theme);
         }
 
         final quizItems = quizViewModel.quizzes
@@ -468,13 +483,13 @@ class LibraryScreenState extends State<LibraryScreen>
                 timestamp: Timestamp.fromDate(quiz.timestamp)))
             .toList();
 
-        return _buildContentList(quizItems, userId);
+        return _buildContentList(quizItems, userId, theme);
       },
     );
   }
 
-  Widget _buildLibraryList(
-      String userId, String type, Stream<List<LibraryItem>>? stream) {
+  Widget _buildLibraryList(String userId, String type,
+      Stream<List<LibraryItem>>? stream, ThemeData theme) {
     return StreamBuilder<List<LibraryItem>>(
       stream: stream,
       builder: (context, snapshot) {
@@ -485,25 +500,32 @@ class LibraryScreenState extends State<LibraryScreen>
         if (!snapshot.hasData ||
             snapshot.data == null ||
             snapshot.data!.isEmpty) {
-          return _buildNoContentState(type);
+          return _buildNoContentState(type, theme);
         }
-        return _buildContentList(snapshot.data!, userId);
+        return _buildContentList(snapshot.data!, userId, theme);
       },
     );
   }
 
-  Widget _buildContentList(List<LibraryItem> items, String userId) {
+  Widget _buildContentList(
+      List<LibraryItem> items, String userId, ThemeData theme) {
     final filteredItems = items
         .where((item) => item.title.toLowerCase().contains(_searchQuery))
         .toList();
 
     if (filteredItems.isEmpty) {
       if (items.isNotEmpty && _searchQuery.isNotEmpty) {
-        return _buildNoSearchResultsState();
+        return _buildNoSearchResultsState(theme);
       }
-      return _buildNoContentState(_tabController.index == 0
-          ? 'all'
-          : ['summaries', 'quizzes', 'flashcards'][_tabController.index - 1]);
+      return _buildNoContentState(
+          _tabController.index == 0
+              ? 'all'
+              : [
+                  'summaries',
+                  'quizzes',
+                  'flashcards'
+                ][_tabController.index - 1],
+          theme);
     }
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -512,7 +534,7 @@ class LibraryScreenState extends State<LibraryScreen>
           padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 80.0),
           itemCount: filteredItems.length,
           itemBuilder: (context, index) =>
-              _buildLibraryCard(filteredItems[index], userId)
+              _buildLibraryCard(filteredItems[index], userId, theme)
                   .animate()
                   .fadeIn(delay: (50 * index).ms)
                   .slideY(begin: 0.1, duration: 300.ms),
@@ -528,7 +550,7 @@ class LibraryScreenState extends State<LibraryScreen>
           ),
           itemCount: filteredItems.length,
           itemBuilder: (context, index) =>
-              _buildLibraryCard(filteredItems[index], userId)
+              _buildLibraryCard(filteredItems[index], userId, theme)
                   .animate()
                   .fadeIn(delay: (50 * index).ms)
                   .scale(duration: 300.ms),
@@ -537,7 +559,7 @@ class LibraryScreenState extends State<LibraryScreen>
     });
   }
 
-  Widget _buildLibraryCard(LibraryItem item, String userId) {
+  Widget _buildLibraryCard(LibraryItem item, String userId, ThemeData theme) {
     IconData icon;
     Color iconColor;
     switch (item.type) {
@@ -573,9 +595,10 @@ class LibraryScreenState extends State<LibraryScreen>
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              backgroundColor: Colors.white,
-              title: const Text("Confirm Delete"),
-              content: const Text("Are you sure you want to delete this item?"),
+              backgroundColor: theme.dialogBackgroundColor,
+              title: Text("Confirm Delete", style: theme.textTheme.titleLarge),
+              content: Text("Are you sure you want to delete this item?",
+                  style: theme.textTheme.bodyMedium),
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
@@ -599,9 +622,11 @@ class LibraryScreenState extends State<LibraryScreen>
         subtitle: item.type.toString().split('.').last.toUpperCase(),
         icon: icon,
         iconColor: iconColor,
+        theme: theme,
         onTap: () => _navigateToContent(userId, item),
         trailing: IconButton(
-          icon: const Icon(Icons.more_horiz, color: Colors.black54),
+          icon: Icon(Icons.more_horiz,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
           onPressed: () => _showItemMenu(userId, item),
         ),
       ),
@@ -614,15 +639,16 @@ class LibraryScreenState extends State<LibraryScreen>
     required IconData icon,
     required Color iconColor,
     required VoidCallback onTap,
+    required ThemeData theme,
     Widget? trailing,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
+        color: theme.cardColor.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: Colors.white.withValues(alpha: 0.7), width: 1.5),
+        border: Border.all(
+            color: theme.cardColor.withValues(alpha: 0.7), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -654,17 +680,18 @@ class LibraryScreenState extends State<LibraryScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title,
-                          style: GoogleFonts.inter(
+                          style: theme.textTheme.titleMedium?.copyWith(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87),
+                              color: theme.colorScheme.onSurface),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       Text(subtitle,
-                          style: GoogleFonts.inter(
+                          style: theme.textTheme.bodyMedium?.copyWith(
                               fontSize: 12,
-                              color: Colors.black54,
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.6),
                               fontWeight: FontWeight.w500)),
                     ],
                   ),
@@ -672,7 +699,9 @@ class LibraryScreenState extends State<LibraryScreen>
                 if (trailing != null)
                   trailing
                 else
-                  const Icon(Icons.chevron_right, color: Colors.black26),
+                  Icon(Icons.chevron_right,
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.3)),
               ],
             ),
           ),
@@ -681,7 +710,7 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildNoContentState(String type) {
+  Widget _buildNoContentState(String type, ThemeData theme) {
     final typeName = type == 'all' ? 'content' : type.replaceAll('s', '');
     return Center(
       child: Padding(
@@ -691,18 +720,18 @@ class LibraryScreenState extends State<LibraryScreen>
           children: [
             Icon(Icons.school_outlined,
                 size: 100,
-                color: const Color(0xFF1A237E).withValues(alpha: 0.2)),
+                color: theme.colorScheme.primary.withValues(alpha: 0.2)),
             const SizedBox(height: 24),
             Text('No $typeName yet',
-                style: GoogleFonts.poppins(
-                    fontSize: 20,
+                style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black54)),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
             const SizedBox(height: 12),
             Text(
               'Tap the + button to create your first set of study materials!',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(color: Colors.black45),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
             ),
           ],
         ),
@@ -710,7 +739,7 @@ class LibraryScreenState extends State<LibraryScreen>
     ).animate().fadeIn();
   }
 
-  Widget _buildNoSearchResultsState() {
+  Widget _buildNoSearchResultsState(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40.0),
@@ -719,18 +748,18 @@ class LibraryScreenState extends State<LibraryScreen>
           children: [
             Icon(Icons.search_off_outlined,
                 size: 100,
-                color: const Color(0xFF1A237E).withValues(alpha: 0.2)),
+                color: theme.colorScheme.primary.withValues(alpha: 0.2)),
             const SizedBox(height: 24),
             Text('No Results Found',
-                style: GoogleFonts.poppins(
-                    fontSize: 20,
+                style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black54)),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
             const SizedBox(height: 12),
             Text(
               'Your search for "$_searchQuery" did not match any content. Try a different search term.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(color: Colors.black45),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
             ),
           ],
         ),
@@ -738,27 +767,29 @@ class LibraryScreenState extends State<LibraryScreen>
     ).animate().fadeIn();
   }
 
-  void _showCreateOptions(BuildContext context) {
+  void _showCreateOptions(BuildContext context, ThemeData theme) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(24),
         child: Wrap(
           runSpacing: 16,
           children: [
             Text("Create New",
-                style: GoogleFonts.poppins(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface)),
             _buildCreationOption(
               icon: Icons.article_outlined,
               title: "Create Summary",
               subtitle: "Summarize text or PDFs",
               color: Colors.blueAccent,
+              theme: theme,
               onTap: () {
                 Navigator.pop(ctx);
                 Navigator.push(
@@ -772,6 +803,7 @@ class LibraryScreenState extends State<LibraryScreen>
               title: "Create Quiz",
               subtitle: "Generate a quiz from any topic",
               color: Colors.greenAccent,
+              theme: theme,
               onTap: () {
                 Navigator.pop(ctx);
                 Navigator.push(
@@ -785,6 +817,7 @@ class LibraryScreenState extends State<LibraryScreen>
               title: "Create Flashcards",
               subtitle: "Make flashcards for study",
               color: Colors.orangeAccent,
+              theme: theme,
               onTap: () {
                 Navigator.pop(ctx);
                 Navigator.push(
@@ -804,7 +837,8 @@ class LibraryScreenState extends State<LibraryScreen>
       required String title,
       required String subtitle,
       required Color color,
-      required VoidCallback onTap}) {
+      required VoidCallback onTap,
+      required ThemeData theme}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -823,11 +857,13 @@ class LibraryScreenState extends State<LibraryScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface)),
               Text(subtitle,
-                  style:
-                      GoogleFonts.inter(color: Colors.black54, fontSize: 12)),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.6))),
             ],
           )
         ],
@@ -835,7 +871,8 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
-  Widget _buildGlassContainer({required Widget child}) {
+  Widget _buildGlassContainer(
+      {required Widget child, required ThemeData theme}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -843,10 +880,10 @@ class LibraryScreenState extends State<LibraryScreen>
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: theme.cardColor.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-                color: Colors.white.withValues(alpha: 0.9), width: 1.5),
+                color: theme.cardColor.withValues(alpha: 0.9), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -864,14 +901,17 @@ class LibraryScreenState extends State<LibraryScreen>
   void _showItemMenu(String userId, LibraryItem item) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Wrap(
         children: [
           ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Edit'),
+            leading: Icon(Icons.edit_outlined,
+                color: Theme.of(context).colorScheme.onSurface),
+            title: Text('Edit',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface)),
             onTap: () {
               Navigator.pop(ctx);
               _editContent(userId, item);

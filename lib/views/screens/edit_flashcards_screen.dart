@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/models/editable_content.dart';
 import 'package:sumquiz/models/flashcard.dart';
@@ -89,21 +88,25 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
           _titleController.text.isEmpty ? 'Edit Set' : _titleController.text,
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold, color: Colors.white),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const BackButton(color: Colors.white),
+        leading: BackButton(color: theme.colorScheme.onSurface),
         actions: [
           IconButton(
-            icon: const Icon(Icons.save, color: Colors.white),
+            icon: Icon(Icons.save, color: theme.colorScheme.primary),
             onPressed: _save,
           ),
         ],
@@ -122,11 +125,19 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF283593), // Indigo 800
-                          Color.lerp(const Color(0xFF283593),
-                              const Color(0xFF1A237E), value)!, // Indigo 900
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFE8EAF6), // Indigo 50
+                                Color.lerp(
+                                    const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9),
+                                    value)!, // Indigo 100
+                              ],
                       ),
                     ),
                     child: child,
@@ -142,21 +153,23 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
               child: Column(
                 children: [
                   _buildGlassSection(
+                    theme,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Set Title',
-                            style: GoogleFonts.inter(
+                            style: theme.textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white70)),
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.7))),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _titleController,
-                          style: GoogleFonts.inter(
-                              color: Colors.white, fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                           decoration: InputDecoration(
                             filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.1),
+                            fillColor: theme.cardColor.withValues(alpha: 0.5),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
@@ -174,7 +187,7 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 16),
                       itemBuilder: (context, index) {
-                        return _buildFlashcardEditor(index)
+                        return _buildFlashcardEditor(index, theme)
                             .animate(delay: (100 * index).ms)
                             .fadeIn()
                             .slideX();
@@ -182,7 +195,7 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildBottomBar(),
+                  _buildBottomBar(theme),
                 ],
               ),
             ),
@@ -192,13 +205,14 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
     );
   }
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         children: [
           Text('${_flashcards.length} cards',
-              style: GoogleFonts.inter(color: Colors.white70)),
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7))),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -207,8 +221,8 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
               icon: const Icon(Icons.add),
               label: const Text('Add Flashcard'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amberAccent,
-                foregroundColor: Colors.black,
+                backgroundColor: theme.colorScheme.secondary,
+                foregroundColor: theme.colorScheme.onSecondary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
@@ -220,7 +234,7 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
     );
   }
 
-  Widget _buildFlashcardEditor(int index) {
+  Widget _buildFlashcardEditor(int index, ThemeData theme) {
     final card = _flashcards[index];
 
     return ClipRRect(
@@ -229,10 +243,17 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: theme.cardColor.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2), width: 1),
+                color: theme.dividerColor.withValues(alpha: 0.1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             children: [
@@ -240,10 +261,10 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: theme.cardColor.withValues(alpha: 0.3),
                   border: Border(
                       bottom: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.1))),
+                          color: theme.dividerColor.withValues(alpha: 0.1))),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,13 +273,13 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Front',
-                            style: GoogleFonts.inter(
-                                color: Colors.amberAccent,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12)),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold)),
                         IconButton(
                           icon: Icon(Icons.delete_outline,
-                              color: Colors.redAccent.withValues(alpha: 0.8),
+                              color: theme.colorScheme.error
+                                  .withValues(alpha: 0.8),
                               size: 20),
                           onPressed: () => _deleteFlashcard(index),
                           padding: EdgeInsets.zero,
@@ -268,13 +289,13 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
                     ),
                     TextFormField(
                       initialValue: card.question,
-                      style:
-                          GoogleFonts.inter(color: Colors.white, fontSize: 16),
+                      style: theme.textTheme.bodyLarge,
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Enter question',
                         hintStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4)),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.4)),
                         contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                       onChanged: (val) =>
@@ -291,19 +312,18 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Back',
-                        style: GoogleFonts.inter(
-                            color: Colors.lightBlueAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12)),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.secondary,
+                            fontWeight: FontWeight.bold)),
                     TextFormField(
                       initialValue: card.answer,
-                      style: GoogleFonts.inter(
-                          color: Colors.white70, fontSize: 15),
+                      style: theme.textTheme.bodyMedium,
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Enter answer',
                         hintStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4)),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.4)),
                         contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                       onChanged: (val) =>
@@ -320,7 +340,7 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
     );
   }
 
-  Widget _buildGlassSection({required Widget child}) {
+  Widget _buildGlassSection(ThemeData theme, {required Widget child}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -328,10 +348,17 @@ class _EditFlashcardsScreenState extends State<EditFlashcardsScreen> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: theme.cardColor.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2), width: 1),
+                color: theme.dividerColor.withValues(alpha: 0.1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: child,
         ),

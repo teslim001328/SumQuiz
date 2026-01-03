@@ -9,7 +9,6 @@ import 'package:sumquiz/models/spaced_repetition.dart';
 import 'package:sumquiz/services/firestore_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/local_database_service.dart';
 import '../../services/spaced_repetition_service.dart';
@@ -250,20 +249,24 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           title: Text(
               _isCreationMode ? 'Create Flashcards' : 'Review Flashcards',
-              style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold, color: Colors.white)),
+              style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary)),
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: const BackButton(color: Colors.white),
+          leading: BackButton(color: theme.colorScheme.primary),
           actions: [
             if (_flashcards.isNotEmpty && _state == FlashcardState.review)
               IconButton(
-                icon: const Icon(Icons.save, color: Colors.white),
+                icon: Icon(Icons.save, color: theme.colorScheme.primary),
                 onPressed: _saveFlashcardSet,
                 tooltip: 'Save Set',
               ),
@@ -283,11 +286,19 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            const Color(0xFF283593), // Indigo 800
-                            Color.lerp(const Color(0xFF283593),
-                                const Color(0xFF1A237E), value)!, // Indigo 900
-                          ],
+                          colors: isDark
+                              ? [
+                                  theme.colorScheme.surface,
+                                  Color.lerp(
+                                      theme.colorScheme.surface,
+                                      theme.colorScheme.primaryContainer,
+                                      value)!,
+                                ]
+                              : [
+                                  const Color(0xFFE8EAF6),
+                                  Color.lerp(const Color(0xFFE8EAF6),
+                                      const Color(0xFFC5CAE9), value)!,
+                                ],
                         ),
                       ),
                       child: child,
@@ -302,7 +313,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 800),
-                  child: _buildContent(),
+                  child: _buildContent(theme),
                 ),
               ),
             ),
@@ -310,72 +321,73 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         ));
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(ThemeData theme) {
     switch (_state) {
       case FlashcardState.loading:
-        return _buildLoadingState();
+        return _buildLoadingState(theme);
       case FlashcardState.error:
-        return _buildErrorState();
+        return _buildErrorState(theme);
       case FlashcardState.review:
         return _buildReviewInterface();
       case FlashcardState.finished:
-        return _buildCompletionScreen();
+        return _buildCompletionScreen(theme);
       default:
-        return _buildCreationForm();
+        return _buildCreationForm(theme);
     }
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(ThemeData theme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(
+          SizedBox(
             width: 80,
             height: 80,
             child: CircularProgressIndicator(
               strokeWidth: 6,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.amberAccent),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(theme.colorScheme.secondary),
             ),
           ),
           const SizedBox(height: 32),
           Text(_loadingMessage,
-              style: GoogleFonts.poppins(
-                  fontSize: 20,
+              style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.white)),
+                  color: theme.colorScheme.primary)),
         ],
       ).animate().fadeIn(),
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: _buildGlassContainer(
+          theme: theme,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
-                  color: Colors.orangeAccent, size: 64),
+              Icon(Icons.error_outline,
+                  color: theme.colorScheme.error, size: 64),
               const SizedBox(height: 16),
               Text('Oops! Something went wrong.',
-                  style: GoogleFonts.poppins(
-                      fontSize: 20,
+                  style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white),
+                      color: theme.colorScheme.error),
                   textAlign: TextAlign.center),
               const SizedBox(height: 8),
               Text(_errorMessage,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(color: Colors.white70)),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.colorScheme.onSurface)),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _retry,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF1A237E),
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
@@ -388,38 +400,41 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     );
   }
 
-  Widget _buildCreationForm() {
+  Widget _buildCreationForm(ThemeData theme) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
       child: Column(
         children: [
           const SizedBox(height: 20),
           Text('Create a New Flashcard Set',
-                  style: GoogleFonts.poppins(
-                      fontSize: 24,
+                  style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white))
+                      color: theme.colorScheme.primary))
               .animate()
               .fadeIn()
               .slideY(begin: -0.2),
           const SizedBox(height: 32),
           _buildGlassContainer(
+            theme: theme,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Set Title',
-                    style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w600, color: Colors.white)),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _titleController,
-                  style: const TextStyle(color: Colors.white),
+                  style: theme.textTheme.bodyMedium!
+                      .copyWith(color: theme.colorScheme.onSurface),
                   decoration: InputDecoration(
                     hintText: 'e.g., Biology Chapter 5',
-                    hintStyle:
-                        TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.1),
+                    fillColor: theme.cardColor.withValues(alpha: 0.5),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none),
@@ -427,19 +442,22 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                 ),
                 const SizedBox(height: 24),
                 Text('Content to Generate From',
-                    style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w600, color: Colors.white)),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _textController,
                   maxLines: 10,
-                  style: const TextStyle(color: Colors.white),
+                  style: theme.textTheme.bodyMedium!
+                      .copyWith(color: theme.colorScheme.onSurface),
                   decoration: InputDecoration(
                     hintText: 'Paste your notes, an article, or any text here.',
-                    hintStyle:
-                        TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.1),
+                    fillColor: theme.cardColor.withValues(alpha: 0.5),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none),
@@ -455,13 +473,15 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
               height: 56,
               child: ElevatedButton.icon(
                 onPressed: _generateFlashcards,
-                icon: const Icon(Icons.bolt_outlined),
-                label: const Text('Generate Flashcards',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                icon: Icon(Icons.bolt_outlined,
+                    color: theme.colorScheme.onPrimary),
+                label: Text('Generate Flashcards',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onPrimary)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amberAccent,
-                  foregroundColor: const Color(0xFF1A1A1A),
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
                   elevation: 8,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
@@ -489,41 +509,44 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     );
   }
 
-  Widget _buildCompletionScreen() {
+  Widget _buildCompletionScreen(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: _buildGlassContainer(
+          theme: theme,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.check_circle_outline_rounded,
+              Icon(Icons.check_circle_outline_rounded,
                   color: Colors.greenAccent, size: 80),
               const SizedBox(height: 24),
               Text('Set Complete!',
-                  style: GoogleFonts.poppins(
-                      fontSize: 28,
+                  style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white)),
+                      color: theme.colorScheme.onSurface)),
               const SizedBox(height: 12),
               Text(
                   'You got $_correctCount out of ${_flashcards.length} correct.',
-                  style:
-                      GoogleFonts.inter(fontSize: 18, color: Colors.white70)),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.8))),
               const SizedBox(height: 40),
               if (_isCreationMode) ...[
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.save),
+                    icon: Icon(Icons.save, color: theme.colorScheme.onPrimary),
                     onPressed: _saveFlashcardSet,
-                    label: const Text('Save Flashcards',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: Text('Save Flashcards',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onPrimary)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amberAccent,
-                      foregroundColor: Colors.black,
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
@@ -539,8 +562,8 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                   onPressed: _reviewAgain,
                   label: const Text('Review Again'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white70),
+                    foregroundColor: theme.colorScheme.primary,
+                    side: BorderSide(color: theme.colorScheme.primary),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -557,8 +580,10 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                           : _correctCount / _flashcards.length;
                       Navigator.of(context).pop(score);
                     },
-                    child: const Text('Finish',
-                        style: TextStyle(color: Colors.white70))),
+                    child: Text('Finish',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7)))),
               ),
             ],
           ),
@@ -568,7 +593,9 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   }
 
   Widget _buildGlassContainer(
-      {required Widget child, EdgeInsetsGeometry? padding}) {
+      {required Widget child,
+      EdgeInsetsGeometry? padding,
+      required ThemeData theme}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -576,10 +603,17 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         child: Container(
           padding: padding ?? const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: theme.cardColor.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+                color: theme.dividerColor.withValues(alpha: 0.2), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: child,
         ),

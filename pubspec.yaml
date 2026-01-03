@@ -100,3 +100,10 @@ flutter_launcher_icons:
   image_path: "assets/images/sumquiz_logo.png"
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/images/sumquiz_logo.png"
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/images/sumquiz_logo.png"
+  android_12:
+    image: "assets/images/sumquiz_logo.png"
+    color: "#FFFFFF"

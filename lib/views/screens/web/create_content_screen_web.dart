@@ -3,10 +3,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'package:provider/provider.dart';
 import 'package:sumquiz/services/content_extraction_service.dart';
 import 'package:sumquiz/widgets/pro_gate.dart';
+import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
+import 'package:sumquiz/models/user_model.dart';
+import 'package:sumquiz/services/usage_service.dart';
 
 class CreateContentScreenWeb extends StatefulWidget {
   const CreateContentScreenWeb({super.key});
@@ -51,7 +54,21 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
     super.dispose();
   }
 
+  bool _checkProAccess(String feature) {
+    final user = Provider.of<UserModel?>(context, listen: false);
+    if (user != null && !user.isPro) {
+      showDialog(
+        context: context,
+        builder: (_) => UpgradeDialog(featureName: feature),
+      );
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _handleFileSelection(bool isImage) async {
+    if (!_checkProAccess(isImage ? 'Image Scan' : 'PDF Upload')) return;
+
     try {
       final result = await FilePicker.platform.pickFiles(
         type: isImage ? FileType.image : FileType.custom,
@@ -74,6 +91,35 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
   }
 
   Future<void> _processContent() async {
+    final user = Provider.of<UserModel?>(context, listen: false);
+
+    // Check Limits
+    // If not logged in? Web create screen might allow guest? No, prompt implies user base building.
+    // If user is null, we can't track.
+
+    if (user != null) {
+      final usageService = UsageService();
+      final canGenerate = await usageService.canGenerateDeck(user.uid);
+
+      if (!canGenerate) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (_) => const UpgradeDialog(featureName: 'Daily Limit'),
+          );
+        }
+        return;
+      }
+    } else {
+      // Force login?
+      // The original code didn't force login in _processContent explicitly but extraction might fail or be allowed?
+      // Let's assume user must be logged in for tracking.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to create content.')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -85,12 +131,17 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
           extractedText = _textInputController.text;
           break;
         case 1: // Link
+          if (!_checkProAccess('Web Link')) {
+            setState(() => _isLoading = false);
+            return;
+          }
           extractedText = await extractionService.extractContent(
             type: 'link',
             input: _urlInputController.text,
           );
           break;
         case 2: // PDF
+          // Access checked in picker
           if (_selectedFile != null && _selectedFile!.bytes != null) {
             extractedText = await extractionService.extractContent(
               type: 'pdf',
@@ -99,6 +150,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
           }
           break;
         case 3: // Image
+          // Access checked in picker
           if (_selectedFile != null && _selectedFile!.bytes != null) {
             extractedText = await extractionService.extractContent(
               type: 'image',
@@ -109,6 +161,11 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
       }
 
       if (extractedText.isNotEmpty) {
+        // Record Usage
+        if (user != null) {
+          await UsageService().recordDeckGeneration(user.uid);
+        }
+
         if (mounted) {
           context.go('/create/extraction-view', extra: extractedText);
         }
@@ -128,17 +185,22 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Create Content',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600, color: const Color(0xFF1A237E))),
+            style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF1A237E))),
         centerTitle: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A237E)),
+          icon: Icon(Icons.arrow_back,
+              color: isDark ? Colors.white : const Color(0xFF1A237E)),
           onPressed: () => context.go('/'),
         ),
       ),
@@ -156,11 +218,17 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFF3F4F6),
-                          Color.lerp(const Color(0xFFE8EAF6),
-                              const Color(0xFFC5CAE9), value)!,
-                        ],
+                        colors: isDark
+                            ? [
+                                const Color(0xFF0F172A),
+                                Color.lerp(const Color(0xFF0F172A),
+                                    const Color(0xFF1E293B), value)!
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6),
+                                Color.lerp(const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9), value)!
+                              ],
                       ),
                     ),
                     child: child,
@@ -186,10 +254,12 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                         child: Container(
                           padding: const EdgeInsets.all(40),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: theme.cardColor
+                                .withValues(alpha: isDark ? 0.5 : 0.7),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.6),
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.1),
                                 width: 1.5),
                             boxShadow: [
                               BoxShadow(
@@ -203,15 +273,15 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text("Create New",
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 32,
+                                  style: theme.textTheme.displaySmall?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: const Color(0xFF1A237E))),
+                                      color: theme.colorScheme.primary)),
                               const SizedBox(height: 8),
                               Text(
                                   "Import content to generate summaries and quizzes",
-                                  style: GoogleFonts.inter(
-                                      fontSize: 16, color: Colors.grey[700])),
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                      color: theme.colorScheme.onSurface
+                                          .withOpacity(0.7))),
                               const SizedBox(height: 48),
 
                               // Input Methods Grid
@@ -239,20 +309,20 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                                         padding: const EdgeInsets.all(16),
                                         decoration: BoxDecoration(
                                             color: isSelected
-                                                ? const Color(0xFF1A237E)
-                                                : Colors.white
+                                                ? theme.colorScheme.primary
+                                                : theme.cardColor
                                                     .withValues(alpha: 0.5),
                                             borderRadius:
                                                 BorderRadius.circular(16),
                                             border: Border.all(
                                                 color: isSelected
                                                     ? Colors.transparent
-                                                    : Colors.white),
+                                                    : theme.dividerColor),
                                             boxShadow: isSelected
                                                 ? [
                                                     BoxShadow(
-                                                        color: const Color(
-                                                                0xFF1A237E)
+                                                        color: theme
+                                                            .colorScheme.primary
                                                             .withValues(
                                                                 alpha: 0.3),
                                                         blurRadius: 12,
@@ -266,16 +336,22 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                                           children: [
                                             Icon(method['icon'] as IconData,
                                                 color: isSelected
-                                                    ? Colors.white
-                                                    : const Color(0xFF1A237E),
+                                                    ? theme
+                                                        .colorScheme.onPrimary
+                                                    : theme.colorScheme.primary,
                                                 size: 28),
                                             const SizedBox(height: 8),
                                             Text(method['label'] as String,
-                                                style: GoogleFonts.inter(
-                                                    fontWeight: FontWeight.w600,
-                                                    color: isSelected
-                                                        ? Colors.white
-                                                        : Colors.grey[800])),
+                                                style: theme
+                                                    .textTheme.labelLarge
+                                                    ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: isSelected
+                                                            ? theme.colorScheme
+                                                                .onPrimary
+                                                            : theme.colorScheme
+                                                                .onSurface)),
                                           ],
                                         ),
                                       ),
@@ -287,14 +363,14 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                               const SizedBox(height: 40),
 
                               // Divider
-                              Divider(color: Colors.grey.shade300),
+                              Divider(color: theme.dividerColor),
                               const SizedBox(height: 40),
 
                               // Input Area
                               Expanded(
                                 child: AnimatedSwitcher(
                                   duration: 300.ms,
-                                  child: _buildInputArea(),
+                                  child: _buildInputArea(theme),
                                 ),
                               ),
 
@@ -307,26 +383,31 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                                   onPressed:
                                       _isLoading ? null : _processContent,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1A237E),
-                                    foregroundColor: Colors.white,
+                                    backgroundColor: theme.colorScheme.primary,
+                                    foregroundColor:
+                                        theme.colorScheme.onPrimary,
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
                                             BorderRadius.circular(16)),
                                     elevation: 4,
-                                    shadowColor: const Color(0xFF1A237E)
+                                    shadowColor: theme.colorScheme.primary
                                         .withValues(alpha: 0.3),
                                   ),
                                   child: _isLoading
-                                      ? const SizedBox(
+                                      ? SizedBox(
                                           width: 24,
                                           height: 24,
                                           child: CircularProgressIndicator(
-                                              color: Colors.white,
+                                              color:
+                                                  theme.colorScheme.onPrimary,
                                               strokeWidth: 2))
                                       : Text("NEXT STEP",
-                                          style: GoogleFonts.inter(
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1)),
+                                          style: theme.textTheme.labelLarge
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1,
+                                                  color: theme
+                                                      .colorScheme.onPrimary)),
                                 ),
                               ),
                             ],
@@ -351,7 +432,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                               child: ProGate(
                                 featureName: _inputMethods[_selectedInputIndex]
                                     ['label'] as String,
-                                proContent: () => _buildSafetyInfo(),
+                                proContent: () => _buildSafetyInfo(theme),
                                 freeContent: ClipRRect(
                                   borderRadius: BorderRadius.circular(24),
                                   child: BackdropFilter(
@@ -360,12 +441,12 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                                     child: Container(
                                         padding: const EdgeInsets.all(24),
                                         decoration: BoxDecoration(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.7),
+                                          color: theme.cardColor.withValues(
+                                              alpha: isDark ? 0.5 : 0.7),
                                           borderRadius:
                                               BorderRadius.circular(24),
                                           border: Border.all(
-                                              color: Colors.white
+                                              color: theme.dividerColor
                                                   .withValues(alpha: 0.6)),
                                         ),
                                         child: Column(
@@ -374,14 +455,17 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                                                 size: 48, color: Colors.amber),
                                             const SizedBox(height: 16),
                                             Text("Pro Feature",
-                                                style: GoogleFonts.poppins(
-                                                    fontSize: 20,
-                                                    fontWeight:
-                                                        FontWeight.bold)),
+                                                style: theme
+                                                    .textTheme.headlineSmall
+                                                    ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
                                             const SizedBox(height: 8),
-                                            const Text(
+                                            Text(
                                                 "Upload unlimited PDFs and Images with Pro.",
-                                                textAlign: TextAlign.center),
+                                                textAlign: TextAlign.center,
+                                                style:
+                                                    theme.textTheme.bodyMedium),
                                           ],
                                         )),
                                   ),
@@ -389,7 +473,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                               ),
                             )
                           else
-                            _buildSafetyInfo(),
+                            _buildSafetyInfo(theme),
                         ],
                       ),
                     ),
@@ -403,7 +487,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
     );
   }
 
-  Widget _buildInputArea() {
+  Widget _buildInputArea(ThemeData theme) {
     switch (_selectedInputIndex) {
       case 0:
         return TextField(
@@ -411,10 +495,13 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
           maxLines: null,
           expands: true,
           textAlignVertical: TextAlignVertical.top,
+          style: theme.textTheme.bodyMedium,
           decoration: InputDecoration(
               hintText: "Paste your text here...",
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.4)),
               filled: true,
-              fillColor: Colors.grey.shade50,
+              fillColor: theme.cardColor,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none),
@@ -425,11 +512,14 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
           children: [
             TextField(
               controller: _urlInputController,
+              style: theme.textTheme.bodyMedium,
               decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.link),
                   hintText: "Paste URL (Article, YouTube, etc.)",
+                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.4)),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: theme.cardColor,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none),
@@ -448,17 +538,18 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                       ? Icons.cloud_upload_outlined
                       : Icons.check_circle_outline,
                   size: 64,
-                  color:
-                      _selectedFile == null ? Colors.grey[400] : Colors.green),
+                  color: _selectedFile == null
+                      ? theme.disabledColor
+                      : Colors.green),
               const SizedBox(height: 16),
               Text(
                 _selectedFile == null
                     ? "Drag & drop or click to upload"
                     : _selectedFile!.name,
-                style: GoogleFonts.inter(
-                    fontSize: 16,
-                    color:
-                        _selectedFile == null ? Colors.grey[600] : Colors.black,
+                style: theme.textTheme.titleMedium?.copyWith(
+                    color: _selectedFile == null
+                        ? theme.disabledColor
+                        : theme.colorScheme.onSurface,
                     fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 24),
@@ -467,11 +558,12 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
                 style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 32, vertical: 16),
-                    side: BorderSide(color: Colors.grey.shade300),
+                    side: BorderSide(color: theme.dividerColor),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8))),
-                child:
-                    Text(_selectedFile == null ? "Select File" : "Change File"),
+                child: Text(
+                    _selectedFile == null ? "Select File" : "Change File",
+                    style: TextStyle(color: theme.colorScheme.primary)),
               )
             ],
           ),
@@ -481,7 +573,8 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
     }
   }
 
-  Widget _buildSafetyInfo() {
+  Widget _buildSafetyInfo(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -490,9 +583,10 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
           constraints: const BoxConstraints(maxWidth: 400),
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: theme.cardColor.withValues(alpha: isDark ? 0.5 : 0.7),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+            border:
+                Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -505,23 +599,22 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A237E).withValues(alpha: 0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.auto_awesome,
-                    size: 48, color: Color(0xFF1A237E)),
+                child: Icon(Icons.auto_awesome,
+                    size: 48, color: theme.colorScheme.primary),
               ),
               const SizedBox(height: 24),
               Text("Smart Generation",
-                  style: GoogleFonts.poppins(
-                      fontSize: 22,
+                  style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1A237E))),
+                      color: theme.colorScheme.primary)),
               const SizedBox(height: 12),
               Text(
                 "Our AI automatically analyzes your content to create the best study materials. Please verify the generated content for accuracy.",
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(height: 1.5, color: Colors.grey[700]),
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
               ),
             ],
           ),

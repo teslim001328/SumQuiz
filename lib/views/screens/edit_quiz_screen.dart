@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/models/editable_content.dart';
 import 'package:sumquiz/models/quiz_question.dart';
@@ -77,21 +76,25 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
           'Edit Quiz',
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold, color: Colors.white),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const BackButton(color: Colors.white),
+        leading: BackButton(color: theme.colorScheme.onSurface),
         actions: [
           IconButton(
-            icon: const Icon(Icons.save, color: Colors.white),
+            icon: Icon(Icons.save, color: theme.colorScheme.primary),
             onPressed: _save,
           ),
         ],
@@ -110,13 +113,17 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF1A237E), // Indigo 900
-                          Color.lerp(
-                              const Color(0xFF1A237E),
-                              const Color(0xFF311B92),
-                              value)!, // Deep Purple 900
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFF3E5F5), // Light purple
+                                Color.lerp(const Color(0xFFF3E5F5),
+                                    const Color(0xFFE1BEE7), value)!,
+                              ],
                       ),
                     ),
                     child: child,
@@ -132,21 +139,23 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
               child: Column(
                 children: [
                   _buildGlassSection(
+                    theme,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Quiz Title',
-                            style: GoogleFonts.inter(
+                            style: theme.textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white70)),
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.7))),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _titleController,
-                          style: GoogleFonts.inter(
-                              color: Colors.white, fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                           decoration: InputDecoration(
                             filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.1),
+                            fillColor: theme.cardColor.withValues(alpha: 0.5),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
@@ -166,6 +175,7 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
                         return _QuestionEditor(
                           index: index,
                           question: _questions[index],
+                          theme: theme,
                           onUpdate: (q) {
                             setState(() {
                               _questions[index] = q;
@@ -181,7 +191,7 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildBottomBar(),
+                  _buildBottomBar(theme),
                 ],
               ),
             ),
@@ -191,7 +201,7 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
     );
   }
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.only(bottom: 16),
       child: SizedBox(
@@ -201,8 +211,8 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
           icon: const Icon(Icons.add),
           label: const Text('Add New Question'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.pinkAccent,
-            foregroundColor: Colors.white,
+            backgroundColor: theme.colorScheme.secondary,
+            foregroundColor: theme.colorScheme.onSecondary,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -212,7 +222,7 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
     );
   }
 
-  Widget _buildGlassSection({required Widget child}) {
+  Widget _buildGlassSection(ThemeData theme, {required Widget child}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -220,10 +230,17 @@ class _EditQuizScreenState extends State<EditQuizScreen> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: theme.cardColor.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2), width: 1),
+                color: theme.dividerColor.withValues(alpha: 0.1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: child,
         ),
@@ -237,12 +254,14 @@ class _QuestionEditor extends StatefulWidget {
   final QuizQuestion question;
   final Function(QuizQuestion) onUpdate;
   final VoidCallback onDelete;
+  final ThemeData theme;
 
   const _QuestionEditor({
     required this.index,
     required this.question,
     required this.onUpdate,
     required this.onDelete,
+    required this.theme,
   });
 
   @override
@@ -254,16 +273,24 @@ class _QuestionEditorState extends State<_QuestionEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = widget.theme;
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
+              color: theme.cardColor.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.2), width: 1),
+                  color: theme.dividerColor.withValues(alpha: 0.1), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               children: [
@@ -271,24 +298,26 @@ class _QuestionEditorState extends State<_QuestionEditor> {
                   title: Text(widget.question.question,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold, color: Colors.white)),
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.bold)),
                   subtitle: Text('Question ${widget.index + 1}',
-                      style: GoogleFonts.inter(color: Colors.white70)),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.6))),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: Icon(Icons.delete_outline,
-                            size: 20,
-                            color: Colors.redAccent.withValues(alpha: 0.8)),
+                            size: 20, color: theme.colorScheme.error),
                         onPressed: widget.onDelete,
                       ),
                       Icon(
                         _isExpanded
                             ? Icons.keyboard_arrow_up
                             : Icons.keyboard_arrow_down,
-                        color: Colors.white70,
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ],
                   ),
@@ -299,12 +328,14 @@ class _QuestionEditorState extends State<_QuestionEditor> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Column(
                       children: [
-                        const Divider(color: Colors.white24),
+                        Divider(
+                            color: theme.dividerColor.withValues(alpha: 0.2)),
                         const SizedBox(height: 8),
                         // Question Text Input
                         _buildGlassInput(
                           initialValue: widget.question.question,
                           label: 'Question Text',
+                          theme: theme,
                           onChanged: (val) {
                             widget.onUpdate(QuizQuestion(
                               question: val,
@@ -331,8 +362,8 @@ class _QuestionEditorState extends State<_QuestionEditor> {
                                         ? Icons.radio_button_checked
                                         : Icons.radio_button_unchecked,
                                     color: isCorrect
-                                        ? Colors.greenAccent
-                                        : Colors.white54,
+                                        ? Colors.green
+                                        : theme.disabledColor,
                                   ),
                                   onPressed: () {
                                     if (widget.question.options.length >
@@ -354,6 +385,7 @@ class _QuestionEditorState extends State<_QuestionEditor> {
                                             ? widget.question.options[optIndex]
                                             : '',
                                     label: 'Option ${optIndex + 1}',
+                                    theme: theme,
                                     onChanged: (val) {
                                       final newOptions = List<String>.from(
                                           widget.question.options);
@@ -392,38 +424,40 @@ class _QuestionEditorState extends State<_QuestionEditor> {
     required String initialValue,
     required String label,
     required Function(String) onChanged,
+    required ThemeData theme,
     bool isCorrect = false,
   }) {
     return TextFormField(
       initialValue: initialValue,
-      style: GoogleFonts.inter(
-          color: isCorrect ? Colors.greenAccent : Colors.white,
+      style: theme.textTheme.bodyMedium?.copyWith(
+          color: isCorrect ? Colors.green : theme.colorScheme.onSurface,
           fontWeight: isCorrect ? FontWeight.bold : FontWeight.normal),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+        labelStyle: TextStyle(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
         filled: true,
         fillColor: isCorrect
             ? Colors.green.withValues(alpha: 0.1)
-            : Colors.white.withValues(alpha: 0.05),
+            : theme.cardColor.withValues(alpha: 0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
               color: isCorrect
-                  ? Colors.greenAccent.withValues(alpha: 0.5)
+                  ? Colors.green.withValues(alpha: 0.5)
                   : Colors.transparent),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
               color: isCorrect
-                  ? Colors.greenAccent.withValues(alpha: 0.5)
+                  ? Colors.green.withValues(alpha: 0.5)
                   : Colors.transparent),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-              color: isCorrect ? Colors.greenAccent : Colors.white70),
+              color: isCorrect ? Colors.green : theme.colorScheme.primary),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),

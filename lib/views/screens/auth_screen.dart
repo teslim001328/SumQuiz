@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 enum AuthMode { login, signUp }
 
@@ -50,6 +49,7 @@ class _AuthScreenState extends State<AuthScreen>
     setState(() {
       _isLoading = true;
     });
+    final theme = Theme.of(context);
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
@@ -104,7 +104,8 @@ class _AuthScreenState extends State<AuthScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage, style: GoogleFonts.inter())),
+          SnackBar(
+              content: Text(errorMessage, style: theme.textTheme.bodyMedium)),
         );
       }
     } catch (e) {
@@ -116,7 +117,8 @@ class _AuthScreenState extends State<AuthScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage, style: GoogleFonts.inter())),
+          SnackBar(
+              content: Text(errorMessage, style: theme.textTheme.bodyMedium)),
         );
       }
     } finally {
@@ -137,6 +139,7 @@ class _AuthScreenState extends State<AuthScreen>
 
     // Add a small delay to ensure UI updates before starting the flow
     await Future.delayed(const Duration(milliseconds: 100));
+    final theme = Theme.of(context);
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
@@ -175,7 +178,8 @@ class _AuthScreenState extends State<AuthScreen>
 
       if (mounted && errorMessage.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage, style: GoogleFonts.inter())),
+          SnackBar(
+              content: Text(errorMessage, style: theme.textTheme.bodyMedium)),
         );
       }
     } finally {
@@ -189,6 +193,8 @@ class _AuthScreenState extends State<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
       body: Stack(
         children: [
@@ -204,11 +210,19 @@ class _AuthScreenState extends State<AuthScreen>
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFF3F4F6), // Light Grey
-                          Color.lerp(const Color(0xFFE8EAF6),
-                              const Color(0xFFC5CAE9), value)!, // Pulse Blue
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6), // Light Grey
+                                Color.lerp(
+                                    const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9),
+                                    value)!, // Pulse Blue
+                              ],
                       ),
                     ),
                     child: child,
@@ -239,11 +253,12 @@ class _AuthScreenState extends State<AuthScreen>
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: theme.cardColor,
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.indigo.withOpacity(0.15),
+                                        color: theme.colorScheme.primary
+                                            .withValues(alpha: 0.15),
                                         blurRadius: 20,
                                         offset: const Offset(0, 10),
                                       )
@@ -258,19 +273,20 @@ class _AuthScreenState extends State<AuthScreen>
                               const SizedBox(height: 32),
                               Text(
                                 'Master Your Knowledge.',
-                                style: GoogleFonts.poppins(
+                                style: theme.textTheme.displaySmall?.copyWith(
                                   fontSize: 42,
                                   fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF1A1A1A),
+                                  color: theme.colorScheme.onSurface,
                                   height: 1.1,
                                 ),
                               ).animate().fadeIn().slideX(),
                               const SizedBox(height: 16),
                               Text(
                                 'Generate quizzes, flashcards, and summaries instantly with AI.',
-                                style: GoogleFonts.inter(
+                                style: theme.textTheme.bodyLarge?.copyWith(
                                   fontSize: 18,
-                                  color: Colors.grey[700],
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
                                   height: 1.5,
                                 ),
                               ).animate().fadeIn(delay: 200.ms).slideX(),
@@ -279,7 +295,7 @@ class _AuthScreenState extends State<AuthScreen>
                         ),
                         // Right Side: Auth Form
                         const SizedBox(width: 80),
-                        Expanded(child: _buildAuthCard()),
+                        Expanded(child: _buildAuthCard(theme)),
                       ],
                     ),
                   ),
@@ -297,11 +313,12 @@ class _AuthScreenState extends State<AuthScreen>
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: theme.cardColor,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.indigo.withOpacity(0.15),
+                                  color: theme.colorScheme.primary
+                                      .withValues(alpha: 0.15),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 )
@@ -320,7 +337,7 @@ class _AuthScreenState extends State<AuthScreen>
                         // Glass Card (Constrained for mobile)
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 400),
-                          child: _buildAuthCard(),
+                          child: _buildAuthCard(theme),
                         ),
                       ],
                     ),
@@ -334,7 +351,7 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildAuthCard() {
+  Widget _buildAuthCard(ThemeData theme) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -342,13 +359,13 @@ class _AuthScreenState extends State<AuthScreen>
         child: Container(
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.8),
+            color: theme.cardColor.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(24),
-            border:
-                Border.all(color: Colors.white.withOpacity(0.6), width: 1.5),
+            border: Border.all(
+                color: theme.cardColor.withValues(alpha: 0.6), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 30,
                 offset: const Offset(0, 10),
               ),
@@ -365,8 +382,8 @@ class _AuthScreenState extends State<AuthScreen>
                   child: SizeTransition(sizeFactor: animation, child: child));
             },
             child: _authMode == AuthMode.login
-                ? _buildLoginForm()
-                : _buildSignUpForm(),
+                ? _buildLoginForm(theme)
+                : _buildSignUpForm(theme),
           ),
         ),
       ),
@@ -376,7 +393,7 @@ class _AuthScreenState extends State<AuthScreen>
         .slideY(begin: 0.1, end: 0);
   }
 
-  Widget _buildLoginForm() {
+  Widget _buildLoginForm(ThemeData theme) {
     return Form(
       key: _formKey,
       child: Column(
@@ -386,19 +403,19 @@ class _AuthScreenState extends State<AuthScreen>
           Text(
             'Welcome Back',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
+            style: theme.textTheme.headlineMedium?.copyWith(
               fontSize: 26,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A1A1A),
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Sign in to your account',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 32),
@@ -409,6 +426,7 @@ class _AuthScreenState extends State<AuthScreen>
             keyboardType: TextInputType.emailAddress,
             validator: (value) =>
                 value == null || !value.contains('@') ? 'Invalid email' : null,
+            theme: theme,
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -418,23 +436,25 @@ class _AuthScreenState extends State<AuthScreen>
             obscureText: true,
             validator: (value) =>
                 value == null || value.isEmpty ? 'Enter password' : null,
+            theme: theme,
           ),
           const SizedBox(height: 32),
-          _buildAuthButton('Sign In', _submit),
+          _buildAuthButton('Sign In', _submit, theme),
           const SizedBox(height: 16),
-          _buildGoogleButton(),
+          _buildGoogleButton(theme),
           const SizedBox(height: 24),
           _buildSwitchAuthModeButton(
             'Don\'t have an account? ',
             'Sign Up',
             _switchAuthMode,
+            theme,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSignUpForm() {
+  Widget _buildSignUpForm(ThemeData theme) {
     return Form(
       key: _formKey,
       child: Column(
@@ -444,19 +464,19 @@ class _AuthScreenState extends State<AuthScreen>
           Text(
             'Create Account',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
+            style: theme.textTheme.headlineMedium?.copyWith(
               fontSize: 26,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A1A1A),
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Join SumQuiz for free',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 32),
@@ -466,6 +486,7 @@ class _AuthScreenState extends State<AuthScreen>
             icon: Icons.person_outline,
             validator: (value) =>
                 value == null || value.isEmpty ? 'Enter full name' : null,
+            theme: theme,
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -475,6 +496,7 @@ class _AuthScreenState extends State<AuthScreen>
             keyboardType: TextInputType.emailAddress,
             validator: (value) =>
                 value == null || !value.contains('@') ? 'Invalid email' : null,
+            theme: theme,
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -484,6 +506,7 @@ class _AuthScreenState extends State<AuthScreen>
             obscureText: true,
             validator: (value) =>
                 value == null || value.length < 6 ? 'Min 6 characters' : null,
+            theme: theme,
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -491,16 +514,18 @@ class _AuthScreenState extends State<AuthScreen>
             labelText: 'Referral Code (Optional)',
             icon: Icons.card_giftcard,
             validator: null,
+            theme: theme,
           ),
           const SizedBox(height: 32),
-          _buildAuthButton('Sign Up', _submit),
+          _buildAuthButton('Sign Up', _submit, theme),
           const SizedBox(height: 16),
-          _buildGoogleButton(),
+          _buildGoogleButton(theme),
           const SizedBox(height: 24),
           _buildSwitchAuthModeButton(
             'Already have an account? ',
             'Sign In',
             _switchAuthMode,
+            theme,
           ),
         ],
       ),
@@ -511,22 +536,27 @@ class _AuthScreenState extends State<AuthScreen>
     required TextEditingController controller,
     required String labelText,
     required IconData icon,
+    required ThemeData theme,
     bool obscureText = false,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
-      style: GoogleFonts.inter(fontSize: 15, color: Colors.black87),
+      style: theme.textTheme.bodyMedium
+          ?.copyWith(fontSize: 15, color: theme.colorScheme.onSurface),
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-        prefixIcon: Icon(icon, color: Colors.indigo[300], size: 20),
+        labelStyle: TextStyle(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 14),
+        prefixIcon: Icon(icon,
+            color: theme.colorScheme.primary.withValues(alpha: 0.7), size: 20),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: theme.cardColor,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
@@ -535,11 +565,12 @@ class _AuthScreenState extends State<AuthScreen>
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withOpacity(0.2)),
+          borderSide:
+              BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1A237E), width: 1.5),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -549,35 +580,38 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
-  Widget _buildAuthButton(String text, VoidCallback onPressed) {
+  Widget _buildAuthButton(
+      String text, VoidCallback onPressed, ThemeData theme) {
     return SizedBox(
       height: 52,
       child: ElevatedButton(
         onPressed: _isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1A237E),
-          foregroundColor: Colors.white,
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
           elevation: 4,
-          shadowColor: const Color(0xFF1A237E).withOpacity(0.4),
+          shadowColor: theme.colorScheme.primary.withValues(alpha: 0.4),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         child: _isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: Colors.white))
+                    strokeWidth: 2.5, color: theme.colorScheme.onPrimary))
             : Text(
                 text,
-                style: GoogleFonts.inter(
-                    fontSize: 16, fontWeight: FontWeight.w600),
+                style: theme.textTheme.titleMedium?.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onPrimary),
               ),
       ),
     );
   }
 
-  Widget _buildGoogleButton() {
+  Widget _buildGoogleButton(ThemeData theme) {
     return SizedBox(
       height: 52,
       child: OutlinedButton.icon(
@@ -585,14 +619,14 @@ class _AuthScreenState extends State<AuthScreen>
         icon: SvgPicture.asset('assets/icons/google_logo.svg', height: 22),
         label: Text(
           'Continue with Google',
-          style: GoogleFonts.inter(
+          style: theme.textTheme.titleMedium?.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[800]),
+              color: theme.colorScheme.onSurface),
         ),
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: BorderSide(color: Colors.grey.shade300),
+          backgroundColor: theme.cardColor,
+          side: BorderSide(color: theme.dividerColor),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
@@ -601,18 +635,20 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   Widget _buildSwitchAuthModeButton(
-      String text, String buttonText, VoidCallback onPressed) {
+      String text, String buttonText, VoidCallback onPressed, ThemeData theme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(text,
-            style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 14)),
+            style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 14)),
         GestureDetector(
           onTap: onPressed,
           child: Text(
             buttonText,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF1A237E),
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),

@@ -8,7 +8,6 @@ import 'package:sumquiz/services/usage_service.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class ExtractionViewScreen extends StatefulWidget {
   final String? initialText;
@@ -53,6 +52,14 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
   }
 
   void _toggleOutput(OutputType type) {
+    if (type == OutputType.flashcards) {
+      final user = context.read<UserModel?>();
+      if (user != null && !user.isPro) {
+        _showUpgradeDialog('Interactive Flashcards');
+        return;
+      }
+    }
+
     setState(() {
       if (_selectedOutputs.contains(type)) {
         _selectedOutputs.remove(type);
@@ -76,15 +83,13 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
     }
 
     final user = context.read<UserModel?>();
-    final usageService = context.read<UsageService?>();
 
-    // Check usage limits for free users
-    if (user != null && !user.isPro && usageService != null) {
-      for (var output in _selectedOutputs) {
-        if (!await usageService.canPerformAction(output.name)) {
-          if (mounted) _showUpgradeDialog(output.name);
-          return; // Stop the process if any limit is exceeded
-        }
+    // Check usage limits for all users (Freemium & Pro caps)
+    if (user != null) {
+      final usageService = UsageService();
+      if (!await usageService.canGenerateDeck(user.uid)) {
+        _showUpgradeDialog('Daily Limit');
+        return;
       }
     }
 
@@ -111,11 +116,9 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
         onProgress: (message) => setState(() => _loadingMessage = message),
       );
 
-      // Record usage for free users after successful generation
-      if (user != null && !user.isPro && usageService != null) {
-        for (var output in _selectedOutputs) {
-          await usageService.recordAction(output.name);
-        }
+      // Record usage (Deck Generation)
+      if (user != null) {
+        await UsageService().recordDeckGeneration(user.uid);
       }
 
       if (mounted) {
@@ -155,26 +158,30 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
         title: _isEditingTitle
-            ? _buildTitleEditor()
+            ? _buildTitleEditor(theme)
             : Text(_titleController.text,
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold, color: Colors.white),
+                style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface),
                 overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             tooltip: 'Edit Title',
             icon: Icon(_isEditingTitle ? Icons.check : Icons.edit_outlined,
-                color: Colors.white, size: 22),
+                color: theme.colorScheme.onSurface, size: 22),
             onPressed: () => setState(() => _isEditingTitle = !_isEditingTitle),
           ),
         ],
@@ -193,11 +200,19 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF1565C0), // Blue 800
-                          Color.lerp(const Color(0xFF1565C0),
-                              const Color(0xFF283593), value)!, // Indigo 800
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFE3F2FD), // Blue 50
+                                Color.lerp(
+                                    const Color(0xFFE3F2FD),
+                                    const Color(0xFFBBDEFB),
+                                    value)!, // Blue 100
+                              ],
                       ),
                     ),
                     child: child,
@@ -215,27 +230,25 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('1. Choose content to create:',
-                          style: GoogleFonts.inter(
+                          style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.white))
+                              color: theme.colorScheme.onSurface))
                       .animate()
                       .fadeIn()
                       .slideX(),
                   const SizedBox(height: 12),
-                  _buildOutputSelector().animate().fadeIn(delay: 100.ms),
+                  _buildOutputSelector(theme).animate().fadeIn(delay: 100.ms),
                   const SizedBox(height: 24),
                   Text('2. Review your text:',
-                          style: GoogleFonts.inter(
+                          style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.white))
+                              color: theme.colorScheme.onSurface))
                       .animate()
                       .fadeIn(delay: 200.ms)
                       .slideX(),
                   const SizedBox(height: 12),
                   Expanded(
-                    child: _buildDocumentDisplayArea()
+                    child: _buildDocumentDisplayArea(theme)
                         .animate()
                         .fadeIn(delay: 300.ms)
                         .scale(begin: const Offset(0.95, 0.95)),
@@ -247,7 +260,7 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
           if (!_isLoading)
             Align(
               alignment: Alignment.bottomCenter,
-              child: _buildGenerateButton()
+              child: _buildGenerateButton(theme)
                   .animate()
                   .fadeIn(delay: 400.ms)
                   .slideY(begin: 0.2),
@@ -263,20 +276,21 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: theme.cardColor.withValues(alpha: 0.9),
                         border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2)),
+                            color: theme.dividerColor.withValues(alpha: 0.2)),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const CircularProgressIndicator(color: Colors.white),
+                          CircularProgressIndicator(
+                              color: theme.colorScheme.primary),
                           const SizedBox(height: 24),
                           Text(
                             _loadingMessage,
-                            style: GoogleFonts.inter(
-                                color: Colors.white, fontSize: 16),
+                            style: theme.textTheme.bodyLarge
+                                ?.copyWith(color: theme.colorScheme.onSurface),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -291,23 +305,24 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
     );
   }
 
-  Widget _buildTitleEditor() {
+  Widget _buildTitleEditor(ThemeData theme) {
     return TextField(
       controller: _titleController,
       autofocus: true,
-      style: GoogleFonts.poppins(
-          fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20),
-      cursorColor: Colors.white,
+      style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+      cursorColor: theme.colorScheme.primary,
       decoration: InputDecoration(
         border: InputBorder.none,
         hintText: 'Enter a title...',
-        hintStyle: GoogleFonts.poppins(color: Colors.white54),
+        hintStyle: theme.textTheme.titleLarge?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
       ),
       onSubmitted: (_) => setState(() => _isEditingTitle = false),
     );
   }
 
-  Widget _buildOutputSelector() {
+  Widget _buildOutputSelector(ThemeData theme) {
     return Wrap(
       spacing: 12.0,
       runSpacing: 8.0,
@@ -320,13 +335,13 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected
-                  ? Colors.greenAccent.withValues(alpha: 0.2)
-                  : Colors.white.withValues(alpha: 0.1),
+                  ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                  : theme.cardColor.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isSelected
-                    ? Colors.greenAccent.withValues(alpha: 0.5)
-                    : Colors.white.withValues(alpha: 0.2),
+                    ? theme.colorScheme.primary.withValues(alpha: 0.5)
+                    : theme.dividerColor.withValues(alpha: 0.2),
               ),
             ),
             child: Row(
@@ -334,14 +349,16 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
               children: [
                 Text(
                   StringExtension(type.name).capitalize(),
-                  style: GoogleFonts.inter(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.greenAccent : Colors.white70,
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 if (isSelected) ...[
                   const SizedBox(width: 8),
-                  const Icon(Icons.check, size: 16, color: Colors.greenAccent),
+                  Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
                 ]
               ],
             ),
@@ -351,7 +368,7 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
     );
   }
 
-  Widget _buildDocumentDisplayArea() {
+  Widget _buildDocumentDisplayArea(ThemeData theme) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -359,21 +376,24 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
         child: Container(
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: theme.cardColor.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            border:
+                Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
           ),
           child: TextField(
             readOnly: false, // Always editable
             controller: _textController,
             maxLines: null,
             expands: true,
-            style: GoogleFonts.inter(color: Colors.white, height: 1.5),
-            cursorColor: Colors.white,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(height: 1.5, color: theme.colorScheme.onSurface),
+            cursorColor: theme.colorScheme.primary,
             decoration: InputDecoration.collapsed(
               hintText:
                   'Your extracted or pasted text appears here. You can edit it before generating.',
-              hintStyle: GoogleFonts.inter(color: Colors.white38),
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
             ),
           ),
         ),
@@ -381,7 +401,7 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
     );
   }
 
-  Widget _buildGenerateButton() {
+  Widget _buildGenerateButton(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: SizedBox(
@@ -394,22 +414,22 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
             child: ElevatedButton(
               onPressed: _handleGenerate,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                foregroundColor: Colors.white,
-                elevation: 0,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.auto_awesome, color: Colors.amberAccent),
+                  Icon(Icons.auto_awesome, color: theme.colorScheme.onPrimary),
                   const SizedBox(width: 12),
                   Text('Generate Content',
-                      style: GoogleFonts.poppins(
-                          fontSize: 18, fontWeight: FontWeight.bold)),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onPrimary)),
                 ],
               ),
             ),

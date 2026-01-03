@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/local_database_service.dart';
@@ -105,7 +104,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             SnackBar(
                 content: Text(
                     'Could not find mission cards. They might be deleted.',
-                    style: GoogleFonts.inter())),
+                    style: Theme.of(context).textTheme.bodyMedium)),
           );
           setState(() => _isLoading = false);
         }
@@ -159,19 +158,23 @@ class _ReviewScreenState extends State<ReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel?>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Dashboard',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600, color: const Color(0xFF1A237E))),
+            style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF1A237E))),
         centerTitle: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings, color: Color(0xFF1A237E)),
+            icon: Icon(Icons.settings,
+                color: isDark ? Colors.white : const Color(0xFF1A237E)),
             onPressed: () => context.push('/settings'),
           ),
         ],
@@ -190,11 +193,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFF3F4F6),
-                          Color.lerp(const Color(0xFFE8EAF6),
-                              const Color(0xFFC5CAE9), value)!,
-                        ],
+                        colors: isDark
+                            ? [
+                                const Color(0xFF0F172A),
+                                Color.lerp(const Color(0xFF0F172A),
+                                    const Color(0xFF1E293B), value)!
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6),
+                                Color.lerp(const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9), value)!
+                              ],
                       ),
                     ),
                     child: child,
@@ -209,15 +218,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text(_error!, style: GoogleFonts.inter()))
-                    : _buildMissionDashboard(user),
+                    ? Center(
+                        child: Text(_error!, style: theme.textTheme.bodyMedium))
+                    : _buildMissionDashboard(user, theme),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMissionDashboard(UserModel? user) {
+  Widget _buildMissionDashboard(UserModel? user, ThemeData theme) {
     if (_dailyMission == null) return const SizedBox();
     final isCompleted = _dailyMission!.isCompleted;
 
@@ -229,10 +239,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
           // Welcome Header
           Text(
             'Hello, ${user?.displayName ?? 'Student'}',
-            style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A237E)),
+            style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
           ).animate().fadeIn().slideX(),
 
           const SizedBox(height: 24),
@@ -245,29 +253,29 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       'Momentum',
                       (user?.currentMomentum ?? 0).toStringAsFixed(0),
                       Icons.local_fire_department_rounded,
-                      Colors.orangeAccent)),
+                      Colors.orangeAccent,
+                      theme)),
               const SizedBox(width: 16),
-              Expanded(child: _buildDailyGoalCard(user)),
+              Expanded(child: _buildDailyGoalCard(user, theme)),
             ],
           ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
 
           const SizedBox(height: 24),
 
           // Mission Card
-          _buildMissionCard(isCompleted),
+          _buildMissionCard(isCompleted, theme),
 
           const SizedBox(height: 32),
 
           // Recent Activity
           Text('Jump Back In',
-              style: GoogleFonts.poppins(
-                  fontSize: 18,
+              style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey[800])),
+                  color: theme.colorScheme.onSurface.withOpacity(0.8))),
           const SizedBox(height: 16),
           SizedBox(
             height: 180,
-            child: _buildRecentActivity(user),
+            child: _buildRecentActivity(user, theme),
           ).animate().fadeIn(delay: 400.ms),
 
           const SizedBox(height: 24),
@@ -277,7 +285,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   Widget _buildGlassCard(
-      {required Widget child, EdgeInsets? padding, Color? borderColor}) {
+      {required Widget child,
+      EdgeInsets? padding,
+      Color? borderColor,
+      required ThemeData theme}) {
+    final isDark = theme.brightness == Brightness.dark;
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -285,10 +297,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
         child: Container(
           padding: padding ?? const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: theme.cardColor.withValues(alpha: isDark ? 0.5 : 0.7),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: borderColor ?? Colors.white.withValues(alpha: 0.6),
+                color: borderColor ?? theme.dividerColor.withValues(alpha: 0.2),
                 width: 1.5),
             boxShadow: [
               BoxShadow(
@@ -304,9 +316,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
-  Widget _buildGlassStatCard(
-      String label, String value, IconData icon, Color iconColor) {
+  Widget _buildGlassStatCard(String label, String value, IconData icon,
+      Color iconColor, ThemeData theme) {
     return _buildGlassCard(
+      theme: theme,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -314,29 +327,29 @@ class _ReviewScreenState extends State<ReviewScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(icon, color: iconColor, size: 28),
-              // Small sparkline or visual placeholder could go here
             ],
           ),
           const SizedBox(height: 16),
           Text(value,
-              style: GoogleFonts.poppins(
-                  fontSize: 28,
+              style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A1A1A))),
+                  color: theme.colorScheme.onSurface)),
           Text(label,
-              style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600])),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6))),
         ],
       ),
     );
   }
 
-  Widget _buildDailyGoalCard(UserModel? user) {
+  Widget _buildDailyGoalCard(UserModel? user, ThemeData theme) {
     final current = user?.itemsCompletedToday ?? 0;
     final target = user?.dailyGoal ?? 5;
     final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
     final isDone = current >= target;
 
     return _buildGlassCard(
+      theme: theme,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -345,38 +358,40 @@ class _ReviewScreenState extends State<ReviewScreen> {
             children: [
               CircularProgressIndicator(
                 value: progress,
-                backgroundColor: Colors.grey[200],
-                color: isDone ? Colors.green : const Color(0xFF1A237E),
+                backgroundColor: theme.disabledColor.withOpacity(0.2),
+                color: isDone ? Colors.green : theme.colorScheme.primary,
                 strokeWidth: 6,
                 strokeCap: StrokeCap.round,
               ),
               Text(
                 '${(progress * 100).toInt()}%',
-                style: GoogleFonts.poppins(
+                style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: isDone ? Colors.green : Colors.black87),
+                    color: isDone
+                        ? Colors.green
+                        : theme.colorScheme.onSurface.withOpacity(0.8)),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text('$current/$target items',
-              style: GoogleFonts.poppins(
-                  fontSize: 20,
+              style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A1A1A))),
+                  color: theme.colorScheme.onSurface)),
           Text('Daily Goal',
-              style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600])),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6))),
         ],
       ),
     );
   }
 
-  Widget _buildMissionCard(bool isCompleted) {
+  Widget _buildMissionCard(bool isCompleted, ThemeData theme) {
     return _buildGlassCard(
+        theme: theme,
         borderColor: isCompleted
             ? Colors.green.withValues(alpha: 0.5)
-            : const Color(0xFF1A237E).withValues(alpha: 0.3),
+            : theme.colorScheme.primary.withValues(alpha: 0.3),
         child: Column(
           children: [
             Row(
@@ -386,14 +401,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   decoration: BoxDecoration(
                     color: isCompleted
                         ? Colors.green.withValues(alpha: 0.1)
-                        : const Color(0xFF1A237E).withValues(alpha: 0.1),
+                        : theme.colorScheme.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     isCompleted
                         ? Icons.check_circle_rounded
                         : Icons.rocket_launch_rounded,
-                    color: isCompleted ? Colors.green : const Color(0xFF1A237E),
+                    color:
+                        isCompleted ? Colors.green : theme.colorScheme.primary,
                     size: 32,
                   ),
                 ),
@@ -406,12 +422,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           isCompleted
                               ? 'Mission Accomplished!'
                               : "Today's Mission",
-                          style: GoogleFonts.poppins(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold)),
                       if (!isCompleted)
                         Text('Boost your momentum now',
-                            style: GoogleFonts.inter(
-                                color: Colors.grey[600], fontSize: 13)),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface
+                                    .withOpacity(0.6))),
                     ],
                   ),
                 ),
@@ -423,11 +440,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildMissionMetric(Icons.timelapse,
-                      "${_dailyMission!.estimatedTimeMinutes}m"),
+                      "${_dailyMission!.estimatedTimeMinutes}m", theme),
                   _buildMissionMetric(Icons.style,
-                      "${_dailyMission!.flashcardIds.length} cards"),
-                  _buildMissionMetric(
-                      Icons.speed, "+${_dailyMission!.momentumReward} pts"),
+                      "${_dailyMission!.flashcardIds.length} cards", theme),
+                  _buildMissionMetric(Icons.speed,
+                      "+${_dailyMission!.momentumReward} pts", theme),
                 ],
               ),
               const SizedBox(height: 24),
@@ -437,22 +454,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 child: ElevatedButton(
                   onPressed: _startMission,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A237E),
-                    foregroundColor: Colors.white,
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15)),
                     elevation: 4,
-                    shadowColor: const Color(0xFF1A237E).withValues(alpha: 0.4),
+                    shadowColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.4),
                   ),
                   child: Text('Start Mission',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onPrimary)),
                 ),
               ),
             ] else ...[
               Text(
                 "You've earned +${_dailyMission!.momentumReward} momentum score today!",
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.black87),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.8)),
               ),
               const SizedBox(height: 16),
               Container(
@@ -464,7 +485,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 ),
                 child: Center(
                     child: Text('Come back tomorrow',
-                        style: GoogleFonts.poppins(
+                        style: theme.textTheme.titleMedium?.copyWith(
                             color: Colors.green[800],
                             fontWeight: FontWeight.w600))),
               ),
@@ -473,21 +494,20 @@ class _ReviewScreenState extends State<ReviewScreen> {
         ));
   }
 
-  Widget _buildMissionMetric(IconData icon, String label) {
+  Widget _buildMissionMetric(IconData icon, String label, ThemeData theme) {
     return Column(
       children: [
         Icon(icon, size: 20, color: const Color(0xFF5C6BC0)),
         const SizedBox(height: 4),
         Text(label,
-            style: GoogleFonts.inter(
-                fontSize: 13,
+            style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[800])),
+                color: theme.colorScheme.onSurface.withOpacity(0.8))),
       ],
     );
   }
 
-  Widget _buildRecentActivity(UserModel? user) {
+  Widget _buildRecentActivity(UserModel? user, ThemeData theme) {
     if (user == null) return const SizedBox();
     final localDb = Provider.of<LocalDatabaseService>(context, listen: false);
 
@@ -511,7 +531,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         if (items.isEmpty) {
           return Center(
               child: Text('No recent activity',
-                  style: GoogleFonts.inter(color: Colors.grey)));
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6))));
         }
 
         return ListView.builder(
@@ -545,10 +566,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: theme.cardColor.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.5)),
+                          color: theme.dividerColor.withValues(alpha: 0.5)),
                     ),
                     child: InkWell(
                       onTap: () {
@@ -595,14 +616,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           Text(title,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
+                              style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                  color: Colors.black87)),
+                                  color: theme.colorScheme.onSurface)),
                           const SizedBox(height: 4),
                           Text(type,
-                              style: GoogleFonts.inter(
-                                  fontSize: 11, color: Colors.grey[600])),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.6))),
                         ],
                       ),
                     ),

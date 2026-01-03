@@ -24,10 +24,8 @@ class EnhancedAIServiceException implements Exception {
 
 // --- CONFIG ---
 class EnhancedAIConfig {
-  static const String textModel =
-      'gemini-2.0-flash-001'; // Validated 2025 Model
-  static const String visionModel =
-      'gemini-2.0-pro-exp-02-05'; // Vision capable
+  static const String textModel = 'gemini-2.5-flash-lite'; // Lowest tier 2026
+  static const String visionModel = 'gemini-2.5-flash-lite'; // Lowest tier 2026
   static const int maxRetries = 2;
   static const int requestTimeoutSeconds = 60;
   static const int maxInputLength = 30000;

@@ -136,48 +136,13 @@ class ReferralService {
             'Prepared write for newUser $newUserId: +7 days Pro, marked as referred by ${referrerDocRef.id}.',
             name: 'com.example.myapp.ReferralService.transaction');
 
-        // 4.2: Update and Reward the Referrer
-        final referrerData = referrerDoc.data() as Map<String, dynamic>;
-        final int currentReferrals = referrerData['referrals'] as int? ?? 0;
-        final int currentTotalReferrals =
-            referrerData['totalReferrals'] as int? ?? 0;
-        final int currentRewards = referrerData['referralRewards'] as int? ?? 0;
-        final DateTime currentReferrerExpiry =
-            (referrerData['subscriptionExpiry'] as Timestamp?)?.toDate() ??
-                DateTime.now();
-
-        int newReferralsCount = currentReferrals + 1;
-        int newRewardsCount = currentRewards;
-        DateTime newReferrerExpiryDate = currentReferrerExpiry;
-
-        // HIGH PRIORITY FIX H3: Cap referral rewards to prevent infinite free access
-        // Max 12 rewards = 12 * 7 days = 84 days (~3 months) of free Pro via referrals
-        const int maxReferralRewards = 12;
-
-        // Reward logic: Every 2 referrals, grant +7 days and reset the counter.
-        if (newReferralsCount >= 2 && currentRewards < maxReferralRewards) {
-          newReferrerExpiryDate =
-              currentReferrerExpiry.add(const Duration(days: 7));
-          newRewardsCount += 1;
-          newReferralsCount = 0; // Reset for the next cycle.
-          developer.log(
-              'Referrer ${referrerDocRef.id} hit reward threshold. Granting +7 days and resetting counter.',
-              name: 'com.example.myapp.ReferralService.transaction');
-        } else if (newReferralsCount >= 2 &&
-            currentRewards >= maxReferralRewards) {
-          // Still reset counter for stats purposes, but don't grant more time
-          newReferralsCount = 0;
-          developer.log(
-              'Referrer ${referrerDocRef.id} hit reward threshold but already at max rewards cap ($maxReferralRewards).',
-              name: 'com.example.myapp.ReferralService.transaction');
-        }
-
+        // 4.2: Update Referrer Stats (referral count increments later upon deck generation)
+        // We only link the user here. The reward is granted in UsageService when the user generates content.
+        /*
         transaction.update(referrerDocRef, {
-          'referrals': newReferralsCount,
-          'totalReferrals': currentTotalReferrals + 1,
-          'referralRewards': newRewardsCount,
-          'subscriptionExpiry': Timestamp.fromDate(newReferrerExpiryDate),
+          'totalReferrals': FieldValue.increment(1),
         });
+        */
 
         developer.log(
             'Prepared write for referrer ${referrerDocRef.id}: referrals and rewards updated.',
@@ -264,6 +229,51 @@ class ReferralService {
       }
       return snapshot.data()!['referralRewards'] as int;
     });
+  }
+
+  /// Grants a reward to the referrer when an invitee completes their first action.
+  Future<void> grantReferrerReward(String referrerId) async {
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final referrerDocRef = _firestore.collection('users').doc(referrerId);
+        final referrerDoc = await transaction.get(referrerDocRef);
+
+        if (!referrerDoc.exists) return;
+
+        final data = referrerDoc.data() as Map<String, dynamic>;
+        final int currentRewards = data['referralRewards'] as int? ?? 0;
+        final int currentTotalReferrals = data['totalReferrals'] as int? ?? 0;
+
+        DateTime currentExpiry =
+            (data['subscriptionExpiry'] as Timestamp?)?.toDate() ??
+                DateTime.now();
+        if (currentExpiry.isBefore(DateTime.now())) {
+          currentExpiry = DateTime.now();
+        }
+
+        // Cap rewards to avoid abuse (e.g., 20 successful referrals)
+        const int maxRewards = 20;
+
+        if (currentRewards < maxRewards) {
+          final newExpiry = currentExpiry.add(const Duration(days: 7));
+          transaction.update(referrerDocRef, {
+            'referralRewards': currentRewards + 1,
+            'totalReferrals': currentTotalReferrals + 1,
+            'subscriptionExpiry': Timestamp.fromDate(newExpiry),
+          });
+          developer.log('Granted +7 days to referrer $referrerId',
+              name: 'ReferralService');
+        } else {
+          transaction.update(referrerDocRef, {
+            'totalReferrals': currentTotalReferrals + 1,
+          });
+          developer.log('Referrer $referrerId hit cap, only stats updated',
+              name: 'ReferralService');
+        }
+      });
+    } catch (e) {
+      developer.log('Failed to grant referrer reward', error: e);
+    }
   }
 
   /// Validates if a referral code exists and is valid.

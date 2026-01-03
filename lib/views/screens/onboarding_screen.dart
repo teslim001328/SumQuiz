@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -47,8 +46,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Content
@@ -63,6 +63,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 subtitle:
                     'Transform raw notes into powerful summaries and quizzes instantly.',
                 imagePath: 'assets/images/onboarding_learn.svg',
+                theme: theme,
               ),
               OnboardingPage(
                 pageIndex: 1,
@@ -71,6 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 subtitle:
                     'Generate flashcards, track momentum, and conquer any subject.',
                 imagePath: 'assets/images/onboarding_notes.svg',
+                theme: theme,
               ),
               OnboardingPage(
                 pageIndex: 2,
@@ -79,6 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 subtitle:
                     'Start for free today. Upgrade your study strategy forever.',
                 imagePath: 'assets/images/onboarding_rocket.svg',
+                theme: theme,
               ),
             ],
           ),
@@ -88,14 +91,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             left: 0,
             right: 0,
             bottom: 48,
-            child: _buildBottomControls(),
+            child: _buildBottomControls(theme),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomControls() {
+  Widget _buildBottomControls(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32.0),
       child: Column(
@@ -103,7 +106,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Dots
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(3, (index) => _buildDot(index)),
+            children: List.generate(3, (index) => _buildDot(index, theme)),
           ),
           const SizedBox(height: 32),
 
@@ -116,12 +119,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onPressed:
                   _currentPage == 2 ? _finishOnboarding : _navigateToNextPage,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A237E),
+                backgroundColor: theme.colorScheme.primary,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(32)),
                 padding: EdgeInsets.zero,
                 elevation: 8,
-                shadowColor: const Color(0xFF1A237E).withOpacity(0.4),
+                shadowColor: theme.colorScheme.primary.withOpacity(0.4),
               ),
               child: AnimatedSwitcher(
                 duration: 200.ms,
@@ -129,15 +132,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ? Text(
                         'Get Started',
                         key: const ValueKey('text'),
-                        style: GoogleFonts.poppins(
+                        style: theme.textTheme.titleMedium?.copyWith(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white),
+                            color: theme.colorScheme.onPrimary),
                       )
-                    : const Icon(
+                    : Icon(
                         Icons.arrow_forward_rounded,
-                        key: ValueKey('icon'),
-                        color: Colors.white,
+                        key: const ValueKey('icon'),
+                        color: theme.colorScheme.onPrimary,
                         size: 30,
                       ),
               ),
@@ -151,9 +154,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPressed: _finishOnboarding,
                 child: Text(
                   'Already have an account? Sign In',
-                  style: GoogleFonts.inter(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w600),
                 ),
               ).animate().fadeIn(),
@@ -163,7 +166,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildDot(int index) {
+  Widget _buildDot(int index, ThemeData theme) {
     bool isActive = _currentPage == index;
     return AnimatedContainer(
       duration: 300.ms,
@@ -171,7 +174,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       height: 8,
       width: isActive ? 24 : 8,
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF1A237E) : Colors.grey[300],
+        color: isActive
+            ? theme.colorScheme.primary
+            : theme.disabledColor.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(4),
       ),
     );
@@ -184,6 +189,7 @@ class OnboardingPage extends StatelessWidget {
   final String title;
   final String subtitle;
   final String imagePath;
+  final ThemeData theme;
 
   const OnboardingPage({
     super.key,
@@ -192,6 +198,7 @@ class OnboardingPage extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.imagePath,
+    required this.theme,
   });
 
   @override
@@ -204,9 +211,7 @@ class OnboardingPage extends StatelessWidget {
           pageOffset = controller.page! - pageIndex;
         }
 
-        // Parallax Effect: Move content slightly slower than the page scroll
-        // pageOffset goes from 0 to 1 when scrolling away
-
+        // Parallax Effect
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32.0),
           child: Column(
@@ -218,6 +223,8 @@ class OnboardingPage extends StatelessWidget {
                 child: SvgPicture.asset(
                   imagePath,
                   height: 300,
+                  colorFilter: ColorFilter.mode(
+                      theme.colorScheme.primary, BlendMode.srcIn),
                 )
                     .animate(target: 1)
                     .scale(duration: 600.ms, curve: Curves.easeOutBack),
@@ -233,10 +240,10 @@ class OnboardingPage extends StatelessWidget {
                     Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
+                      style: theme.textTheme.headlineMedium?.copyWith(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: theme.colorScheme.onSurface,
                         height: 1.2,
                       ),
                     ),
@@ -244,9 +251,10 @@ class OnboardingPage extends StatelessWidget {
                     Text(
                       subtitle,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: theme.textTheme.bodyLarge?.copyWith(
                         fontSize: 16,
-                        color: Colors.grey[600],
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
                         height: 1.5,
                       ),
                     ),

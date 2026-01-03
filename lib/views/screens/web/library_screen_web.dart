@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rxdart/rxdart.dart';
@@ -132,52 +131,53 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel?>(context);
+    final theme = Theme.of(context);
 
     // Desktop Layout: Sidebar + Main Content Area
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB), // Light gray-blue web bg
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Row(
         children: [
           // Sidebar (could be part of shell, but here we can customize filtering)
-          _buildWebSidebar(),
+          _buildWebSidebar(theme),
           // Main Content
           Expanded(
             child: user == null
                 ? const Center(child: Text("Please Log In"))
-                : _buildWebMainContent(user),
+                : _buildWebMainContent(user, theme),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildWebSidebar() {
+  Widget _buildWebSidebar(ThemeData theme) {
     return Container(
       width: 250,
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(right: BorderSide(color: Colors.grey.shade200)),
+        color: theme.cardColor,
+        border: Border(right: BorderSide(color: theme.dividerColor)),
       ),
       child: Column(
         children: [
           const SizedBox(height: 32),
           Text('Library',
-              style: GoogleFonts.poppins(
-                  fontSize: 24,
+              style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A237E))),
+                  color: theme.colorScheme.primary)),
           const SizedBox(height: 32),
-          _buildSidebarTab(0, 'Folders', Icons.folder_open),
-          _buildSidebarTab(1, 'All Content', Icons.dashboard_outlined),
-          _buildSidebarTab(2, 'Summaries', Icons.article_outlined),
-          _buildSidebarTab(3, 'Quizzes', Icons.quiz_outlined),
-          _buildSidebarTab(4, 'Flashcards', Icons.style_outlined),
+          _buildSidebarTab(0, 'Folders', Icons.folder_open, theme),
+          _buildSidebarTab(1, 'All Content', Icons.dashboard_outlined, theme),
+          _buildSidebarTab(2, 'Summaries', Icons.article_outlined, theme),
+          _buildSidebarTab(3, 'Quizzes', Icons.quiz_outlined, theme),
+          _buildSidebarTab(4, 'Flashcards', Icons.style_outlined, theme),
         ],
       ),
     );
   }
 
-  Widget _buildSidebarTab(int index, String title, IconData icon) {
+  Widget _buildSidebarTab(
+      int index, String title, IconData icon, ThemeData theme) {
     final bool isSelected = _tabController.index == index;
     return InkWell(
       onTap: () {
@@ -192,22 +192,25 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
         decoration: BoxDecoration(
           // Subtle background only when selected
           color: isSelected
-              ? const Color(0xFF1A237E).withOpacity(0.08)
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Icon(icon,
-                color: isSelected ? const Color(0xFF1A237E) : Colors.grey[600],
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 size: 22),
             const SizedBox(width: 16),
             Text(
               title,
-              style: GoogleFonts.inter(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF1A237E) : Colors.grey[700],
-                fontSize: 14,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.8),
               ),
             ),
           ],
@@ -216,21 +219,22 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
     );
   }
 
-  Widget _buildWebMainContent(UserModel user) {
+  Widget _buildWebMainContent(UserModel user, ThemeData theme) {
     return Column(
       children: [
-        _buildWebHeader(),
+        _buildWebHeader(theme),
         Expanded(
           child: TabBarView(
             controller: _tabController,
             physics:
                 const NeverScrollableScrollPhysics(), // Disable swipe on web
             children: [
-              _buildFolderGrid(user.uid),
-              _buildCombinedGrid(user.uid),
-              _buildLibraryGrid(user.uid, 'summaries', _summariesStream),
-              _buildQuizGrid(user.uid),
-              _buildLibraryGrid(user.uid, 'flashcards', _flashcardsStream),
+              _buildFolderGrid(user.uid, theme),
+              _buildCombinedGrid(user.uid, theme),
+              _buildLibraryGrid(user.uid, 'summaries', _summariesStream, theme),
+              _buildQuizGrid(user.uid, theme),
+              _buildLibraryGrid(
+                  user.uid, 'flashcards', _flashcardsStream, theme),
             ],
           ),
         ),
@@ -238,7 +242,7 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
     );
   }
 
-  Widget _buildWebHeader() {
+  Widget _buildWebHeader(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       child: Row(
@@ -248,15 +252,19 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
               constraints: const BoxConstraints(maxWidth: 600),
               child: TextField(
                 controller: _searchController,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurface),
                 decoration: InputDecoration(
                   hintText: 'Search your library...',
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search,
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: theme.cardColor,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20),
                 ),
               ),
@@ -264,12 +272,14 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
           ),
           const SizedBox(width: 24),
           ElevatedButton.icon(
-            onPressed: () => _showCreateOptions(context),
-            icon: const Icon(Icons.add),
-            label: const Text("Create New"),
+            onPressed: () => _showCreateOptions(context, theme),
+            icon: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+            label: Text("Create New",
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.onPrimary)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A237E),
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
@@ -280,7 +290,7 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
     );
   }
 
-  Widget _buildFolderGrid(String userId) {
+  Widget _buildFolderGrid(String userId, ThemeData theme) {
     return FutureBuilder<List<Folder>>(
       future: _localDb.getAllFolders(userId),
       builder: (context, snapshot) {
@@ -303,8 +313,10 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
               title: folder.name,
               subtitle: 'Folder',
               icon: Icons.folder,
-              color: Colors.amber,
+              color: Colors
+                  .amber, // Keep amber as a distinct folder color, or theme.primary
               onTap: () => context.push('/library/results-view/${folder.id}'),
+              theme: theme,
             );
           },
         );
@@ -312,7 +324,7 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
     );
   }
 
-  Widget _buildCombinedGrid(String userId) {
+  Widget _buildCombinedGrid(String userId, ThemeData theme) {
     return StreamBuilder<List<LibraryItem>>(
       stream: _allItemsStream,
       builder: (context, snapshot) {
@@ -323,25 +335,25 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
         final filtered = items
             .where((i) => i.title.toLowerCase().contains(_searchQuery))
             .toList();
-        return _buildContentGrid(filtered, userId);
+        return _buildContentGrid(filtered, userId, theme);
       },
     );
   }
 
-  Widget _buildLibraryGrid(
-      String userId, String type, Stream<List<LibraryItem>>? stream) {
+  Widget _buildLibraryGrid(String userId, String type,
+      Stream<List<LibraryItem>>? stream, ThemeData theme) {
     return StreamBuilder<List<LibraryItem>>(
       stream: stream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        return _buildContentGrid(snapshot.data!, userId);
+        return _buildContentGrid(snapshot.data!, userId, theme);
       },
     );
   }
 
-  Widget _buildQuizGrid(String userId) {
+  Widget _buildQuizGrid(String userId, ThemeData theme) {
     return Consumer<QuizViewModel>(
       builder: (context, vm, _) {
         final items = vm.quizzes
@@ -351,12 +363,13 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
                 type: LibraryItemType.quiz,
                 timestamp: Timestamp.fromDate(q.timestamp)))
             .toList();
-        return _buildContentGrid(items, userId);
+        return _buildContentGrid(items, userId, theme);
       },
     );
   }
 
-  Widget _buildContentGrid(List<LibraryItem> items, String userId) {
+  Widget _buildContentGrid(
+      List<LibraryItem> items, String userId, ThemeData theme) {
     return GridView.builder(
       padding: const EdgeInsets.all(32),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -407,6 +420,7 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
             }
             // For now, placeholder or push with ID if route expects it
           },
+          theme: theme,
         );
       },
     );
@@ -418,12 +432,13 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    required ThemeData theme,
   }) {
     return InkWell(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -447,24 +462,27 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
             ),
             const Spacer(),
             Text(title,
-                style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
             Text(subtitle,
-                style: GoogleFonts.inter(fontSize: 14, color: Colors.grey)),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
           ],
         ),
       ).animate().scale(duration: 200.ms, curve: Curves.easeOut),
     );
   }
 
-  void _showCreateOptions(BuildContext context) {
+  void _showCreateOptions(BuildContext context, ThemeData theme) {
     // Show dialog instead of bottom sheet on web
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
+        backgroundColor: theme.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -474,22 +492,29 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text("Create New Content",
-                    style: GoogleFonts.poppins(
-                        fontSize: 24, fontWeight: FontWeight.bold)),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 24),
                 ListTile(
                   leading: const Icon(Icons.article, color: Colors.blue),
-                  title: const Text('Summary'),
+                  title: Text('Summary',
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(color: theme.colorScheme.onSurface)),
                   onTap: () => context.push('/create'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.quiz, color: Colors.green),
-                  title: const Text('Quiz'),
+                  title: Text('Quiz',
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(color: theme.colorScheme.onSurface)),
                   onTap: () => context.push('/create'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.style, color: Colors.orange),
-                  title: const Text('Flashcards'),
+                  title: Text('Flashcards',
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(color: theme.colorScheme.onSurface)),
                   onTap: () => context.push('/create'),
                 ),
               ],

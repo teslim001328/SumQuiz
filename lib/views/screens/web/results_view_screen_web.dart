@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/models/flashcard.dart';
 import 'package:sumquiz/models/local_flashcard_set.dart';
@@ -74,28 +73,32 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Preparation Results',
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold, color: const Color(0xFF1A1A1A)),
+          style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.cardColor,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1A1A1A)),
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
         centerTitle: false,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: ElevatedButton.icon(
               onPressed: _saveToLibrary,
-              icon: const Icon(Icons.check_circle_outline, size: 20),
-              label: const Text("Save & Continue"),
+              icon: Icon(Icons.check_circle_outline,
+                  size: 20, color: theme.colorScheme.onPrimary),
+              label: Text("Save & Continue",
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(color: theme.colorScheme.onPrimary)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A237E),
-                foregroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -108,16 +111,17 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(child: Text(_errorMessage!))
+              ? Center(
+                  child: Text(_errorMessage!, style: theme.textTheme.bodyLarge))
               : Row(
                   children: [
                     // Sidebar
                     Container(
                       width: 280,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: theme.cardColor,
                         border: Border(
-                            right: BorderSide(color: Colors.grey.shade200)),
+                            right: BorderSide(color: theme.dividerColor)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,20 +129,21 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
                           Padding(
                             padding: const EdgeInsets.all(24.0),
                             child: Text("Generated Content",
-                                style: GoogleFonts.inter(
-                                    fontSize: 12,
+                                style: theme.textTheme.bodySmall?.copyWith(
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.grey)),
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.5))),
                           ),
                           _buildNavItem(0, "Summary", Icons.article_outlined,
-                              _summary != null),
-                          _buildNavItem(
-                              1, "Quiz", Icons.quiz_outlined, _quiz != null),
+                              _summary != null, theme),
+                          _buildNavItem(1, "Quiz", Icons.quiz_outlined,
+                              _quiz != null, theme),
                           _buildNavItem(
                               2,
                               "Flashcards",
                               Icons.view_carousel_outlined,
-                              _flashcardSet != null),
+                              _flashcardSet != null,
+                              theme),
                         ],
                       ),
                     ),
@@ -149,7 +154,7 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
                         child: Center(
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 800),
-                            child: _buildSelectedTabView()
+                            child: _buildSelectedTabView(theme)
                                 .animate()
                                 .fadeIn(duration: 300.ms)
                                 .slideX(begin: 0.1, curve: Curves.easeOut),
@@ -162,8 +167,8 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
     );
   }
 
-  Widget _buildNavItem(
-      int index, String label, IconData icon, bool hasContent) {
+  Widget _buildNavItem(int index, String label, IconData icon, bool hasContent,
+      ThemeData theme) {
     if (!hasContent) return const SizedBox.shrink();
 
     final isSelected = _selectedTab == index;
@@ -174,12 +179,12 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF1A237E).withValues(alpha: 0.05)
+              ? theme.colorScheme.primary.withValues(alpha: 0.05)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF1A237E).withValues(alpha: 0.1)
+                ? theme.colorScheme.primary.withValues(alpha: 0.1)
                 : Colors.transparent,
           ),
         ),
@@ -187,21 +192,23 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
           children: [
             Icon(icon,
                 size: 20,
-                color: isSelected ? const Color(0xFF1A237E) : Colors.grey),
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.5)),
             const SizedBox(width: 12),
             Text(label,
-                style: GoogleFonts.inter(
+                style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: isSelected
-                        ? const Color(0xFF1A237E)
-                        : Colors.grey[700])),
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.7))),
             const Spacer(),
             if (isSelected)
               Container(
                 width: 6,
                 height: 6,
-                decoration: const BoxDecoration(
-                    color: Color(0xFF1A237E), shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                    color: theme.colorScheme.primary, shape: BoxShape.circle),
               )
           ],
         ),
@@ -209,23 +216,24 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
     );
   }
 
-  Widget _buildSelectedTabView() {
+  Widget _buildSelectedTabView(ThemeData theme) {
     switch (_selectedTab) {
       case 0:
-        return _buildSummaryTab();
+        return _buildSummaryTab(theme);
       case 1:
-        return _buildQuizzesTab();
+        return _buildQuizzesTab(theme);
       case 2:
-        return _buildFlashcardsTab();
+        return _buildFlashcardsTab(theme);
       default:
         return Container();
     }
   }
 
-  Widget _buildSummaryTab() {
+  Widget _buildSummaryTab(ThemeData theme) {
     if (_summary == null) return const SizedBox();
     return Card(
       elevation: 0,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -245,10 +253,11 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
     );
   }
 
-  Widget _buildQuizzesTab() {
+  Widget _buildQuizzesTab(ThemeData theme) {
     if (_quiz == null) return const SizedBox();
     return Card(
       elevation: 0,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -262,7 +271,7 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
     );
   }
 
-  Widget _buildFlashcardsTab() {
+  Widget _buildFlashcardsTab(ThemeData theme) {
     if (_flashcardSet == null) return const SizedBox();
 
     final flashcards = _flashcardSet!.flashcards

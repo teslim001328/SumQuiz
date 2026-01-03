@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class PrivacyAboutScreen extends StatefulWidget {
   const PrivacyAboutScreen({super.key});
@@ -53,19 +52,22 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
           'About & Privacy',
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold, color: const Color(0xFF1A237E)),
+          style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1A237E)),
+          icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.primary),
           onPressed: () => context.pop(),
         ),
       ),
@@ -83,11 +85,17 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFF3F4F6),
-                          Color.lerp(const Color(0xFFE8EAF6),
-                              const Color(0xFFC5CAE9), value)!,
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6),
+                                Color.lerp(const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9), value)!,
+                              ],
                       ),
                     ),
                     child: child,
@@ -106,12 +114,12 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildAboutHeader()
+                      _buildAboutHeader(theme)
                           .animate()
                           .fadeIn(delay: 100.ms)
                           .slideY(begin: 0.1),
                       const SizedBox(height: 32),
-                      _buildLinksCard()
+                      _buildLinksCard(theme)
                           .animate()
                           .fadeIn(delay: 200.ms)
                           .slideY(begin: 0.1),
@@ -119,8 +127,9 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
                       Text(
                         '© 2024 SumQuiz. All rights reserved.',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                            color: Colors.grey[600], fontSize: 12),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6)),
                       ).animate().fadeIn(delay: 400.ms),
                     ],
                   ),
@@ -133,35 +142,34 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
     );
   }
 
-  Widget _buildAboutHeader() {
+  Widget _buildAboutHeader(ThemeData theme) {
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A237E).withValues(alpha: 0.05),
+            color: theme.colorScheme.primary.withValues(alpha: 0.05),
             shape: BoxShape.circle,
             border: Border.all(
-                color: const Color(0xFF1A237E).withValues(alpha: 0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 width: 2),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1A237E).withValues(alpha: 0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 blurRadius: 20,
                 spreadRadius: 5,
               ),
             ],
           ),
-          child: const Icon(Icons.info_outline,
-              size: 60, color: Color(0xFF1A237E)),
+          child: Icon(Icons.info_outline,
+              size: 60, color: theme.colorScheme.primary),
         ),
         const SizedBox(height: 24),
         Text(
           'SumQuiz',
-          style: GoogleFonts.poppins(
-            fontSize: 32,
+          style: theme.textTheme.headlineLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: const Color(0xFF1A237E),
+            color: theme.colorScheme.primary,
             letterSpacing: 1.5,
           ),
         ),
@@ -169,15 +177,15 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A237E).withValues(alpha: 0.1),
+            color: theme.colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: const Color(0xFF1A237E).withValues(alpha: 0.2)),
+                color: theme.colorScheme.primary.withValues(alpha: 0.2)),
           ),
           child: Text(
             _version,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF1A237E),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.primary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -186,16 +194,17 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
     );
   }
 
-  Widget _buildLinksCard() {
+  Widget _buildLinksCard(ThemeData theme) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: theme.cardColor.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+            border:
+                Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -211,19 +220,22 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
                 title: 'Privacy Policy',
                 onTap: () => _launchURL(
                     'https://sites.google.com/view/sumquiz-privacy-policy/home'),
+                theme: theme,
               ),
-              _buildDivider(),
+              _buildDivider(theme),
               _buildLinkTile(
                 icon: Icons.description_outlined,
                 title: 'Terms of Service',
                 onTap: () => _launchURL(
                     'https://sites.google.com/view/terms-and-conditions-for-sumqu/home'),
+                theme: theme,
               ),
-              _buildDivider(),
+              _buildDivider(theme),
               _buildLinkTile(
                 icon: Icons.contact_support_outlined,
                 title: 'Support & Contact',
                 onTap: () => _launchURL('mailto:sumquiz6@gmail.com'),
+                theme: theme,
               ),
             ],
           ),
@@ -235,26 +247,27 @@ class _PrivacyAboutScreenState extends State<PrivacyAboutScreen> {
   Widget _buildLinkTile(
       {required IconData icon,
       required String title,
-      required VoidCallback onTap}) {
+      required VoidCallback onTap,
+      required ThemeData theme}) {
     return Material(
       color: Colors.transparent,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        leading: Icon(icon, color: const Color(0xFF1A237E)),
+        leading: Icon(icon, color: theme.colorScheme.primary),
         title: Text(title,
-            style: GoogleFonts.inter(
-                color: Colors.black87,
-                fontSize: 16,
+            style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w500)),
-        trailing: Icon(Icons.arrow_forward_ios,
-            size: 16, color: Colors.grey.withValues(alpha: 0.4)),
+        trailing:
+            Icon(Icons.arrow_forward_ios, size: 16, color: theme.disabledColor),
         onTap: onTap,
       ),
     );
   }
 
-  Widget _buildDivider() => Padding(
+  Widget _buildDivider(ThemeData theme) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Divider(height: 1, color: Colors.grey.withValues(alpha: 0.1)),
+        child: Divider(
+            height: 1, color: theme.dividerColor.withValues(alpha: 0.2)),
       );
 }

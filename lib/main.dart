@@ -68,7 +68,11 @@ void main() async {
 
   final authService = AuthService(FirebaseAuth.instance);
 
-  await TimeSyncService.syncWithServer();
+  try {
+    await TimeSyncService.syncWithServer().timeout(const Duration(seconds: 3));
+  } catch (e) {
+    debugPrint('Startup time sync skipped: $e');
+  }
 
   runApp(MyApp(
       authService: authService, notificationService: notificationService));
@@ -149,7 +153,7 @@ class _MyAppState extends State<MyApp> {
         ProxyProvider<AuthService, UsageService?>(
           update: (context, authService, previous) {
             final user = authService.currentUser;
-            return user != null ? UsageService(user.uid) : null;
+            return user != null ? UsageService() : null;
           },
         ),
         ProxyProvider<AuthService, ReferralService>(

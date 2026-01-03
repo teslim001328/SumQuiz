@@ -11,6 +11,9 @@ class UserModel {
   final double currentMomentum;
   final int dailyGoal;
   final int itemsCompletedToday;
+  final int dailyDecksGenerated;
+  final int totalDecksGenerated;
+  final DateTime? lastDeckGenerationDate;
   final DateTime? updatedAt;
   final double momentumDecayRate; // Default 0.05 (5% daily)
   final int missionCompletionStreak; // Consecutive missions done
@@ -39,6 +42,9 @@ class UserModel {
     this.folderCount = 0,
     this.srsCardCount = 0,
     this.lastWeeklyReset,
+    this.dailyDecksGenerated = 0,
+    this.totalDecksGenerated = 0,
+    this.lastDeckGenerationDate,
     this.updatedAt,
   });
 
@@ -71,6 +77,10 @@ class UserModel {
       folderCount: data['folderCount'] ?? 0,
       srsCardCount: data['srsCardCount'] ?? 0,
       lastWeeklyReset: (data['lastWeeklyReset'] as Timestamp?)?.toDate(),
+      dailyDecksGenerated: data['dailyDecksGenerated'] ?? 0,
+      totalDecksGenerated: data['totalDecksGenerated'] ?? 0,
+      lastDeckGenerationDate:
+          (data['lastDeckGenerationDate'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -91,7 +101,12 @@ class UserModel {
       'weeklyUploads': weeklyUploads,
       'folderCount': folderCount,
       'srsCardCount': srsCardCount,
-      if (lastWeeklyReset != null) 'lastWeeklyReset': Timestamp.fromDate(lastWeeklyReset!),
+      'dailyDecksGenerated': dailyDecksGenerated,
+      'totalDecksGenerated': totalDecksGenerated,
+      if (lastDeckGenerationDate != null)
+        'lastDeckGenerationDate': Timestamp.fromDate(lastDeckGenerationDate!),
+      if (lastWeeklyReset != null)
+        'lastWeeklyReset': Timestamp.fromDate(lastWeeklyReset!),
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
     };
   }
@@ -111,6 +126,9 @@ class UserModel {
     int? weeklyUploads,
     int? folderCount,
     int? srsCardCount,
+    int? dailyDecksGenerated,
+    int? totalDecksGenerated,
+    DateTime? lastDeckGenerationDate,
     DateTime? lastWeeklyReset,
     DateTime? updatedAt,
   }) {
@@ -130,6 +148,10 @@ class UserModel {
       weeklyUploads: weeklyUploads ?? this.weeklyUploads,
       folderCount: folderCount ?? this.folderCount,
       srsCardCount: srsCardCount ?? this.srsCardCount,
+      dailyDecksGenerated: dailyDecksGenerated ?? this.dailyDecksGenerated,
+      totalDecksGenerated: totalDecksGenerated ?? this.totalDecksGenerated,
+      lastDeckGenerationDate:
+          lastDeckGenerationDate ?? this.lastDeckGenerationDate,
       lastWeeklyReset: lastWeeklyReset ?? this.lastWeeklyReset,
       updatedAt: updatedAt ?? this.updatedAt,
     );

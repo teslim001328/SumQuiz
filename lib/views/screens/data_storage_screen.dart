@@ -8,7 +8,6 @@ import 'package:sumquiz/models/local_quiz.dart';
 import 'package:sumquiz/models/local_flashcard_set.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class DataStorageScreen extends StatelessWidget {
   const DataStorageScreen({super.key});
@@ -17,20 +16,24 @@ class DataStorageScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final localDB = Provider.of<LocalDatabaseService>(context);
     final user = Provider.of<UserModel?>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
           'Data & Storage',
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold, color: const Color(0xFF1A237E)),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1A237E)),
+          icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
       ),
@@ -48,11 +51,17 @@ class DataStorageScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFF3F4F6),
-                          Color.lerp(const Color(0xFFE8EAF6),
-                              const Color(0xFFC5CAE9), value)!,
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6),
+                                Color.lerp(const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9), value)!,
+                              ],
                       ),
                     ),
                     child: child,
@@ -70,15 +79,16 @@ class DataStorageScreen extends StatelessWidget {
                   constraints: const BoxConstraints(maxWidth: 600),
                   child: Column(
                     children: [
-                      _buildStorageInfoCard(context)
+                      _buildStorageInfoCard(context, theme)
                           .animate()
                           .fadeIn(delay: 100.ms)
                           .slideY(begin: 0.1),
                       const SizedBox(height: 32),
-                      _buildSectionHeader('Manage Data')
+                      _buildSectionHeader('Manage Data', theme)
                           .animate()
                           .fadeIn(delay: 200.ms),
                       _buildGlassContainer(
+                        theme: theme,
                         child: Column(
                           children: [
                             _buildActionTile(
@@ -86,15 +96,15 @@ class DataStorageScreen extends StatelessWidget {
                               icon: Icons.cleaning_services_outlined,
                               title: 'Clear Cache',
                               subtitle: 'Free up space',
-                              onTap: () =>
-                                  _showClearCacheConfirmation(context, localDB),
+                              onTap: () => _showClearCacheConfirmation(
+                                  context, localDB, theme),
+                              theme: theme,
                             ),
                             Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 16),
-                              child: Divider(
-                                  height: 1,
-                                  color: Colors.grey.withValues(alpha: 0.1)),
+                              child:
+                                  Divider(height: 1, color: theme.dividerColor),
                             ),
                             _buildActionTile(
                               context,
@@ -102,14 +112,14 @@ class DataStorageScreen extends StatelessWidget {
                               title: 'Offline Files',
                               subtitle: 'Manage downloads',
                               onTap: () => _showOfflineFilesModal(
-                                  context, localDB, user),
+                                  context, localDB, user, theme),
+                              theme: theme,
                             ),
                             Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 16),
-                              child: Divider(
-                                  height: 1,
-                                  color: Colors.grey.withValues(alpha: 0.1)),
+                              child:
+                                  Divider(height: 1, color: theme.dividerColor),
                             ),
                             _buildActionTile(
                               context,
@@ -117,6 +127,7 @@ class DataStorageScreen extends StatelessWidget {
                               title: 'Sync Data',
                               subtitle: 'Sync with cloud',
                               onTap: () => _syncData(context),
+                              theme: theme,
                             ),
                           ],
                         ),
@@ -133,16 +144,17 @@ class DataStorageScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGlassContainer({required Widget child}) {
+  Widget _buildGlassContainer(
+      {required Widget child, required ThemeData theme}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: theme.cardColor.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+            border: Border.all(color: theme.cardColor.withValues(alpha: 0.6)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -157,33 +169,40 @@ class DataStorageScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, ThemeData theme) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title.toUpperCase(),
-        style: GoogleFonts.inter(
-          fontWeight: FontWeight.bold,
-          color: const Color(0xFF1A237E),
-          letterSpacing: 1.2,
-          fontSize: 12,
-        ),
+        style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+              letterSpacing: 1.2,
+              fontSize: 12,
+            ) ??
+            theme.textTheme.labelSmall?.copyWith(
+              // Fallback if labelFloating doesn't exist
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+              letterSpacing: 1.2,
+              fontSize: 12,
+            ),
       ),
     );
   }
 
-  Widget _buildStorageInfoCard(BuildContext context) {
+  Widget _buildStorageInfoCard(BuildContext context, ThemeData theme) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1A237E).withValues(alpha: 0.05),
+            color: theme.colorScheme.primary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-                color: const Color(0xFF1A237E).withValues(alpha: 0.1)),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -195,18 +214,18 @@ class DataStorageScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A237E).withValues(alpha: 0.1),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.storage_outlined,
-                          color: Color(0xFF1A237E), size: 24),
+                      child: Icon(Icons.storage_outlined,
+                          color: theme.colorScheme.primary, size: 24),
                     ),
                     const SizedBox(width: 12),
                     Text(
                       'Storage Usage',
-                      style: GoogleFonts.poppins(
+                      style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1A237E),
+                          color: theme.colorScheme.primary,
                           fontSize: 18),
                     ),
                   ],
@@ -214,9 +233,9 @@ class DataStorageScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 Text(
                   '42.5 MB Used',
-                  style: GoogleFonts.inter(
+                  style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: theme.colorScheme.onSurface,
                       fontSize: 16),
                 ),
                 const SizedBox(height: 8),
@@ -225,9 +244,9 @@ class DataStorageScreen extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: 0.42,
                     minHeight: 10,
-                    backgroundColor: Colors.grey.withValues(alpha: 0.1),
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(Color(0xFF1A237E)),
+                    backgroundColor: theme.disabledColor.withValues(alpha: 0.1),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        theme.colorScheme.primary),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -235,11 +254,11 @@ class DataStorageScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('0 MB',
-                        style: GoogleFonts.inter(
-                            color: Colors.grey[600], fontSize: 12)),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.disabledColor, fontSize: 12)),
                     Text('100 MB Limit',
-                        style: GoogleFonts.inter(
-                            color: Colors.grey[600], fontSize: 12)),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.disabledColor, fontSize: 12)),
                   ],
                 )
               ],
@@ -254,31 +273,38 @@ class DataStorageScreen extends StatelessWidget {
       {required IconData icon,
       required String title,
       required String subtitle,
-      required VoidCallback onTap}) {
+      required VoidCallback onTap,
+      required ThemeData theme}) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: const Color(0xFF1A237E)),
+      leading: Icon(icon, color: theme.colorScheme.primary),
       title: Text(title,
-          style: GoogleFonts.inter(color: Colors.black87, fontSize: 16)),
+          style: theme.textTheme.bodyLarge
+              ?.copyWith(color: theme.colorScheme.onSurface, fontSize: 16)),
       subtitle: Text(subtitle,
-          style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 13)),
+          style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              fontSize: 13)),
       trailing: Icon(Icons.arrow_forward_ios,
-          size: 14, color: Colors.grey.withValues(alpha: 0.4)),
+          size: 14, color: theme.disabledColor.withValues(alpha: 0.4)),
     );
   }
 
   void _showClearCacheConfirmation(
-      BuildContext context, LocalDatabaseService localDB) {
+      BuildContext context, LocalDatabaseService localDB, ThemeData theme) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor:
+              theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface,
           title: Text('Clear Cache?',
-              style: GoogleFonts.poppins(color: Colors.black87)),
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(color: theme.colorScheme.onSurface)),
           content: Text(
               'Are you sure you want to clear all cached data? This will free up storage space but may require re-downloading content.',
-              style: GoogleFonts.inter(color: Colors.grey[800])),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.8))),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
@@ -288,7 +314,7 @@ class DataStorageScreen extends StatelessWidget {
             ),
             TextButton(
               child: Text('Clear',
-                  style: GoogleFonts.inter(
+                  style: theme.textTheme.labelLarge?.copyWith(
                       color: Colors.redAccent, fontWeight: FontWeight.bold)),
               onPressed: () {
                 localDB.clearAllData();
@@ -308,8 +334,8 @@ class DataStorageScreen extends StatelessWidget {
     );
   }
 
-  void _showOfflineFilesModal(
-      BuildContext context, LocalDatabaseService localDB, UserModel? user) {
+  void _showOfflineFilesModal(BuildContext context,
+      LocalDatabaseService localDB, UserModel? user, ThemeData theme) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -322,11 +348,12 @@ class DataStorageScreen extends StatelessWidget {
             child: Container(
               height: MediaQuery.of(context).size.height * 0.7,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: theme.cardColor.withValues(alpha: 0.9),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(24)),
                 border: Border(
-                  top: BorderSide(color: Colors.white.withValues(alpha: 0.6)),
+                  top:
+                      BorderSide(color: theme.cardColor.withValues(alpha: 0.6)),
                 ),
               ),
               padding: const EdgeInsets.all(24.0),
@@ -337,17 +364,17 @@ class DataStorageScreen extends StatelessWidget {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.3),
+                      color: theme.disabledColor.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'Offline Files',
-                    style: GoogleFonts.poppins(
+                    style: theme.textTheme.headlineSmall?.copyWith(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87),
+                        color: theme.colorScheme.onSurface),
                   ),
                   const SizedBox(height: 24),
                   if (user != null)
@@ -372,12 +399,12 @@ class DataStorageScreen extends StatelessWidget {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(Icons.folder_open,
-                                      size: 48, color: Colors.grey[400]),
+                                      size: 48, color: theme.disabledColor),
                                   const SizedBox(height: 16),
                                   Text(
                                     'No offline files yet.',
-                                    style: GoogleFonts.inter(
-                                        color: Colors.grey[600]),
+                                    style: theme.textTheme.bodyMedium
+                                        ?.copyWith(color: theme.disabledColor),
                                   ),
                                 ],
                               ),
@@ -399,14 +426,16 @@ class DataStorageScreen extends StatelessWidget {
                                       'Summary',
                                       summary.title,
                                       summary.id,
-                                      () => localDB.deleteSummary(summary.id))),
+                                      () => localDB.deleteSummary(summary.id),
+                                      theme)),
                               ...quizzes.map((quiz) => _buildOfflineFileTile(
                                   context,
                                   localDB,
                                   'Quiz',
                                   quiz.title,
                                   quiz.id,
-                                  () => localDB.deleteQuiz(quiz.id))),
+                                  () => localDB.deleteQuiz(quiz.id),
+                                  theme)),
                               ...flashcardSets.map((flashcardSet) =>
                                   _buildOfflineFileTile(
                                       context,
@@ -414,8 +443,9 @@ class DataStorageScreen extends StatelessWidget {
                                       'Flashcard Set',
                                       flashcardSet.title,
                                       flashcardSet.id,
-                                      () => localDB.deleteFlashcardSet(
-                                          flashcardSet.id))),
+                                      () => localDB
+                                          .deleteFlashcardSet(flashcardSet.id),
+                                      theme)),
                             ],
                           );
                         },
@@ -436,20 +466,23 @@ class DataStorageScreen extends StatelessWidget {
       String type,
       String title,
       String id,
-      VoidCallback onDelete) {
+      VoidCallback onDelete,
+      ThemeData theme) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.05),
+        color: theme.disabledColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: theme.disabledColor.withValues(alpha: 0.1)),
       ),
       child: ListTile(
         title: Text(title,
-            style: GoogleFonts.inter(
-                color: Colors.black87, fontWeight: FontWeight.w500)),
+            style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w500)),
         subtitle: Text(type,
-            style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 12)),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.disabledColor, fontSize: 12)),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline,
               color: Colors.redAccent, size: 20),

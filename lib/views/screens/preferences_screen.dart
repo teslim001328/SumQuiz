@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/providers/theme_provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class PreferencesScreen extends StatelessWidget {
   const PreferencesScreen({super.key});
@@ -11,6 +10,8 @@ class PreferencesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     // Calculate current font size index for UI selection
     int fontSizeIndex = 1;
@@ -22,14 +23,16 @@ class PreferencesScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Preferences',
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold, color: const Color(0xFF1A237E)),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1A237E)),
+          icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -47,11 +50,17 @@ class PreferencesScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFF3F4F6),
-                          Color.lerp(const Color(0xFFE8EAF6),
-                              const Color(0xFFC5CAE9), value)!,
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6),
+                                Color.lerp(const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9), value)!,
+                              ],
                       ),
                     ),
                     child: child,
@@ -68,30 +77,32 @@ class PreferencesScreen extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.all(24.0),
                   children: [
-                    _buildSectionHeader('Appearance')
+                    _buildSectionHeader('Appearance', theme)
                         .animate()
                         .fadeIn()
                         .slideX(),
                     const SizedBox(height: 16),
                     _buildGlassSection(
+                      theme: theme,
                       children: [
-                        _buildDarkModeTile(themeProvider),
-                        _buildDivider(),
+                        _buildDarkModeTile(themeProvider, theme),
+                        _buildDivider(theme),
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 16),
                           child: _buildFontSizeSelector(
-                              themeProvider, fontSizeIndex),
+                              themeProvider, fontSizeIndex, theme),
                         ),
                       ],
                     ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1),
                     const SizedBox(height: 32),
-                    _buildSectionHeader('Interaction')
+                    _buildSectionHeader('Interaction', theme)
                         .animate()
                         .fadeIn(delay: 200.ms)
                         .slideX(),
                     const SizedBox(height: 16),
                     _buildGlassSection(
+                      theme: theme,
                       children: [
                         _buildToggleOption(
                           context,
@@ -101,8 +112,9 @@ class PreferencesScreen extends StatelessWidget {
                           onChanged: (value) {
                             themeProvider.toggleNotifications(value);
                           },
+                          theme: theme,
                         ),
-                        _buildDivider(),
+                        _buildDivider(theme),
                         _buildToggleOption(
                           context,
                           title: 'Haptic Feedback',
@@ -111,6 +123,7 @@ class PreferencesScreen extends StatelessWidget {
                           onChanged: (value) {
                             themeProvider.toggleHapticFeedback(value);
                           },
+                          theme: theme,
                         ),
                       ],
                     ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1),
@@ -124,32 +137,33 @@ class PreferencesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.only(left: 8, bottom: 8),
       child: Text(
         title.toUpperCase(),
-        style: GoogleFonts.inter(
+        style: theme.textTheme.labelMedium?.copyWith(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: const Color(0xFF1A237E),
+          color: theme.colorScheme.primary,
           letterSpacing: 1.2,
         ),
       ),
     );
   }
 
-  Widget _buildGlassSection({required List<Widget> children}) {
+  Widget _buildGlassSection(
+      {required List<Widget> children, required ThemeData theme}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: theme.cardColor.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-                color: Colors.white.withValues(alpha: 0.6), width: 1.5),
+                color: theme.cardColor.withValues(alpha: 0.6), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -167,42 +181,42 @@ class PreferencesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDivider() {
+  Widget _buildDivider(ThemeData theme) {
     return Divider(
       height: 1,
       thickness: 1,
       indent: 16,
       endIndent: 16,
-      color: Colors.grey.withValues(alpha: 0.2),
+      color: theme.dividerColor.withValues(alpha: 0.2),
     );
   }
 
-  Widget _buildDarkModeTile(ThemeProvider themeProvider) {
+  Widget _buildDarkModeTile(ThemeProvider themeProvider, ThemeData theme) {
     return SwitchListTile(
       title: Text('Dark Mode',
-          style: GoogleFonts.inter(
+          style: theme.textTheme.bodyLarge?.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Colors.black87)),
+              color: theme.colorScheme.onSurface)),
       secondary: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A237E).withValues(alpha: 0.1),
+          color: theme.colorScheme.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Icon(Icons.dark_mode_outlined,
-            color: Color(0xFF1A237E), size: 20),
+        child: Icon(Icons.dark_mode_outlined,
+            color: theme.colorScheme.primary, size: 20),
       ),
       value: themeProvider.themeMode == ThemeMode.dark,
       onChanged: (value) => themeProvider.toggleTheme(),
-      activeTrackColor: const Color(0xFF1A237E),
-      hoverColor: Colors.white.withValues(alpha: 0.05),
+      activeTrackColor: theme.colorScheme.primary,
+      hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.05),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     );
   }
 
   Widget _buildFontSizeSelector(
-      ThemeProvider themeProvider, int currentSizeIndex) {
+      ThemeProvider themeProvider, int currentSizeIndex, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -219,27 +233,27 @@ class PreferencesScreen extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             Text('Font Size',
-                style: GoogleFonts.inter(
+                style: theme.textTheme.bodyLarge?.copyWith(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87)),
+                    color: theme.colorScheme.onSurface)),
           ],
         ),
         const SizedBox(height: 16),
         Container(
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: theme.disabledColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
               _buildFontSizeOption(
-                  themeProvider, 0, 'Small', 0.8, currentSizeIndex),
+                  themeProvider, 0, 'Small', 0.8, currentSizeIndex, theme),
               _buildFontSizeOption(
-                  themeProvider, 1, 'Medium', 1.0, currentSizeIndex),
+                  themeProvider, 1, 'Medium', 1.0, currentSizeIndex, theme),
               _buildFontSizeOption(
-                  themeProvider, 2, 'Large', 1.2, currentSizeIndex),
+                  themeProvider, 2, 'Large', 1.2, currentSizeIndex, theme),
             ],
           ),
         )
@@ -248,7 +262,7 @@ class PreferencesScreen extends StatelessWidget {
   }
 
   Widget _buildFontSizeOption(ThemeProvider themeProvider, int index,
-      String text, double scale, int currentIndex) {
+      String text, double scale, int currentIndex, ThemeData theme) {
     final isSelected = currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -258,7 +272,7 @@ class PreferencesScreen extends StatelessWidget {
         child: AnimatedContainer(
           duration: 200.ms,
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color: isSelected ? theme.cardColor : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             boxShadow: isSelected
                 ? [
@@ -272,8 +286,10 @@ class PreferencesScreen extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             text,
-            style: GoogleFonts.inter(
-              color: isSelected ? const Color(0xFF1A237E) : Colors.grey[600],
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.6),
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               fontSize: 13,
             ),
@@ -289,24 +305,25 @@ class PreferencesScreen extends StatelessWidget {
     required bool value,
     required IconData icon,
     required ValueChanged<bool> onChanged,
+    required ThemeData theme,
   }) {
     return SwitchListTile(
       title: Text(title,
-          style: GoogleFonts.inter(
+          style: theme.textTheme.bodyLarge?.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Colors.black87)),
+              color: theme.colorScheme.onSurface)),
       secondary: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.pinkAccent.withValues(alpha: 0.1),
+          color: theme.colorScheme.secondary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: Colors.pinkAccent, size: 20),
+        child: Icon(icon, color: theme.colorScheme.secondary, size: 20),
       ),
       value: value,
       onChanged: onChanged,
-      activeTrackColor: Colors.pinkAccent,
+      activeTrackColor: theme.colorScheme.secondary,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
     );
   }

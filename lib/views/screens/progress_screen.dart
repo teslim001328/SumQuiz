@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/local_database_service.dart';
@@ -44,14 +43,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
       final progressService = ProgressService();
 
       final srsStatsFuture = srsService.getStatistics(userId);
+      // Handle case where stream might be empty carefully
+      final firestoreStatsStream = firestoreService.streamAllItems(userId);
       final firestoreStatsFuture =
-          firestoreService.streamAllItems(userId).first;
+          await firestoreStatsStream.first.catchError((e) {
+        return {'summaries': [], 'quizzes': [], 'flashcards': []};
+      });
+
       final accuracyFuture = progressService.getAverageAccuracy(userId);
       final timeSpentFuture = progressService.getTotalTimeSpent(userId);
 
       final results = await Future.wait([
         srsStatsFuture,
-        firestoreStatsFuture,
+        Future.value(firestoreStatsFuture),
         accuracyFuture,
         timeSpentFuture
       ]);
@@ -82,13 +86,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel?>(context);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (user == null) {
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         body: Center(
             child: Text('Please log in to view your progress.',
-                style: GoogleFonts.inter(fontSize: 16))),
+                style: theme.textTheme.bodyMedium)),
       );
     }
 
@@ -96,8 +101,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Your Progress',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600, color: const Color(0xFF1A237E))),
+            style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
         centerTitle: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -116,11 +121,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFF3F4F6),
-                          Color.lerp(const Color(0xFFE8EAF6),
-                              const Color(0xFFC5CAE9), value)!,
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6),
+                                Color.lerp(const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9), value)!,
+                              ],
                       ),
                     ),
                     child: child,
@@ -139,10 +150,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return _buildErrorState(user.uid, snapshot.error!);
+                  return _buildErrorState(user.uid, snapshot.error!, theme);
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return _buildEmptyState(user.uid);
+                  return _buildEmptyState(user.uid, theme);
                 }
 
                 final stats = snapshot.data!;
@@ -158,9 +169,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildMomentumAndStreak(user),
+                        _buildMomentumAndStreak(user, theme),
                         const SizedBox(height: 24),
                         _buildGlassContainer(
+                          theme,
                           child: DailyGoalTracker(
                             itemsCompleted: user.itemsCompletedToday,
                             dailyGoal: user.dailyGoal,
@@ -169,16 +181,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1),
                         const SizedBox(height: 24),
                         _buildSectionTitle(context, 'Overall Stats',
-                            Icons.pie_chart_outline_rounded),
+                            Icons.pie_chart_outline_rounded, theme),
                         const SizedBox(height: 16),
-                        _buildOverallStats(stats)
+                        _buildOverallStats(stats, theme)
                             .animate()
                             .fadeIn(delay: 200.ms),
                         const SizedBox(height: 24),
                         _buildSectionTitle(context, 'Recent Activity',
-                            Icons.trending_up_rounded),
+                            Icons.trending_up_rounded, theme),
                         const SizedBox(height: 16),
                         _buildGlassContainer(
+                          theme,
                           padding: const EdgeInsets.all(16),
                           child: SizedBox(
                               height: 200,
@@ -189,7 +202,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         ).animate().fadeIn(delay: 300.ms),
                         const SizedBox(height: 24),
                         _buildReviewBanner(
-                                stats['dueForReviewCount'] as int? ?? 0)
+                                stats['dueForReviewCount'] as int? ?? 0, theme)
                             .animate()
                             .fadeIn(delay: 400.ms),
                         const SizedBox(height: 40),
@@ -205,7 +218,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
-  Widget _buildGlassContainer(
+  Widget _buildGlassContainer(ThemeData theme,
       {required Widget child, EdgeInsetsGeometry? padding}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -214,9 +227,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
         child: Container(
           padding: padding ?? const EdgeInsets.all(0),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.65),
+            color: theme.cardColor.withValues(alpha: 0.65),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+            border:
+                Border.all(color: theme.dividerColor.withValues(alpha: 0.4)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -253,21 +267,22 @@ class _ProgressScreenState extends State<ProgressScreen> {
     }
   }
 
-  Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
+  Widget _buildSectionTitle(
+      BuildContext context, String title, IconData icon, ThemeData theme) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF1A237E), size: 24),
+        Icon(icon, color: theme.colorScheme.primary, size: 24),
         const SizedBox(width: 10),
         Text(title,
-            style: GoogleFonts.poppins(
+            style: theme.textTheme.titleMedium?.copyWith(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF1A1A1A))),
+                color: theme.colorScheme.onSurface)),
       ],
     );
   }
 
-  Widget _buildErrorState(String userId, Object error) {
+  Widget _buildErrorState(String userId, Object error, ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -275,22 +290,23 @@ class _ProgressScreenState extends State<ProgressScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.error_outline_rounded,
-                color: Colors.redAccent, size: 60),
+                color: theme.colorScheme.error, size: 60),
             const SizedBox(height: 16),
             Text('Something went wrong.',
-                style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.w600)),
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Text('Could not load your progress. Please try again later.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.grey[700])),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7))),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () =>
                   setState(() => _statsFuture = _loadStats(userId)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A237E),
-                foregroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
@@ -302,33 +318,36 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
-  Widget _buildEmptyState(String userId) {
+  Widget _buildEmptyState(String userId, ThemeData theme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.leaderboard_outlined, size: 80, color: Colors.grey[400]),
+          Icon(Icons.leaderboard_outlined,
+              size: 80,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
           Text('No Progress Data Yet',
-              style: GoogleFonts.poppins(
+              style: theme.textTheme.titleLarge?.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey[700])),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7))),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40.0),
             child: Text(
               'Complete some quizzes or flashcard reviews to see your progress here.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(color: Colors.grey[600]),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
             ),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => setState(() => _statsFuture = _loadStats(userId)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A237E),
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
@@ -339,7 +358,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
-  Widget _buildMomentumAndStreak(UserModel user) {
+  Widget _buildMomentumAndStreak(UserModel user, ThemeData theme) {
     return Row(
       children: [
         Expanded(
@@ -347,19 +366,21 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 'Momentum',
                 user.currentMomentum.toStringAsFixed(0),
                 Icons.local_fire_department_rounded,
-                Colors.orangeAccent)),
+                Colors.orangeAccent,
+                theme)),
         const SizedBox(width: 16),
         Expanded(
             child: _buildStatCard(
                 'Streak',
                 '${user.missionCompletionStreak} days',
                 Icons.whatshot_rounded,
-                Colors.redAccent)),
+                Colors.redAccent,
+                theme)),
       ],
     ).animate().fadeIn().slideX();
   }
 
-  Widget _buildOverallStats(Map<String, dynamic> stats) {
+  Widget _buildOverallStats(Map<String, dynamic> stats, ThemeData theme) {
     final avgAccuracy =
         (stats['averageAccuracy'] as double? ?? 0.0).toStringAsFixed(1);
     final timeSpent = _formatTimeSpent(stats['totalTimeSpent'] as int? ?? 0);
@@ -372,11 +393,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
           children: [
             Expanded(
                 child: _buildStatCard('Avg. Accuracy', '$avgAccuracy%',
-                    Icons.check_circle_outline_rounded, Colors.green)),
+                    Icons.check_circle_outline_rounded, Colors.green, theme)),
             const SizedBox(width: 16),
             Expanded(
-                child: _buildStatCard(
-                    'Time Spent', timeSpent, Icons.timer_rounded, Colors.blue)),
+                child: _buildStatCard('Time Spent', timeSpent,
+                    Icons.timer_rounded, Colors.blue, theme)),
           ],
         ),
         const SizedBox(height: 16),
@@ -384,11 +405,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
           children: [
             Expanded(
                 child: _buildStatCard('Summaries', summaries,
-                    Icons.article_rounded, Colors.purple)),
+                    Icons.article_rounded, Colors.purple, theme)),
             const SizedBox(width: 16),
             Expanded(
-                child: _buildStatCard(
-                    'Quizzes', quizzes, Icons.quiz_rounded, Colors.teal)),
+                child: _buildStatCard('Quizzes', quizzes, Icons.quiz_rounded,
+                    Colors.teal, theme)),
           ],
         ),
       ],
@@ -396,8 +417,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Widget _buildStatCard(
-      String label, String value, IconData icon, Color color) {
+      String label, String value, IconData icon, Color color, ThemeData theme) {
     return _buildGlassContainer(
+      theme,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,14 +440,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ),
           const SizedBox(height: 12),
           Text(value,
-              style: GoogleFonts.poppins(
+              style: theme.textTheme.headlineSmall?.copyWith(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A1A1A))),
+                  color: theme.colorScheme.onSurface)),
           Text(label,
-              style: GoogleFonts.inter(
+              style: theme.textTheme.bodyMedium?.copyWith(
                   fontSize: 13,
-                  color: Colors.grey[600],
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   fontWeight: FontWeight.w500)),
         ],
       ),
@@ -440,9 +462,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return '${minutes}m';
   }
 
-  Widget _buildReviewBanner(int dueCount) {
+  Widget _buildReviewBanner(int dueCount, ThemeData theme) {
     if (dueCount == 0) return const SizedBox.shrink();
     return _buildGlassContainer(
+      theme,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
@@ -460,18 +483,20 @@ class _ProgressScreenState extends State<ProgressScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('$dueCount items due',
-                    style: GoogleFonts.poppins(
+                    style: theme.textTheme.titleMedium?.copyWith(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1A1A1A))),
+                        color: theme.colorScheme.onSurface)),
                 Text('Review now to retain better',
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: Colors.grey[600])),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 13,
+                        color: theme.colorScheme.onSurface
+                            .withValues(alpha: 0.6))),
               ],
             ),
           ),
           Icon(Icons.arrow_forward_ios_rounded,
-              color: Colors.grey[400], size: 16),
+              color: theme.disabledColor, size: 16),
         ],
       ),
     );

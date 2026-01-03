@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/user_model.dart';
 import '../../services/local_database_service.dart';
@@ -213,22 +212,24 @@ class SummaryScreenState extends State<SummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
             widget.summary == null ? 'Generate Summary' : 'Summary Details',
-            style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600, color: Colors.black87)),
-        backgroundColor: Colors.white,
+            style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface)),
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 1,
         shadowColor: Colors.black.withOpacity(0.05),
-        leading: const BackButton(color: Colors.black87),
+        leading: BackButton(color: theme.colorScheme.onSurface),
       ),
       body: Stack(
         children: [
           // Simple background
-          Container(color: const Color(0xFFF9FBFD)),
+          Container(color: theme.colorScheme.surface),
           SafeArea(
             child: Center(
               child: ConstrainedBox(
@@ -236,7 +237,7 @@ class SummaryScreenState extends State<SummaryScreen> {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 24.0, vertical: 16.0),
-                  child: _buildBody(),
+                  child: _buildBody(theme),
                 ),
               ),
             ),
@@ -246,64 +247,65 @@ class SummaryScreenState extends State<SummaryScreen> {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(ThemeData theme) {
     switch (_state) {
       case ScreenState.loading:
-        return _buildLoadingState();
+        return _buildLoadingState(theme);
       case ScreenState.error:
-        return _buildErrorState();
+        return _buildErrorState(theme);
       case ScreenState.success:
         return _buildSuccessState();
       default:
-        return _buildInitialState();
+        return _buildInitialState(theme);
     }
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(ThemeData theme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(
+          SizedBox(
             width: 80,
             height: 80,
             child: CircularProgressIndicator(
               strokeWidth: 6,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.amberAccent),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(theme.colorScheme.secondary),
             ),
           ),
           const SizedBox(height: 32),
           Text(_loadingMessage,
-              style: GoogleFonts.poppins(
-                  fontSize: 20,
+              style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1A237E))),
+                  color: theme.colorScheme.primary)),
         ],
       ).animate().fadeIn(),
     );
   }
 
-  Widget _buildInitialState() {
+  Widget _buildInitialState(ThemeData theme) {
     final canGenerate = _textController.text.isNotEmpty || _pdfFileName != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           'Summarize Content',
-          style: GoogleFonts.merriweather(
-              fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
         ).animate().fadeIn().slideY(begin: -0.2),
         const SizedBox(height: 12),
         Text(
           'Paste text or upload a PDF to generate a comprehensive summary.',
-          style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[700]),
+          style: theme.textTheme.bodyLarge
+              ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7)),
         ).animate().fadeIn(delay: 100.ms).slideY(begin: -0.2),
         const SizedBox(height: 48),
         Container(
           // Document-like container
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
@@ -311,7 +313,7 @@ class SummaryScreenState extends State<SummaryScreen> {
                   blurRadius: 10,
                   offset: const Offset(0, 4))
             ],
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Column(
             children: [
@@ -319,11 +321,11 @@ class SummaryScreenState extends State<SummaryScreen> {
                 controller: _textController,
                 maxLines: null,
                 minLines: 15,
-                style: GoogleFonts.sourceSerif4(
-                    fontSize: 16, height: 1.6, color: Colors.black87),
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
                 decoration: InputDecoration(
                   hintText: 'Paste your text here...',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurface.withOpacity(0.4)),
                   filled: false,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -341,13 +343,13 @@ class SummaryScreenState extends State<SummaryScreen> {
                       icon: Icon(Icons.upload_file,
                           color: _pdfFileName != null
                               ? Colors.green
-                              : const Color(0xFF1A237E)),
+                              : theme.colorScheme.primary),
                       label: Text(
                         _pdfFileName ?? 'Upload PDF',
                         style: TextStyle(
                             color: _pdfFileName != null
                                 ? Colors.green
-                                : const Color(0xFF1A237E)),
+                                : theme.colorScheme.primary),
                         overflow: TextOverflow.ellipsis,
                       ),
                       style: OutlinedButton.styleFrom(
@@ -355,7 +357,7 @@ class SummaryScreenState extends State<SummaryScreen> {
                         side: BorderSide(
                             color: _pdfFileName != null
                                 ? Colors.green
-                                : Colors.grey[300]!),
+                                : theme.dividerColor),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8)),
                       ),
@@ -382,12 +384,12 @@ class SummaryScreenState extends State<SummaryScreen> {
             label: const Text('Generate Summary',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A237E),
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
               elevation: 2,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
-              disabledBackgroundColor: Colors.grey[300],
+              disabledBackgroundColor: theme.disabledColor,
             ),
           ),
         ).animate().fadeIn(delay: 300.ms).scale(),
@@ -395,9 +397,10 @@ class SummaryScreenState extends State<SummaryScreen> {
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(ThemeData theme) {
     return Center(
       child: _buildGlassContainer(
+        theme: theme,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -406,21 +409,21 @@ class SummaryScreenState extends State<SummaryScreen> {
                 color: Colors.orangeAccent, size: 64),
             const SizedBox(height: 16),
             Text('Oops! Something went wrong.',
-                style: GoogleFonts.poppins(
-                    fontSize: 20,
+                style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87),
+                    color: theme.colorScheme.onSurface),
                 textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(_errorMessage,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.grey[700])),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7))),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _retry,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A237E),
-                foregroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
               ),
@@ -446,11 +449,13 @@ class SummaryScreenState extends State<SummaryScreen> {
   }
 
   Widget _buildGlassContainer(
-      {required Widget child, EdgeInsetsGeometry? padding}) {
+      {required Widget child,
+      EdgeInsetsGeometry? padding,
+      required ThemeData theme}) {
     return Container(
       padding: padding ?? const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -459,7 +464,7 @@ class SummaryScreenState extends State<SummaryScreen> {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: child,
     );

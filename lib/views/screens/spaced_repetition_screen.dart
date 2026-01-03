@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:confetti/confetti.dart';
 import '../../services/local_database_service.dart';
@@ -141,17 +140,20 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Daily Review',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold, color: Colors.white)),
+            style: theme.textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -169,11 +171,19 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF0F2027), // Dark slate
-                          Color.lerp(const Color(0xFF203A43),
-                              const Color(0xFF2C5364), value)!, // Tealish dark
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFE0F2F1), // Teal 50
+                                Color.lerp(
+                                    const Color(0xFFE0F2F1),
+                                    const Color(0xFFB2DFDB),
+                                    value)!, // Teal 100
+                              ],
                       ),
                     ),
                     child: child,
@@ -185,11 +195,12 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
           ),
           SafeArea(
             child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Colors.white))
+                ? Center(
+                    child: CircularProgressIndicator(
+                        color: theme.colorScheme.primary))
                 : _dueFlashcards.isEmpty
-                    ? _buildCompletionOrMessageView()
-                    : _buildFlashcardReview(),
+                    ? _buildCompletionOrMessageView(theme)
+                    : _buildFlashcardReview(theme),
           ),
           Align(
             alignment: Alignment.topCenter,
@@ -211,16 +222,17 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
     );
   }
 
-  Widget _buildGlassCard({required Widget child}) {
+  Widget _buildGlassCard(ThemeData theme, {required Widget child}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: theme.cardColor.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            border:
+                Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.1),
@@ -235,23 +247,22 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
     );
   }
 
-  Widget _buildCompletionOrMessageView() {
+  Widget _buildCompletionOrMessageView(ThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.task_alt, size: 100, color: Color(0xFF2ECC71))
+            Icon(Icons.task_alt, size: 100, color: theme.colorScheme.primary)
                 .animate()
                 .scale()
                 .fadeIn(),
             const SizedBox(height: 24),
             Text(_message,
-                    style: GoogleFonts.poppins(
-                        fontSize: 24,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface),
                     textAlign: TextAlign.center)
                 .animate()
                 .fadeIn(delay: 200.ms)
@@ -262,8 +273,8 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
               icon: const Icon(Icons.arrow_back),
               label: const Text('Back to Library'),
               style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8E44AD),
-                  foregroundColor: Colors.white,
+                  backgroundColor: theme.colorScheme.secondary,
+                  foregroundColor: theme.colorScheme.onSecondary,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30)),
                   padding:
@@ -275,9 +286,9 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
     );
   }
 
-  Widget _buildFlashcardReview() {
+  Widget _buildFlashcardReview(ThemeData theme) {
     if (_currentIndex >= _dueFlashcards.length) {
-      return _buildCompletionOrMessageView();
+      return _buildCompletionOrMessageView(theme);
     }
 
     final flashcard = _dueFlashcards[_currentIndex];
@@ -294,17 +305,19 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: (_currentIndex + 1) / _dueFlashcards.length,
-                    backgroundColor: Colors.white.withValues(alpha: 0.1),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                        Colors.lightGreenAccent),
+                    backgroundColor:
+                        theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        theme.colorScheme.secondary),
                     minHeight: 8,
                   ),
                 ),
               ),
               const SizedBox(width: 16),
               Text('${_currentIndex + 1}/${_dueFlashcards.length}',
-                  style: GoogleFonts.inter(
-                      color: Colors.white70, fontWeight: FontWeight.bold)),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 24),
@@ -313,8 +326,9 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
             child: FlipCard(
               key: _flipCardKey,
               flipOnTouch: false, // We control flips manually
-              front: _buildCardSide('Question', flashcard.question, true),
-              back: _buildCardSide('Answer', flashcard.answer, false),
+              front:
+                  _buildCardSide('Question', flashcard.question, true, theme),
+              back: _buildCardSide('Answer', flashcard.answer, false, theme),
             ),
           ),
           const SizedBox(height: 32),
@@ -323,11 +337,11 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
           SizedBox(
             height: 80,
             child: _isFlipping
-                ? _buildAnswerButtons()
+                ? _buildAnswerButtons(theme)
                     .animate()
                     .fadeIn(duration: 200.ms)
                     .slideY(begin: 0.2)
-                : _buildShowAnswerButton()
+                : _buildShowAnswerButton(theme)
                     .animate()
                     .fadeIn(duration: 200.ms)
                     .slideY(begin: 0.2),
@@ -338,10 +352,12 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
     );
   }
 
-  Widget _buildCardSide(String title, String content, bool isQuestion) {
+  Widget _buildCardSide(
+      String title, String content, bool isQuestion, ThemeData theme) {
     return GestureDetector(
       onTap: isQuestion ? _flipCard : null,
       child: _buildGlassCard(
+        theme,
         child: Container(
           width: double.infinity,
           height: double.infinity,
@@ -350,11 +366,10 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title.toUpperCase(),
-                  style: GoogleFonts.inter(
+                  style: theme.textTheme.labelMedium?.copyWith(
                       color: isQuestion
-                          ? Colors.amberAccent
+                          ? Colors.orangeAccent
                           : Colors.lightBlueAccent,
-                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.5)),
               const SizedBox(height: 24),
@@ -363,9 +378,8 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                   child: SingleChildScrollView(
                     child: Text(content,
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 24,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                            color: theme.colorScheme.onSurface,
                             height: 1.5,
                             fontWeight: FontWeight.w500)),
                   ),
@@ -374,9 +388,9 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
               if (isQuestion)
                 Center(
                     child: Text('Tap to reveal answer',
-                        style: GoogleFonts.inter(
-                            color: Colors.white54,
-                            fontSize: 12,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.5),
                             fontStyle: FontStyle.italic)))
             ],
           ),
@@ -385,40 +399,43 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
     );
   }
 
-  Widget _buildShowAnswerButton() {
+  Widget _buildShowAnswerButton(ThemeData theme) {
     return ElevatedButton(
       onPressed: _flipCard,
       style: ElevatedButton.styleFrom(
         minimumSize: const Size(200, 56),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: theme.colorScheme.surface,
+        foregroundColor: theme.colorScheme.onSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         elevation: 0,
+        side: BorderSide(color: theme.dividerColor),
       ),
       child: Text('Show Answer',
-          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+          style: theme.textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold)),
     );
   }
 
-  Widget _buildAnswerButtons() {
+  Widget _buildAnswerButtons(ThemeData theme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildFeedbackButton(
-            'Hard', Icons.close, Colors.redAccent, () => _processReview(false)),
+        _buildFeedbackButton('Hard', Icons.close, Colors.redAccent,
+            () => _processReview(false), theme),
         _buildFeedbackButton('Easy', Icons.check, Colors.greenAccent.shade700,
-            () => _processReview(true)),
+            () => _processReview(true), theme),
       ],
     );
   }
 
-  Widget _buildFeedbackButton(
-      String label, IconData icon, Color color, VoidCallback onPressed) {
+  Widget _buildFeedbackButton(String label, IconData icon, Color color,
+      VoidCallback onPressed, ThemeData theme) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 24),
       label: Text(label,
-          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+          style: theme.textTheme.titleMedium
+              ?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,

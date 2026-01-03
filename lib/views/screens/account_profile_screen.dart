@@ -6,7 +6,6 @@ import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/auth_service.dart';
 import 'package:sumquiz/views/widgets/pro_status_widget.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AccountProfileScreen extends StatelessWidget {
   const AccountProfileScreen({super.key});
@@ -15,10 +14,13 @@ class AccountProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<UserModel?>();
     final authService = context.read<AuthService>();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -26,13 +28,13 @@ class AccountProfileScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Account',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold, color: const Color(0xFF1A237E))),
+            style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF1A237E)),
+          icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.primary),
           onPressed: () => context.pop(),
         ),
       ),
@@ -50,11 +52,17 @@ class AccountProfileScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFFF3F4F6),
-                          Color.lerp(const Color(0xFFE8EAF6),
-                              const Color(0xFFC5CAE9), value)!,
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFF3F4F6),
+                                Color.lerp(const Color(0xFFE8EAF6),
+                                    const Color(0xFFC5CAE9), value)!,
+                              ],
                       ),
                     ),
                     child: child,
@@ -72,7 +80,7 @@ class AccountProfileScreen extends StatelessWidget {
                   constraints: const BoxConstraints(maxWidth: 600),
                   child: Column(
                     children: <Widget>[
-                      _buildHeader(context, user)
+                      _buildHeader(context, user, theme)
                           .animate()
                           .fadeIn(delay: 100.ms)
                           .slideY(begin: 0.1),
@@ -82,11 +90,11 @@ class AccountProfileScreen extends StatelessWidget {
                           .fadeIn(delay: 200.ms)
                           .scale(),
                       const SizedBox(height: 24),
-                      _buildAccountActions(context, authService, user)
+                      _buildAccountActions(context, authService, user, theme)
                           .animate()
                           .fadeIn(delay: 300.ms),
                       const SizedBox(height: 32),
-                      _buildSignOutButton(context, authService)
+                      _buildSignOutButton(context, authService, theme)
                           .animate()
                           .fadeIn(delay: 400.ms),
                     ],
@@ -100,16 +108,17 @@ class AccountProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGlassContainer({required Widget child}) {
+  Widget _buildGlassContainer(ThemeData theme, {required Widget child}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: theme.cardColor.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+            border:
+                Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -124,7 +133,7 @@ class AccountProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, UserModel user) {
+  Widget _buildHeader(BuildContext context, UserModel user, ThemeData theme) {
     return Column(
       children: [
         Container(
@@ -132,7 +141,7 @@ class AccountProfileScreen extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1A237E).withValues(alpha: 0.2),
+                color: theme.colorScheme.primary.withValues(alpha: 0.2),
                 blurRadius: 15,
                 spreadRadius: 5,
               ),
@@ -140,13 +149,13 @@ class AccountProfileScreen extends StatelessWidget {
           ),
           child: CircleAvatar(
             radius: 50,
-            backgroundColor: const Color(0xFF1A237E).withValues(alpha: 0.1),
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
             child: Text(
               user.displayName.isNotEmpty
                   ? user.displayName[0].toUpperCase()
                   : '?',
-              style: GoogleFonts.poppins(
-                color: const Color(0xFF1A237E),
+              style: theme.textTheme.displayMedium?.copyWith(
+                color: theme.colorScheme.primary,
                 fontWeight: FontWeight.bold,
                 fontSize: 40,
               ),
@@ -156,15 +165,16 @@ class AccountProfileScreen extends StatelessWidget {
         const SizedBox(height: 16),
         Text(
           user.displayName,
-          style: GoogleFonts.poppins(
+          style: theme.textTheme.headlineSmall?.copyWith(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A237E)),
+              color: theme.colorScheme.primary),
         ),
         const SizedBox(height: 4),
         Text(
           user.email,
-          style: GoogleFonts.inter(color: Colors.grey[700]),
+          style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
         ),
         if (user.subscriptionExpiry != null)
           Padding(
@@ -179,7 +189,7 @@ class AccountProfileScreen extends StatelessWidget {
               ),
               child: Text(
                 'Pro until ${user.subscriptionExpiry!.toLocal().toString().split(' ')[0]}',
-                style: GoogleFonts.inter(
+                style: theme.textTheme.labelSmall?.copyWith(
                     color: Colors.amber[800],
                     fontWeight: FontWeight.bold,
                     fontSize: 12),
@@ -190,15 +200,17 @@ class AccountProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAccountActions(
-      BuildContext context, AuthService authService, UserModel user) {
+  Widget _buildAccountActions(BuildContext context, AuthService authService,
+      UserModel user, ThemeData theme) {
     return _buildGlassContainer(
+      theme,
       child: Column(
         children: [
           _buildListTile(
             context,
             icon: Icons.lock_outline,
             title: 'Change Password',
+            theme: theme,
             onTap: () {
               authService.sendPasswordResetEmail(user.email);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -212,13 +224,14 @@ class AccountProfileScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child:
-                Divider(height: 1, color: Colors.grey.withValues(alpha: 0.1)),
+            child: Divider(
+                height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           ),
           _buildListTile(
             context,
             icon: Icons.email_outlined,
             title: 'Update Email',
+            theme: theme,
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Email update coming soon')),
@@ -227,14 +240,15 @@ class AccountProfileScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child:
-                Divider(height: 1, color: Colors.grey.withValues(alpha: 0.1)),
+            child: Divider(
+                height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
           ),
           _buildListTile(
             context,
             icon: Icons.delete_outline,
             title: 'Delete Account',
-            onTap: () => _showDeleteAccountDialog(context, authService),
+            theme: theme,
+            onTap: () => _showDeleteAccountDialog(context, authService, theme),
             isDestructive: true,
           ),
         ],
@@ -247,10 +261,12 @@ class AccountProfileScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    required ThemeData theme,
     bool isDestructive = false,
   }) {
-    final color = isDestructive ? Colors.redAccent : const Color(0xFF1A237E);
-    final textColor = isDestructive ? Colors.redAccent : Colors.black87;
+    final color = isDestructive ? Colors.redAccent : theme.colorScheme.primary;
+    final textColor =
+        isDestructive ? Colors.redAccent : theme.colorScheme.onSurface;
 
     return ListTile(
       onTap: onTap,
@@ -262,24 +278,27 @@ class AccountProfileScreen extends StatelessWidget {
         ),
         child: Icon(icon, color: color, size: 20),
       ),
-      title:
-          Text(title, style: GoogleFonts.inter(color: textColor, fontSize: 16)),
-      trailing: Icon(Icons.arrow_forward_ios,
-          size: 14, color: Colors.grey.withValues(alpha: 0.5)),
+      title: Text(title,
+          style: theme.textTheme.bodyLarge
+              ?.copyWith(color: textColor, fontSize: 16)),
+      trailing:
+          Icon(Icons.arrow_forward_ios, size: 14, color: theme.disabledColor),
     );
   }
 
-  void _showDeleteAccountDialog(BuildContext context, AuthService authService) {
+  void _showDeleteAccountDialog(
+      BuildContext context, AuthService authService, ThemeData theme) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.dialogBackgroundColor,
           title: Text('Delete Account',
-              style: GoogleFonts.poppins(color: Colors.black87)),
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
           content: Text(
               'Are you sure you want to permanently delete your account? This action cannot be undone.',
-              style: GoogleFonts.inter(color: Colors.grey[800])),
+              style: theme.textTheme.bodyMedium),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
@@ -287,7 +306,7 @@ class AccountProfileScreen extends StatelessWidget {
             ),
             TextButton(
               child: Text('Delete',
-                  style: GoogleFonts.inter(
+                  style: theme.textTheme.labelLarge?.copyWith(
                       color: Colors.redAccent, fontWeight: FontWeight.bold)),
               onPressed: () {
                 Navigator.of(context).pop();
@@ -302,7 +321,8 @@ class AccountProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSignOutButton(BuildContext context, AuthService authService) {
+  Widget _buildSignOutButton(
+      BuildContext context, AuthService authService, ThemeData theme) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -310,7 +330,7 @@ class AccountProfileScreen extends StatelessWidget {
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
+            color: theme.cardColor.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
             boxShadow: [
@@ -324,7 +344,7 @@ class AccountProfileScreen extends StatelessWidget {
           child: TextButton.icon(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             label: Text('Sign Out',
-                style: GoogleFonts.inter(
+                style: theme.textTheme.labelLarge?.copyWith(
                     color: Colors.redAccent, fontWeight: FontWeight.bold)),
             onPressed: () => authService.signOut(),
             style: TextButton.styleFrom(

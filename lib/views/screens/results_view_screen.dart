@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/services/local_database_service.dart';
 
@@ -74,25 +73,29 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.onSurface),
           onPressed: () => context.go('/'),
         ),
         title: Text(
           'Results',
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold, color: Colors.white),
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.library_add_check_outlined,
-                color: Colors.white),
+            icon: Icon(Icons.library_add_check_outlined,
+                color: theme.colorScheme.primary),
             tooltip: 'Save to Library',
             onPressed: _saveToLibrary,
           ),
@@ -112,11 +115,19 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF0F2027), // Dark slate
-                          Color.lerp(const Color(0xFF203A43),
-                              const Color(0xFF2C5364), value)!, // Tealish dark
-                        ],
+                        colors: isDark
+                            ? [
+                                theme.colorScheme.surface,
+                                Color.lerp(theme.colorScheme.surface,
+                                    theme.colorScheme.primaryContainer, value)!,
+                              ]
+                            : [
+                                const Color(0xFFE0F7FA), // Cyan 50
+                                Color.lerp(
+                                    const Color(0xFFE0F7FA),
+                                    const Color(0xFFB2EBF2),
+                                    value)!, // Cyan 100
+                              ],
                       ),
                     ),
                     child: child,
@@ -128,20 +139,22 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
           ),
           SafeArea(
             child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Colors.white))
+                ? Center(
+                    child: CircularProgressIndicator(
+                        color: theme.colorScheme.primary))
                 : _errorMessage != null
                     ? Center(
                         child: Text(_errorMessage!,
-                            style: GoogleFonts.inter(color: Colors.redAccent)))
+                            style: theme.textTheme.bodyLarge
+                                ?.copyWith(color: theme.colorScheme.error)))
                     : Column(
                         children: [
-                          _buildOutputSelector()
+                          _buildOutputSelector(theme)
                               .animate()
                               .fadeIn()
                               .slideY(begin: -0.2),
                           Expanded(
-                              child: _buildSelectedTabView()
+                              child: _buildSelectedTabView(theme)
                                   .animate()
                                   .fadeIn(delay: 200.ms)),
                         ],
@@ -149,23 +162,24 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: Colors.blueAccent,
-        child: const Icon(Icons.edit_note, color: Colors.white),
-      ),
     );
   }
 
-  Widget _buildOutputSelector() {
-    final theme = Theme.of(context);
+  Widget _buildOutputSelector(ThemeData theme) {
     const tabs = ['Summary', 'Quizzes', 'Flashcards'];
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       height: 48,
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: theme.cardColor.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
@@ -174,10 +188,11 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
           return Expanded(
             child: GestureDetector(
               onTap: () => setState(() => _selectedTab = index),
-              child: Container(
+              child: AnimatedContainer(
+                duration: 200.ms,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? theme.colorScheme.secondary
+                      ? theme.colorScheme.primary
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(24),
                 ),
@@ -186,8 +201,10 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
                     tabs[index],
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: isSelected
-                          ? theme.colorScheme.onSecondary
-                          : theme.textTheme.bodyLarge?.color,
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurface,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -199,21 +216,20 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
     );
   }
 
-  Widget _buildSelectedTabView() {
+  Widget _buildSelectedTabView(ThemeData theme) {
     switch (_selectedTab) {
       case 0:
-        return _buildSummaryTab();
+        return _buildSummaryTab(theme);
       case 1:
-        return _buildQuizzesTab();
+        return _buildQuizzesTab(theme);
       case 2:
-        return _buildFlashcardsTab();
+        return _buildFlashcardsTab(theme);
       default:
         return Container();
     }
   }
 
-  Widget _buildSummaryTab() {
-    final theme = Theme.of(context);
+  Widget _buildSummaryTab(ThemeData theme) {
     if (_summary == null) {
       return Center(
           child:
@@ -239,8 +255,7 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
     );
   }
 
-  Widget _buildQuizzesTab() {
-    final theme = Theme.of(context);
+  Widget _buildQuizzesTab(ThemeData theme) {
     if (_quiz == null) {
       return Center(
           child: Text('No quiz available.', style: theme.textTheme.bodyMedium));
@@ -258,24 +273,12 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
     );
   }
 
-  Widget _buildFlashcardsTab() {
-    final theme = Theme.of(context);
+  Widget _buildFlashcardsTab(ThemeData theme) {
     if (_flashcardSet == null || _flashcardSet!.flashcards.isEmpty) {
       return Center(
           child: Text('No flashcards available.',
               style: theme.textTheme.bodyMedium));
     }
-
-    // Convert LocalFlashcard to Flashcard model if necessary, or ensure generic type match.
-    // FlashcardSet in models/local_flashcard_set.dart uses LocalFlashcard.
-    // Flashcard in models/flashcard.dart is what FlashcardsView expects?
-    // Let's check imports in FlashcardsView. It imports models/flashcard.dart.
-    // LocalFlashcardSet has List<LocalFlashcard>.
-    // I need to map LocalFlashcard to Flashcard.
-
-    // Actually, let's verify models compatibility.
-    // LocalFlashcard usually has id, question, answer.
-    // Flashcard has id, question, answer.
 
     final flashcards = _flashcardSet!.flashcards
         .map((f) => Flashcard(

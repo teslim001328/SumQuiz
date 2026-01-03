@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../services/auth_service.dart';
 import '../../../services/local_database_service.dart';
@@ -105,7 +104,7 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
             SnackBar(
                 content: Text(
                     'Could not find mission cards. They might be deleted.',
-                    style: GoogleFonts.inter())),
+                    style: TextStyle(color: Colors.white))),
           );
           setState(() => _isLoading = false);
         }
@@ -161,19 +160,21 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel?>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Dashboard',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600, color: const Color(0xFF1A237E))),
+            style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
         centerTitle: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings, color: Color(0xFF1A237E)),
+            icon: Icon(Icons.settings, color: theme.colorScheme.primary),
             onPressed: () => context.push('/settings'),
           ),
         ],
@@ -182,11 +183,16 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
         children: [
           // Background - Static or simpler for web performance, or same animate
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFF3F4F6), Color(0xFFE8EAF6)],
+                colors: isDark
+                    ? [
+                        theme.colorScheme.surface,
+                        theme.colorScheme.surface.withValues(alpha: 0.8)
+                      ]
+                    : [const Color(0xFFF3F4F6), const Color(0xFFE8EAF6)],
               ),
             ),
           ),
@@ -195,14 +201,24 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text(_error!, style: GoogleFonts.inter()))
+                    ? Center(
+                        child: Text(_error!, style: theme.textTheme.bodyMedium))
                     : SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 40, vertical: 24),
+                            horizontal: 24, vertical: 12),
                         child: Center(
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1200),
-                            child: _buildDesktopDashboard(user),
+                            constraints: const BoxConstraints(maxWidth: 800),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildWelcomeHeader(user, theme),
+                                const SizedBox(height: 32),
+                                _buildDailyMissionCard(theme),
+                                const SizedBox(height: 32),
+                                _buildStatsOverview(theme),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -212,407 +228,158 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
     );
   }
 
-  Widget _buildDesktopDashboard(UserModel? user) {
-    if (_dailyMission == null) return const SizedBox();
-    final isCompleted = _dailyMission!.isCompleted;
-
+  Widget _buildWelcomeHeader(UserModel? user, ThemeData theme) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Welcome Header
         Text(
-          'Hello, ${user?.displayName ?? 'Student'}',
-          style: GoogleFonts.poppins(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A237E)),
-        ).animate().fadeIn().slideX(),
+          'Welcome back, ${user?.displayName?.split(' ').first ?? 'Friend'}! 👋',
+          style: theme.textTheme.headlineLarge?.copyWith(
+              fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Ready to learn something new today?',
+          style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+        ),
+      ],
+    ).animate().fadeIn().slideX();
+  }
 
-        const SizedBox(height: 32),
+  Widget _buildDailyMissionCard(ThemeData theme) {
+    if (_dailyMission == null) return const SizedBox.shrink();
 
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left Column: Mission & Stats
-            Expanded(
-              flex: 2,
-              child: Column(
-                children: [
-                  _buildMissionCard(isCompleted),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                          child: _buildGlassStatCard(
-                              'Momentum',
-                              (user?.currentMomentum ?? 0).toStringAsFixed(0),
-                              Icons.local_fire_department_rounded,
-                              Colors.orangeAccent)),
-                      const SizedBox(width: 24),
-                      Expanded(child: _buildDailyGoalCard(user)),
-                    ],
-                  ),
-                ],
-              ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
-            ),
-
-            const SizedBox(width: 32),
-
-            // Right Column: Recent Activity (Vertical List on Web)
-            Expanded(
-              flex: 1,
-              child: Column(
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Jump Back In',
-                      style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800])),
-                  const SizedBox(height: 16),
-                  _buildRecentActivityList(user),
-                ],
-              ).animate().fadeIn(delay: 400.ms),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGlassCard(
-      {required Widget child, EdgeInsets? padding, Color? borderColor}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding ?? const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: borderColor ?? Colors.white.withValues(alpha: 0.6),
-                width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassStatCard(
-      String label, String value, IconData icon, Color iconColor) {
-    return _buildGlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: iconColor, size: 32),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(value,
-              style: GoogleFonts.poppins(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A1A1A))),
-          Text(label,
-              style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[600])),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDailyGoalCard(UserModel? user) {
-    final current = user?.itemsCompletedToday ?? 0;
-    final target = user?.dailyGoal ?? 5;
-    final progress = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
-    final isDone = current >= target;
-
-    return _buildGlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              CircularProgressIndicator(
-                value: progress,
-                backgroundColor: Colors.grey[200],
-                color: isDone ? Colors.green : const Color(0xFF1A237E),
-                strokeWidth: 8,
-                strokeCap: StrokeCap.round,
-              ),
-              Text(
-                '${(progress * 100).toInt()}%',
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: isDone ? Colors.green : Colors.black87),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text('$current/$target items',
-              style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A1A1A))),
-          Text('Daily Goal',
-              style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[600])),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMissionCard(bool isCompleted) {
-    return _buildGlassCard(
-        borderColor: isCompleted
-            ? Colors.green.withValues(alpha: 0.5)
-            : const Color(0xFF1A237E).withValues(alpha: 0.3),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isCompleted
-                        ? Colors.green.withValues(alpha: 0.1)
-                        : const Color(0xFF1A237E).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+                  Text(
+                    'Daily Mission',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.bold),
                   ),
-                  child: Icon(
-                    isCompleted
-                        ? Icons.check_circle_rounded
-                        : Icons.rocket_launch_rounded,
-                    color: isCompleted ? Colors.green : const Color(0xFF1A237E),
-                    size: 40,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Review 5 Flashcards',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                          isCompleted
-                              ? 'Mission Accomplished!'
-                              : "Today's Mission",
-                          style: GoogleFonts.poppins(
-                              fontSize: 22, fontWeight: FontWeight.bold)),
-                      if (!isCompleted)
-                        Text('Boost your momentum now',
-                            style: GoogleFonts.inter(
-                                color: Colors.grey[600], fontSize: 15)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            if (!isCompleted) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildMissionMetric(Icons.timelapse,
-                      "${_dailyMission!.estimatedTimeMinutes}m"),
-                  _buildMissionMetric(Icons.style,
-                      "${_dailyMission!.flashcardIds.length} cards"),
-                  _buildMissionMetric(
-                      Icons.speed, "+${_dailyMission!.momentumReward} pts"),
                 ],
               ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _startMission,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A237E),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 4,
-                    shadowColor: const Color(0xFF1A237E).withValues(alpha: 0.4),
-                  ),
-                  child: Text('Start Mission',
-                      style: GoogleFonts.poppins(
-                          fontSize: 18, fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ] else ...[
-              Text(
-                "You've earned +${_dailyMission!.momentumReward} momentum score today!",
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
-              ),
-              const SizedBox(height: 24),
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
                 ),
-                child: Center(
-                    child: Text('Come back tomorrow',
-                        style: GoogleFonts.poppins(
-                            color: Colors.green[800],
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600))),
+                child: const Icon(Icons.track_changes,
+                    color: Colors.white, size: 32),
               ),
             ],
-          ],
-        ));
-  }
-
-  Widget _buildMissionMetric(IconData icon, String label) {
-    return Column(
-      children: [
-        Icon(icon, size: 24, color: const Color(0xFF5C6BC0)),
-        const SizedBox(height: 8),
-        Text(label,
-            style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800])),
-      ],
-    );
-  }
-
-  Widget _buildRecentActivityList(UserModel? user) {
-    if (user == null) return const SizedBox();
-    final localDb = Provider.of<LocalDatabaseService>(context, listen: false);
-
-    return StreamBuilder(
-      stream: Rx.combineLatest3(
-        localDb.watchAllFlashcardSets(user.uid),
-        localDb.watchAllQuizzes(user.uid),
-        localDb.watchAllSummaries(user.uid),
-        (sets, quizzes, summaries) {
-          final all = <dynamic>[...sets, ...quizzes, ...summaries];
-          all.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-          return all.take(8).toList(); // Show more items on web
-        },
-      ),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final items = snapshot.data as List<dynamic>;
-
-        if (items.isEmpty) {
-          return SizedBox(
-            height: 200,
-            child: Center(
-                child: Text('No recent activity',
-                    style: GoogleFonts.inter(color: Colors.grey))),
-          );
-        }
-
-        return ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final item = items[index];
-            String title = item.title;
-            IconData icon = Icons.article_rounded;
-            Color color = Colors.blue;
-            String type = 'Summary';
-
-            if (item is LocalFlashcardSet) {
-              icon = Icons.style_rounded;
-              color = Colors.orange;
-              type = 'Flashcards';
-            } else if (item is LocalQuiz) {
-              icon = Icons.quiz_rounded;
-              color = Colors.teal;
-              type = 'Quiz';
-            }
-
-            return _buildGlassCard(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: InkWell(
-                onTap: () {
-                  if (item is LocalFlashcardSet) {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => FlashcardsScreen(
-                                flashcardSet: FlashcardSet(
-                                    id: item.id,
-                                    title: item.title,
-                                    flashcards: item.flashcards
-                                        .map((f) => Flashcard(
-                                            id: f.id,
-                                            question: f.question,
-                                            answer: f.answer))
-                                        .toList(),
-                                    timestamp:
-                                        Timestamp.fromDate(item.timestamp)))));
-                  } else if (item is LocalQuiz) {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => QuizScreen(quiz: item)));
-                  } else if (item is LocalSummary) {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => SummaryScreen(summary: item)));
-                  }
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.1),
-                          shape: BoxShape.circle),
-                      child: Icon(icon, color: color, size: 24),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: Colors.black87)),
-                          Text(type,
-                              style: GoogleFonts.inter(
-                                  fontSize: 12, color: Colors.grey[600])),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_ios,
-                        size: 16, color: Colors.grey[400]),
-                  ],
-                ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _dailyMission!.isCompleted ? null : _startMission,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: theme.colorScheme.primary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-            );
-          },
-        );
-      },
+              child: Text(
+                _dailyMission!.isCompleted
+                    ? 'Mission Completed!'
+                    : 'Start Mission',
+                style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1);
+  }
+
+  Widget _buildStatsOverview(ThemeData theme) {
+    return Row(
+      children: [
+        Expanded(
+          child:
+              _buildStatCard('Streak', '🔥 5 Days', Colors.orangeAccent, theme),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Mastered',
+            '📚 12 Sets',
+            Colors.greenAccent,
+            theme,
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1);
+  }
+
+  Widget _buildStatCard(
+      String title, String value, Color color, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

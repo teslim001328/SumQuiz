@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key, required this.navigationShell});
@@ -32,10 +31,10 @@ class MainScreen extends StatelessWidget {
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface.withValues(alpha: 0.7),
+                    color: theme.cardColor.withValues(alpha: 0.7),
                     border: Border(
                       top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: theme.dividerColor.withValues(alpha: 0.2),
                         width: 0.5,
                       ),
                     ),
@@ -67,10 +66,10 @@ class MainScreen extends StatelessWidget {
                     selectedItemColor: theme.colorScheme.primary,
                     unselectedItemColor:
                         theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    selectedLabelStyle: GoogleFonts.inter(
-                        fontWeight: FontWeight.w600, fontSize: 12),
-                    unselectedLabelStyle:
-                        GoogleFonts.inter(fontWeight: FontWeight.w400),
+                    selectedLabelStyle: theme.textTheme.labelMedium
+                        ?.copyWith(fontWeight: FontWeight.w600, fontSize: 12),
+                    unselectedLabelStyle: theme.textTheme.labelMedium
+                        ?.copyWith(fontWeight: FontWeight.w400, fontSize: 12),
                   ),
                 ),
               ),
@@ -86,10 +85,10 @@ class MainScreen extends StatelessWidget {
                     filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.surface.withValues(alpha: 0.7),
+                        color: theme.cardColor.withValues(alpha: 0.7),
                         border: Border(
                           right: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: theme.dividerColor.withValues(alpha: 0.2),
                             width: 0.5,
                           ),
                         ),
@@ -122,11 +121,13 @@ class MainScreen extends StatelessWidget {
                         unselectedIconTheme: IconThemeData(
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.5)),
-                        selectedLabelTextStyle: GoogleFonts.inter(
+                        selectedLabelTextStyle:
+                            theme.textTheme.labelMedium?.copyWith(
                           color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
-                        unselectedLabelTextStyle: GoogleFonts.inter(
+                        unselectedLabelTextStyle:
+                            theme.textTheme.labelMedium?.copyWith(
                           color: theme.colorScheme.onSurface
                               .withValues(alpha: 0.5),
                         ),
