@@ -218,40 +218,17 @@ class SummaryScreenState extends State<SummaryScreen> {
       appBar: AppBar(
         title: Text(
             widget.summary == null ? 'Generate Summary' : 'Summary Details',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: const BackButton(color: Colors.white),
+            style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600, color: Colors.black87)),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        shadowColor: Colors.black.withOpacity(0.05),
+        leading: const BackButton(color: Colors.black87),
       ),
       body: Stack(
         children: [
-          // Animated Background
-          Animate(
-            onPlay: (controller) => controller.repeat(reverse: true),
-            effects: [
-              CustomEffect(
-                duration: 8.seconds,
-                builder: (context, value, child) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF283593), // Indigo 800
-                          Color.lerp(const Color(0xFF283593),
-                              const Color(0xFF1A237E), value)!, // Indigo 900
-                        ],
-                      ),
-                    ),
-                    child: child,
-                  );
-                },
-              )
-            ],
-            child: Container(),
-          ),
+          // Simple background
+          Container(color: const Color(0xFFF9FBFD)),
           SafeArea(
             child: Center(
               child: ConstrainedBox(
@@ -300,7 +277,7 @@ class SummaryScreenState extends State<SummaryScreen> {
               style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white)),
+                  color: const Color(0xFF1A237E))),
         ],
       ).animate().fadeIn(),
     );
@@ -313,34 +290,49 @@ class SummaryScreenState extends State<SummaryScreen> {
       children: [
         Text(
           'Summarize Content',
-          style: GoogleFonts.poppins(
-              fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+          style: GoogleFonts.merriweather(
+              fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
         ).animate().fadeIn().slideY(begin: -0.2),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
           'Paste text or upload a PDF to generate a comprehensive summary.',
-          style: GoogleFonts.inter(fontSize: 14, color: Colors.white70),
+          style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[700]),
         ).animate().fadeIn(delay: 100.ms).slideY(begin: -0.2),
-        const SizedBox(height: 32),
-        _buildGlassContainer(
+        const SizedBox(height: 48),
+        Container(
+          // Document-like container
+          padding: const EdgeInsets.all(40),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4))
+            ],
+            border: Border.all(color: Colors.grey[200]!),
+          ),
           child: Column(
             children: [
               TextField(
                 controller: _textController,
-                maxLines: 12,
-                style: const TextStyle(color: Colors.white),
+                maxLines: null,
+                minLines: 15,
+                style: GoogleFonts.sourceSerif4(
+                    fontSize: 16, height: 1.6, color: Colors.black87),
                 decoration: InputDecoration(
                   hintText: 'Paste your text here...',
-                  hintStyle:
-                      TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.1),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none),
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
                 ),
                 onChanged: (text) => setState(() {}),
               ),
+              const SizedBox(height: 24),
+              const Divider(height: 1),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -348,27 +340,30 @@ class SummaryScreenState extends State<SummaryScreen> {
                     child: OutlinedButton.icon(
                       icon: Icon(Icons.upload_file,
                           color: _pdfFileName != null
-                              ? Colors.greenAccent
-                              : Colors.white),
+                              ? Colors.green
+                              : const Color(0xFF1A237E)),
                       label: Text(
                         _pdfFileName ?? 'Upload PDF',
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(
+                            color: _pdfFileName != null
+                                ? Colors.green
+                                : const Color(0xFF1A237E)),
                         overflow: TextOverflow.ellipsis,
                       ),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 20),
                         side: BorderSide(
                             color: _pdfFileName != null
-                                ? Colors.greenAccent
-                                : Colors.white70),
+                                ? Colors.green
+                                : Colors.grey[300]!),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: _pickPdf,
                     ),
                   ),
                   if (_pdfFileName != null) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     IconButton(
                         onPressed: () => setState(() => _pdfFileName = null),
                         icon: const Icon(Icons.close, color: Colors.redAccent))
@@ -387,12 +382,12 @@ class SummaryScreenState extends State<SummaryScreen> {
             label: const Text('Generate Summary',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amberAccent,
-              foregroundColor: const Color(0xFF1A1A1A),
-              elevation: 8,
+              backgroundColor: const Color(0xFF1A237E),
+              foregroundColor: Colors.white,
+              elevation: 2,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              disabledBackgroundColor: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8)),
+              disabledBackgroundColor: Colors.grey[300],
             ),
           ),
         ).animate().fadeIn(delay: 300.ms).scale(),
@@ -414,20 +409,20 @@ class SummaryScreenState extends State<SummaryScreen> {
                 style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white),
+                    color: Colors.black87),
                 textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(_errorMessage,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.white70)),
+                style: GoogleFonts.inter(color: Colors.grey[700])),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _retry,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF1A237E),
+                backgroundColor: const Color(0xFF1A237E),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Try Again'),
             ),
@@ -452,21 +447,21 @@ class SummaryScreenState extends State<SummaryScreen> {
 
   Widget _buildGlassContainer(
       {required Widget child, EdgeInsetsGeometry? padding}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding ?? const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+    return Container(
+      padding: padding ?? const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
           ),
-          child: child,
-        ),
+        ],
+        border: Border.all(color: Colors.grey[200]!),
       ),
+      child: child,
     );
   }
 }

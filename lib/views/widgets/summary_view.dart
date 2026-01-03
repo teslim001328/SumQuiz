@@ -28,15 +28,16 @@ class SummaryView extends StatelessWidget {
       children: [
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFA), // Paper-like background
-            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
+            border: Border.all(color: Colors.grey[200]!),
           ),
           child: Padding(
             padding: const EdgeInsets.all(32.0),
@@ -45,11 +46,11 @@ class SummaryView extends StatelessWidget {
               children: [
                 SelectableText(
                   title,
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.inter(
                     fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2D2D2D),
-                    height: 1.2,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                    height: 1.3,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -60,20 +61,18 @@ class SummaryView extends StatelessWidget {
                     children: tags
                         .map((tag) => Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
+                                  horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.indigo.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color:
-                                        Colors.indigo.withValues(alpha: 0.2)),
+                                color:
+                                    const Color(0xFF1A237E).withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(100),
                               ),
                               child: Text(
                                 '#$tag',
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.indigo[800],
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF1A237E),
                                 ),
                               ),
                             ))
@@ -82,7 +81,7 @@ class SummaryView extends StatelessWidget {
                 const SizedBox(height: 32),
                 SelectableText(
                   content,
-                  style: GoogleFonts.merriweather(
+                  style: GoogleFonts.sourceSerif4(
                     fontSize: 16,
                     height: 1.8,
                     color: const Color(0xFF333333),
@@ -97,12 +96,12 @@ class SummaryView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.8), // Glass-like bar
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[200]!),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: Colors.black.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4))
                 ]),
@@ -149,10 +148,10 @@ class SummaryView extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A237E),
                   foregroundColor: Colors.white,
-                  elevation: 4,
+                  elevation: 2,
                   shadowColor: const Color(0xFF1A237E).withValues(alpha: 0.4),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),

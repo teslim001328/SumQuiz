@@ -197,8 +197,9 @@ $sanitizedText''';
   Future<String> _generateQuizJson(String text) async {
     final sanitizedText = _sanitizeInput(text);
     final prompt =
-        '''Create a challenging multiple-choice exam quiz with 5-10 questions based on the text.
-- Questions should mimic real exam questions (application of knowledge, not just keyword matching).
+        '''Create a challenging multiple-choice exam quiz based on the text.
+    - Determine the number of questions based on the length and depth of the content (aim for comprehensive coverage).
+    - Questions should mimic real exam questions (application of knowledge, not just keyword matching).
 - Focus on high-yield facts, common misconceptions, and critical details.
 - Each question must have exactly 4 options.
 - The "correctAnswer" must be one of the options.
@@ -224,8 +225,9 @@ $sanitizedText''';
   Future<String> _generateFlashcardsJson(String text) async {
     final sanitizedText = _sanitizeInput(text);
     final prompt =
-        '''Generate 5-15 high-quality flashcards for Active Recall study.
-- Focus on the most important facts likely to appear on an exam.
+        '''Generate high-quality flashcards for Active Recall study based on the text.
+    - Determine the number of flashcards based on the amount of key information spread throughout the text.
+    - Focus on the most important facts likely to appear on an exam.
 - Front (Question): A specific prompt, term, or concept.
 - Back (Answer): The precise definition, explanation, or key fact. Avoid vague answers.
 - Cover: Definitions, Dates, Formulas, Key Figures, Cause-Effect relationships.

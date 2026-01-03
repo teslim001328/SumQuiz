@@ -138,9 +138,8 @@ class _QuizViewState extends State<QuizView> {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2), // Subtle glass footer
-            border: Border(
-                top: BorderSide(color: Colors.white.withValues(alpha: 0.3))),
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Colors.grey[200]!)),
           ),
           child: SizedBox(
             width: double.infinity,
@@ -261,14 +260,14 @@ class _QuizViewState extends State<QuizView> {
             border: Border.all(
               color: _answerWasSelected && (isCorrect || isSelected)
                   ? borderColor
-                  : Colors.white.withValues(alpha: 0.6),
-              width: 2,
+                  : Colors.grey[200]!,
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               )
             ]),
         child: Row(
@@ -297,28 +296,21 @@ class _QuizViewState extends State<QuizView> {
 
   Widget _buildGlassContainer(
       {required Widget child, EdgeInsetsGeometry? padding}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding ?? const EdgeInsets.all(0),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.6), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Container(
+      padding: padding ?? const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          child: child,
-        ),
+        ],
       ),
+      child: child,
     );
   }
 }

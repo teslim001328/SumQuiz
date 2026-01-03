@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -268,32 +267,8 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
         body: Stack(
           children: [
-            // Animated Gradient Background
-            Animate(
-              onPlay: (controller) => controller.repeat(reverse: true),
-              effects: [
-                CustomEffect(
-                  duration: 10.seconds,
-                  builder: (context, value, child) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            const Color(0xFFE8EAF6), // Indigo 50
-                            Color.lerp(const Color(0xFFE8EAF6),
-                                const Color(0xFFC5CAE9), value)!, // Indigo 100
-                          ],
-                        ),
-                      ),
-                      child: child,
-                    );
-                  },
-                )
-              ],
-              child: Container(),
-            ),
+            // Simple background
+            Container(color: const Color(0xFFF9FBFD)),
 
             SafeArea(
               child: Center(
@@ -406,25 +381,39 @@ class _QuizScreenState extends State<QuizScreen> {
               .fadeIn()
               .slideY(begin: -0.2),
           const SizedBox(height: 32),
-          _buildGlassContainer(
-            padding: const EdgeInsets.all(24),
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4))
+              ],
+              border: Border.all(color: Colors.grey[200]!),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Quiz Title',
                     style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1A1A1A))),
+                        fontWeight: FontWeight.w600, color: Colors.black87)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _titleController,
+                  style: GoogleFonts.inter(color: Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'e.g., History Midterm Review',
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.5),
+                    fillColor: Colors.grey[50],
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none),
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[200]!)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[200]!)),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 16),
                   ),
@@ -432,19 +421,23 @@ class _QuizScreenState extends State<QuizScreen> {
                 const SizedBox(height: 24),
                 Text('Text to Generate From',
                     style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1A1A1A))),
+                        fontWeight: FontWeight.w600, color: Colors.black87)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _textController,
-                  maxLines: 8,
+                  maxLines: 12,
+                  style: GoogleFonts.robotoMono(
+                      fontSize: 14, color: Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'Paste your notes or article here.',
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.5),
+                    fillColor: Colors.grey[50],
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none),
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[200]!)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[200]!)),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 16),
                   ),
@@ -580,28 +573,21 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Widget _buildGlassContainer(
       {required Widget child, EdgeInsetsGeometry? padding}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding ?? const EdgeInsets.all(0),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.6), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Container(
+      padding: padding ?? const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
           ),
-          child: child,
-        ),
+        ],
       ),
+      child: child,
     );
   }
 }

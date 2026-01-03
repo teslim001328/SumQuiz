@@ -11,11 +11,8 @@ import 'package:sumquiz/models/library_item.dart';
 import 'package:sumquiz/services/firestore_service.dart';
 import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/view_models/quiz_view_model.dart';
+import 'package:sumquiz/views/screens/summary_screen.dart';
 import 'package:sumquiz/models/folder.dart';
-
-import '../summary_screen.dart';
-import '../quiz_screen.dart';
-import '../flashcards_screen.dart';
 
 class LibraryScreenWeb extends StatefulWidget {
   const LibraryScreenWeb({super.key});
@@ -188,26 +185,29 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
           _tabController.animateTo(index);
         });
       },
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
+          // Subtle background only when selected
           color: isSelected
-              ? const Color(0xFF1A237E).withValues(alpha: 0.1)
+              ? const Color(0xFF1A237E).withOpacity(0.08)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Icon(icon,
-                color: isSelected ? const Color(0xFF1A237E) : Colors.grey,
-                size: 20),
-            const SizedBox(width: 12),
+                color: isSelected ? const Color(0xFF1A237E) : Colors.grey[600],
+                size: 22),
+            const SizedBox(width: 16),
             Text(
               title,
               style: GoogleFonts.inter(
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF1A237E) : Colors.grey,
+                color: isSelected ? const Color(0xFF1A237E) : Colors.grey[700],
+                fontSize: 14,
               ),
             ),
           ],
