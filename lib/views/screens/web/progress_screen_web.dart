@@ -4,7 +4,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:provider/provider.dart';
 import 'package:sumquiz/models/user_model.dart';
-import 'package:sumquiz/services/progress_service.dart';
+import 'package:sumquiz/services/local_database_service.dart';
+import 'package:sumquiz/models/local_summary.dart';
+import 'package:sumquiz/models/local_quiz.dart';
+import 'package:sumquiz/models/local_flashcard_set.dart';
 
 class ProgressScreenWeb extends StatefulWidget {
   const ProgressScreenWeb({super.key});
@@ -33,20 +36,41 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
       final user = context.read<UserModel?>();
       if (user == null) return;
 
-      final progressService =
-          context.read<ProgressService?>() ?? ProgressService();
+      final dbService = LocalDatabaseService();
+      await dbService.init();
 
-      final summaries = await progressService.getSummariesCount(user.uid);
-      final quizzes = await progressService.getQuizzesCount(user.uid);
-      final flashcards = await progressService.getFlashcardsCount(user.uid);
-      final accuracy = await progressService.getAverageAccuracy(user.uid);
-      final activity = await progressService.getWeeklyActivity(user.uid);
+      // Fetch Local Data
+      final summaries = await dbService.getAllSummaries(user.uid);
+      final quizzes = await dbService.getAllQuizzes(user.uid);
+      final flashcards = await dbService.getAllFlashcardSets(user.uid);
+
+      // Calculate Quiz Stats
+      double totalAccuracy = 0.0;
+      int quizCountWithScores = 0;
+      // Note: Model currently doesn't expose scores directly as a list in the getter if not added
+      // But we added `scores` and `timeSpent` to LocalQuiz.
+      // We need to cast or access properties.
+
+      // Let's assume LocalQuiz has these fields as we verified earlier.
+      for (var quiz in quizzes) {
+        if (quiz.scores.isNotEmpty) {
+          final avgQ = quiz.scores.reduce((a, b) => a + b) / quiz.scores.length;
+          totalAccuracy += avgQ;
+          quizCountWithScores++;
+        }
+      }
+
+      final accuracy =
+          quizCountWithScores > 0 ? totalAccuracy / quizCountWithScores : 0.0;
+
+      // Calculate Weekly Activity locally
+      final activity = _calculateWeeklyActivity(summaries, quizzes, flashcards);
 
       if (mounted) {
         setState(() {
-          _summariesCount = summaries;
-          _quizzesCount = quizzes;
-          _flashcardsCount = flashcards;
+          _summariesCount = summaries.length;
+          _quizzesCount = quizzes.length;
+          _flashcardsCount = flashcards.length;
           _averageAccuracy = accuracy;
           _weeklyActivity = activity;
           _isLoading = false;
@@ -58,6 +82,35 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
       }
       debugPrint('Error loading stats: $e');
     }
+  }
+
+  List<FlSpot> _calculateWeeklyActivity(List<LocalSummary> summaries,
+      List<LocalQuiz> quizzes, List<LocalFlashcardSet> flashcards) {
+    final today = DateTime.now();
+    final startOfToday = DateTime(today.year, today.month, today.day);
+    // 0 to 6 (7 days)
+    final activity = List<double>.filled(7, 0);
+
+    void processItems(List<dynamic> items) {
+      for (var item in items) {
+        final createdAt = item.timestamp as DateTime;
+        final itemDate =
+            DateTime(createdAt.year, createdAt.month, createdAt.day);
+        final diff = startOfToday.difference(itemDate).inDays;
+
+        if (diff >= 0 && diff < 7) {
+          activity[diff]++;
+        }
+      }
+    }
+
+    processItems(summaries);
+    processItems(quizzes);
+    processItems(flashcards);
+
+    // FlSpot(x, y) where x is index 0..6
+    return List.generate(
+        7, (index) => FlSpot(index.toDouble(), activity[index]));
   }
 
   @override
