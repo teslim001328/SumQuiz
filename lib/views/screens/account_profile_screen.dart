@@ -229,6 +229,18 @@ class AccountProfileScreen extends StatelessWidget {
           ),
           _buildListTile(
             context,
+            icon: Icons.volunteer_activism,
+            title: 'Refer & Earn',
+            theme: theme,
+            onTap: () => context.push('/referral'),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Divider(
+                height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
+          ),
+          _buildListTile(
+            context,
             icon: Icons.email_outlined,
             title: 'Update Email',
             theme: theme,

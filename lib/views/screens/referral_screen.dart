@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/auth_service.dart';
 import 'package:sumquiz/services/referral_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -24,8 +25,17 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final authService = Provider.of<AuthService>(context, listen: false);
     final referralService =
         Provider.of<ReferralService>(context, listen: false);
-    _referralCodeFuture =
-        referralService.generateReferralCode(authService.currentUser!.uid);
+
+    // Optimize: Use code from User Model if available
+    final user = Provider.of<UserModel?>(context, listen: false);
+    if (user != null &&
+        user.referralCode != null &&
+        user.referralCode!.isNotEmpty) {
+      _referralCodeFuture = Future.value(user.referralCode);
+    } else {
+      _referralCodeFuture =
+          referralService.generateReferralCode(authService.currentUser!.uid);
+    }
   }
 
   @override
@@ -394,7 +404,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
               _buildStep(
                   Icons.looks_3_rounded,
                   'You Get Rewarded',
-                  'After 2 friends sign up, you earn a reward: 7 extra days of Pro subscription!',
+                  'After 2 referred friends sign up and generate their first quiz, you earn a reward: 7 extra days of Pro subscription!',
                   theme),
             ],
           ),

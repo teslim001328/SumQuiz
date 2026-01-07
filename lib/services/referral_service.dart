@@ -137,13 +137,13 @@ class ReferralService {
             'Prepared write for newUser $newUserId: +7 days Pro, marked as referred by ${referrerDocRef.id}.',
             name: 'com.example.myapp.ReferralService.transaction');
 
-        // 4.2: Update Referrer Stats (referral count increments later upon deck generation)
-        // We only link the user here. The reward is granted in UsageService when the user generates content.
-        /*
+        // 4.2: Update Referrer Stats - Immediate Feedback
+        // "Total" increases immediately. "Pending" (referrals) increases immediately.
+        // "Rewards" will increase later when they generate a deck (and Pending will decrease).
         transaction.update(referrerDocRef, {
           'totalReferrals': FieldValue.increment(1),
+          'referrals': FieldValue.increment(1),
         });
-        */
 
         developer.log(
             'Prepared write for referrer ${referrerDocRef.id}: referrals and rewards updated.',
@@ -255,20 +255,24 @@ class ReferralService {
         // Cap rewards to avoid abuse (e.g., 20 successful referrals)
         const int maxRewards = 20;
 
+        // Note: 'totalReferrals' is now incremented on Signup (immediate feedback).
+        // Here, we "consume" a 'referral' (Pending) and turn it into a 'referralReward' (if eligible).
+
         if (currentRewards < maxRewards) {
           final newExpiry = currentExpiry.add(const Duration(days: 7));
           transaction.update(referrerDocRef, {
             'referralRewards': currentRewards + 1,
-            'totalReferrals': currentTotalReferrals + 1,
+            'referrals': FieldValue.increment(-1), // Move from Pending to Done
             'subscriptionExpiry': Timestamp.fromDate(newExpiry),
           });
           developer.log('Granted +7 days to referrer $referrerId',
               name: 'ReferralService');
         } else {
+          // Even if capped, they are no longer "Pending"
           transaction.update(referrerDocRef, {
-            'totalReferrals': currentTotalReferrals + 1,
+            'referrals': FieldValue.increment(-1),
           });
-          developer.log('Referrer $referrerId hit cap, only stats updated',
+          developer.log('Referrer $referrerId hit cap, pending count updated',
               name: 'ReferralService');
         }
       });

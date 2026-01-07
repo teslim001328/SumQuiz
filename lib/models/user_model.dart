@@ -36,6 +36,9 @@ class UserModel {
   final bool isTrial;
   final bool isCreatorPro;
 
+  // Referral
+  final String? referralCode;
+
   // Creator Profile
   final Map<String, dynamic> creatorProfile;
 
@@ -62,6 +65,7 @@ class UserModel {
     this.updatedAt,
     this.isTrial = false,
     this.isCreatorPro = false,
+    this.referralCode,
     this.creatorProfile = const {},
   });
 
@@ -79,36 +83,6 @@ class UserModel {
 
     return false;
   }
-
-  // Helper to distinguish "No Expiry" (Legacy/Bug) from "Lifetime"
-  // For now, null expiry IS lifetime in this codebase convention,
-  // but let's stick to the existing convention: null expiry = lifetime OR not pro?
-  // Previous logic: "if (subscriptionExpiry == null) return true;" implies everyone is Pro by default?
-  // No, FirestoreService check: "if (data.containsKey('subscriptionExpiry')) { if (null) return true; }"
-  // But if key is missing, it returns false.
-  // UserModel default is null.
-  // We need to be careful. In IAPService, "null" expiry implies lifetime.
-  // But a fresh user also has null expiry? No, fresh user doesn't have the key in Firestore?
-  // Let's rely on how it's stored.
-  // Using a private helper for clarity if needed, but for now let's keep it simple and consistent with previous code
-  // BUT previous code said: "if (subscriptionExpiry == null) return true;" which seems risky if default is null.
-  // Let's refine: A user is PRO if they have an active subscription OR are a creator pro.
-  // The "null means lifetime" is dangerous if not explicitly set.
-  // I will assume for now that if `subscriptionExpiry` is null, it might mean "not pro" UNLESS logic elsewhere sets it.
-  // However, `IapService` sets `subscriptionExpiry: null` for lifetime.
-  // `FirestoreService` sets `subscriptionExpiry` only when pro.
-  // The safest check is: Pro if isCreatorPro OR (subscriptionExpiry != null && valid) OR (explicit lifetime flag if exists).
-  // Given previous code:
-  // "if (subscriptionExpiry == null) return true;"
-  // This meant new users (expiry null) were PRO?
-  // Let's look at `fromFirestore`: `subscriptionExpiry: (data['subscriptionExpiry'] as Timestamp?)?.toDate()`
-  // If field missing, it's null.
-  // So yes, previous code likely made everyone PRO by default if logic wasn't strict.
-  // Wait, `IapService.isProStream` checks `if (data.containsKey('subscriptionExpiry'))`.
-  // UserModel doesn't know if the key existed.
-  // I should essentially trust `isCreatorPro` or valid checking.
-  // To avoid breaking existing logic too much but fix the ambiguity:
-  // We will trust the passed values.
 
   bool _hasPurchasedLifetime() {
     // This is tough without an explicit flag.
@@ -148,6 +122,7 @@ class UserModel {
       ),
       isTrial: data['isTrial'] ?? false,
       isCreatorPro: data['isCreatorPro'] ?? false,
+      referralCode: data['referralCode'],
       creatorProfile: data['creatorProfile'] ?? {},
     );
   }
@@ -182,6 +157,7 @@ class UserModel {
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
       'isTrial': isTrial,
       'isCreatorPro': isCreatorPro,
+      if (referralCode != null) 'referralCode': referralCode,
       'creatorProfile': creatorProfile,
     };
   }
@@ -209,6 +185,7 @@ class UserModel {
     UserRole? role,
     bool? isTrial,
     bool? isCreatorPro,
+    String? referralCode,
     Map<String, dynamic>? creatorProfile,
   }) {
     return UserModel(
@@ -236,6 +213,7 @@ class UserModel {
       updatedAt: updatedAt ?? this.updatedAt,
       isTrial: isTrial ?? this.isTrial,
       isCreatorPro: isCreatorPro ?? this.isCreatorPro,
+      referralCode: referralCode ?? this.referralCode,
       creatorProfile: creatorProfile ?? this.creatorProfile,
     );
   }
