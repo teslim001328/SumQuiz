@@ -42,6 +42,8 @@ class ThemeProvider with ChangeNotifier {
 
   // --- Color Palette ---
   static const Color primaryDeepBlue = Color(0xFF1E3A8A);
+  static const Color darkPrimary =
+      Color(0xFF60A5FA); // Brighter blue for Dark Mode
   static const Color secondaryTeal = Color(0xFF0D9488);
   static const Color accentSoftOrange = Color(0xFFF59E0B);
   static const Color backgroundOffWhite = Color(0xFFF8FAFC);
@@ -50,8 +52,8 @@ class ThemeProvider with ChangeNotifier {
   static const Color textLightGray = Color(0xFF64748B);
 
   // --- Dark Theme Colors ---
-  static const Color darkBackground = Color(0xFF0F172A);
-  static const Color darkCards = Color(0xFF1E293B);
+  static const Color darkBackground = Color(0xFF121212); // Neutral Dark
+  static const Color darkCards = Color(0xFF1E1E1E); // Neutral Surface
   static const Color darkTextPrimary = Color(0xFFF1F5F9);
   static const Color darkTextSecondary = Color(0xFF94A3B8);
 
@@ -163,7 +165,7 @@ class ThemeProvider with ChangeNotifier {
   static final ThemeData darkTheme = _buildTheme(
     colorScheme: const ColorScheme(
       brightness: Brightness.dark,
-      primary: primaryDeepBlue,
+      primary: darkPrimary, // Use brighter blue for dark mode
       onPrimary: Colors.white,
       secondary: secondaryTeal,
       onSecondary: Colors.white,

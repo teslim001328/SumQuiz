@@ -170,27 +170,29 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     // Check if user is already Pro
     final user = context.watch<UserModel?>();
     if (user != null && user.isPro) {
-      return _buildAlreadyProView(context);
+      return _buildAlreadyProView(context, theme);
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.black),
-            onPressed: () => context.pop(),
-          )
-        ],
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child:
+                  CircularProgressIndicator(color: theme.colorScheme.primary))
           : SafeArea(
               child: Column(
                 children: [
@@ -202,63 +204,57 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         children: [
                           // Header
                           const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.bolt_rounded,
-                                  color: Color(0xFFFFC107), size: 32),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'SumQuiz Pro',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
+                          Icon(Icons.bolt_rounded,
+                              color: theme.colorScheme.primary, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Unlock SumQuiz Pro',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Learn faster. Remember smarter.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w400,
+                          Text(
+                            'Supercharge your learning with unlimited access.',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.6),
                             ),
+                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 48),
 
                           // Features List
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              const Text('Features',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ))
-                            ],
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: theme.cardColor,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                  color: theme.dividerColor
+                                      .withValues(alpha: 0.5)),
+                            ),
+                            child: Column(
+                              children: [
+                                _buildFeatureRow('Unlimited content generation',
+                                    isUnlocked: true, theme: theme),
+                                _buildFeatureRow('Unlimited folders & decks',
+                                    isUnlocked: true, theme: theme),
+                                _buildFeatureRow('Smart Spaced Repetition',
+                                    isUnlocked: true, theme: theme),
+                                _buildFeatureRow('Offline access & Sync',
+                                    isUnlocked: true, theme: theme),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          _buildFeatureRow('Unlimited content generation',
-                              isUnlocked: true),
-                          _buildFeatureRow('Unlimited folders & decks',
-                              isUnlocked: false),
-                          _buildFeatureRow('Smart Spaced Repetition',
-                              isUnlocked: false),
-                          _buildFeatureRow('Offline access & Sync',
-                              isUnlocked: false),
-                          _buildFeatureRow('Detailed progress analytics',
-                              isUnlocked: false),
-                          _buildFeatureRow('Daily missions & rewards',
-                              isUnlocked: false),
 
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 40),
 
                           // Products List
-                          ..._products
-                              .map((product) => _buildProductCard(product)),
+                          ..._products.map((product) =>
+                              _buildProductCard(product, theme, isDark)),
 
                           const SizedBox(height: 20),
                         ],
@@ -269,46 +265,48 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   // Bottom Section
                   Container(
                     padding: const EdgeInsets.all(24.0),
-                    decoration: BoxDecoration(color: Colors.white, boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -5),
-                      )
-                    ]),
+                    decoration: BoxDecoration(
+                        color: theme.scaffoldBackgroundColor,
+                        border: Border(
+                            top: BorderSide(
+                                color: theme.dividerColor
+                                    .withValues(alpha: 0.5)))),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         SizedBox(
                           width: double.infinity,
-                          height: 50,
+                          height: 56,
                           child: ElevatedButton(
                             onPressed:
                                 _selectedProduct != null ? _buyProduct : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(
-                                  0xFF0033CC), // Deep Blue from image
+                              backgroundColor: theme.colorScheme.primary,
+                              foregroundColor: theme.colorScheme.onPrimary,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                               ),
                               elevation: 0,
                             ),
-                            child: const Text('Upgrade to Pro',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                )),
+                            child: _selectedProduct != null
+                                ? Text(
+                                    'Start ${_getProductTitle(_selectedProduct!.id)} Plan',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ))
+                                : const Text('Select a Plan'),
                           ),
                         ),
                         const SizedBox(height: 16),
                         GestureDetector(
                           onTap: () => context.push('/referral'),
                           child: RichText(
-                            text: const TextSpan(
-                                style:
-                                    TextStyle(fontSize: 13, color: Colors.grey),
-                                children: [
+                            text: TextSpan(
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.5)),
+                                children: const [
                                   TextSpan(
                                       text:
                                           'Invite 3 friends and get 1 week of Pro free 🎁'),
@@ -325,31 +323,29 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildFeatureRow(String label, {required bool isUnlocked}) {
+  Widget _buildFeatureRow(String label,
+      {required bool isUnlocked, required ThemeData theme}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Icon(Icons.check_circle_rounded,
+              color: theme.colorScheme.primary, size: 20),
+          const SizedBox(width: 12),
           Text(label,
-              style: const TextStyle(
-                fontSize: 15,
-                color: Color(0xFF555555),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
               )),
-          isUnlocked
-              ? const Icon(Icons.check_circle_rounded,
-                  color: Color(0xFF4CAF50), size: 20)
-              : const Icon(Icons.lock_rounded,
-                  color: Color(0xFFFFC107), size: 20)
         ],
       ),
     );
   }
 
-  Widget _buildProductCard(ProductDetails product) {
+  Widget _buildProductCard(
+      ProductDetails product, ThemeData theme, bool isDark) {
     final isSelected = _selectedProduct?.id == product.id;
-    final isBestValue =
-        product.id.contains('yearly'); // Assumption based on typical ID
+    final isBestValue = product.id.contains('yearly');
 
     return GestureDetector(
       onTap: () {
@@ -357,90 +353,85 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           _selectedProduct = product;
         });
       },
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color:
-                    isSelected ? const Color(0xFF0033CC) : Colors.grey.shade300,
-                width: isSelected ? 2 : 1,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.05)
+              : theme.cardColor,
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.dividerColor.withValues(alpha: 0.5),
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(_getProductTitle(product.id),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurface)),
+                      if (isBestValue) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.tertiary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'BEST VALUE',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.black, // Always black on amber
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
+                        )
+                      ]
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _getBillingText(product.id),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                  ),
+                ],
               ),
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.white, // No background fill based on image
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(_getProductTitle(product.id),
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black)),
-                const SizedBox(height: 4),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(product.price,
-                        style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black)),
-                    if (!product.id.contains('lifetime'))
-                      Text(
-                        ' /${_getPeriod(product.id)}',
-                        style:
-                            const TextStyle(fontSize: 14, color: Colors.black),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                // Checkmark and billing text
-                Row(
-                  children: [
-                    if (isSelected)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 6.0),
-                        child: Icon(Icons.check, size: 16, color: Colors.black),
-                      ),
-                    Text(
-                      _getBillingText(product.id),
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-                  ],
-                ),
+                Text(product.price,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface)),
+                if (!product.id.contains('lifetime'))
+                  Text(
+                    '/${_getPeriod(product.id)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                  ),
               ],
             ),
-          ),
-          if (isBestValue)
-            Positioned(
-              right: 16,
-              top: -10, // Overlap top border
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0033CC),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  children: [
-                    Text('Best Value',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold)),
-                    SizedBox(width: 4),
-                    Icon(Icons.diamond_outlined, color: Colors.white, size: 10),
-                  ],
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -453,43 +444,48 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   String _getPeriod(String id) {
-    if (id.contains('monthly')) return 'month';
-    if (id.contains('yearly')) return 'year';
+    if (id.contains('monthly')) return 'mo';
+    if (id.contains('yearly')) return 'yr';
     return '';
   }
 
   String _getBillingText(String id) {
-    if (id.contains('monthly')) return 'Billed monthly';
-    if (id.contains('yearly')) return 'Billed annually';
-    if (id.contains('lifetime')) return 'One-time purchase';
+    if (id.contains('monthly')) return 'Flexible cancellation';
+    if (id.contains('yearly')) return 'Save 33%';
+    if (id.contains('lifetime')) return 'One-time payment';
     return '';
   }
 
-  Widget _buildAlreadyProView(BuildContext context) {
+  Widget _buildAlreadyProView(BuildContext context, ThemeData theme) {
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.black),
-            onPressed: () => context.pop(),
-          )
-        ],
+        leading: IconButton(
+          icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.check_circle_outline,
-                color: Color(0xFF0033CC), size: 80),
-            const SizedBox(height: 20),
-            const Text(
+            Icon(Icons.check_circle_rounded,
+                color: theme.colorScheme.primary, size: 80),
+            const SizedBox(height: 24),
+            Text(
               'You are a Pro Member!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface),
             ),
-            const SizedBox(height: 10),
-            const Text('Enjoy unlimited access efficiently.'),
+            const SizedBox(height: 12),
+            Text(
+              'Thank you for supporting SumQuiz.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            ),
           ],
         ),
       ),
