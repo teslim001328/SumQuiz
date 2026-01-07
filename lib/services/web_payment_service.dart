@@ -73,7 +73,6 @@ class WebPaymentService {
     );
 
     final flutterwave = Flutterwave(
-      context: context,
       publicKey: publicKey,
       currency: currency,
       redirectUrl: "https://sumquiz.web.app",
@@ -86,9 +85,9 @@ class WebPaymentService {
     );
 
     try {
-      final ChargeResponse response = await flutterwave.charge();
+      final ChargeResponse response = await flutterwave.charge(context);
 
-      if (response != null && response.success == true) {
+      if (response.success == true) {
         // 2. Determine Duration
         Duration? duration;
         if (product.id.contains('monthly')) duration = const Duration(days: 30);
