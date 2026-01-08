@@ -12,6 +12,7 @@ import 'package:sumquiz/widgets/activity_chart.dart';
 import 'package:sumquiz/widgets/daily_goal_tracker.dart';
 import 'package:sumquiz/widgets/goal_setting_dialog.dart';
 import 'package:sumquiz/services/user_service.dart';
+import 'package:sumquiz/views/screens/spaced_repetition_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -401,38 +402,56 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _buildReviewBanner(int dueCount, ThemeData theme) {
     if (dueCount == 0) return const SizedBox.shrink();
-    return _buildGlassContainer(
-      theme,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.2), shape: BoxShape.circle),
-            child: const Icon(Icons.notifications_active_rounded,
-                color: Colors.amber, size: 24),
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SpacedRepetitionScreen(),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('$dueCount items due',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface)),
-                Text('Review now to retain better',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 13,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6))),
-              ],
+        );
+        // Refresh stats after returning from review
+        if (mounted &&
+            Provider.of<UserModel?>(context, listen: false) != null) {
+          setState(() {
+            _statsFuture = _loadStats(
+                Provider.of<UserModel?>(context, listen: false)!.uid);
+          });
+        }
+      },
+      child: _buildGlassContainer(
+        theme,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.2), shape: BoxShape.circle),
+              child: const Icon(Icons.notifications_active_rounded,
+                  color: Colors.amber, size: 24),
             ),
-          ),
-          Icon(Icons.arrow_forward_ios_rounded,
-              color: theme.disabledColor, size: 16),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$dueCount items due',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface)),
+                  Text('Review now to retain better',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: theme.disabledColor, size: 16),
+          ],
+        ),
       ),
     );
   }

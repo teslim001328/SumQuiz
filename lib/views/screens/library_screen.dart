@@ -11,6 +11,7 @@ import '../../models/user_model.dart';
 import '../../models/library_item.dart';
 import '../../services/firestore_service.dart';
 import '../../services/local_database_service.dart';
+import '../../services/sync_service.dart';
 import '../../view_models/quiz_view_model.dart';
 import '../../models/editable_content.dart';
 import '../../models/summary_model.dart';
@@ -39,7 +40,7 @@ class LibraryScreen extends StatefulWidget {
 class LibraryScreenState extends State<LibraryScreen>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
-  final FirestoreService _firestoreService = FirestoreService();
+  // final FirestoreService _firestoreService = FirestoreService(); // Removed
   final LocalDatabaseService _localDb = LocalDatabaseService();
   final TextEditingController _searchController = TextEditingController();
 
@@ -104,57 +105,36 @@ class LibraryScreenState extends State<LibraryScreen>
   }
 
   void _initializeStreams(String userId) {
-    // Folders Stream - Show ALL folders, not just saved ones
+    // Folders Stream - Local DB Only
     _foldersStream = _localDb.watchAllFolders(userId).asBroadcastStream();
 
-    // Summaries: Merge Firestore & Local
-    final localSummaries = _localDb.watchAllSummaries(userId).map((list) => list
-        .map((s) => LibraryItem(
-            id: s.id,
-            title: s.title,
-            type: LibraryItemType.summary,
-            timestamp: Timestamp.fromDate(s.timestamp),
-            isReadOnly: s.isReadOnly))
-        .toList());
+    // Summaries - Local DB Only
+    _summariesStream = _localDb
+        .watchAllSummaries(userId)
+        .map((list) => list
+            .map((s) => LibraryItem(
+                id: s.id,
+                title: s.title,
+                type: LibraryItemType.summary,
+                timestamp: Timestamp.fromDate(s.timestamp),
+                isReadOnly: s.isReadOnly))
+            .toList())
+        .asBroadcastStream();
 
-    final firestoreSummaries =
-        _firestoreService.streamItems(userId, 'summaries');
-
-    _summariesStream = Rx.combineLatest2<List<LibraryItem>, List<LibraryItem>,
-        List<LibraryItem>>(
-      localSummaries,
-      firestoreSummaries.handleError((_) => <LibraryItem>[]),
-      (local, cloud) {
-        final ids = local.map((e) => e.id).toSet();
-        return [...local, ...cloud.where((c) => !ids.contains(c.id))];
-      },
-    ).asBroadcastStream();
-
-    // Flashcards: Merge Firestore & Local
-    final localFlashcards = _localDb.watchAllFlashcardSets(userId).map((list) =>
-        list
+    // Flashcards - Local DB Only
+    _flashcardsStream = _localDb
+        .watchAllFlashcardSets(userId)
+        .map((list) => list
             .map((f) => LibraryItem(
                 id: f.id,
                 title: f.title,
                 type: LibraryItemType.flashcards,
                 timestamp: Timestamp.fromDate(f.timestamp),
                 isReadOnly: f.isReadOnly))
-            .toList());
+            .toList())
+        .asBroadcastStream();
 
-    final firestoreFlashcards =
-        _firestoreService.streamItems(userId, 'flashcards');
-
-    _flashcardsStream = Rx.combineLatest2<List<LibraryItem>, List<LibraryItem>,
-        List<LibraryItem>>(
-      localFlashcards,
-      firestoreFlashcards.handleError((_) => <LibraryItem>[]),
-      (local, cloud) {
-        final ids = local.map((e) => e.id).toSet();
-        return [...local, ...cloud.where((c) => !ids.contains(c.id))];
-      },
-    ).asBroadcastStream();
-
-    // Quizzes: Merge Firestore & Local
+    // Quizzes - Local DB Only
     final localQuizzes = _localDb.watchAllQuizzes(userId).map((list) => list
         .map((q) => LibraryItem(
             id: q.id,
@@ -164,7 +144,7 @@ class LibraryScreenState extends State<LibraryScreen>
             isReadOnly: q.isReadOnly))
         .toList());
 
-    // All Items
+    // All Items - Combined Local Streams
     _allItemsStream = Rx.combineLatest3<List<LibraryItem>, List<LibraryItem>,
             List<LibraryItem>, List<LibraryItem>>(
         _summariesStream!, _flashcardsStream!, localQuizzes,
@@ -399,6 +379,11 @@ class LibraryScreenState extends State<LibraryScreen>
     );
   }
 
+  Future<void> _handleRefresh() async {
+    final syncService = Provider.of<SyncService>(context, listen: false);
+    await syncService.syncAllData();
+  }
+
   Widget _buildLibraryContent(UserModel user, ThemeData theme) {
     if (_isOfflineMode) {
       return _buildOfflineState(theme);
@@ -410,12 +395,23 @@ class LibraryScreenState extends State<LibraryScreen>
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildFolderList(user.uid, theme),
-              _buildCombinedList(user.uid, theme),
-              _buildLibraryList(user.uid, 'summaries', _summariesStream, theme),
-              _buildQuizList(user.uid, theme),
-              _buildLibraryList(
-                  user.uid, 'flashcards', _flashcardsStream, theme),
+              RefreshIndicator(
+                  onRefresh: _handleRefresh,
+                  child: _buildFolderList(user.uid, theme)),
+              RefreshIndicator(
+                  onRefresh: _handleRefresh,
+                  child: _buildCombinedList(user.uid, theme)),
+              RefreshIndicator(
+                  onRefresh: _handleRefresh,
+                  child: _buildLibraryList(
+                      user.uid, 'summaries', _summariesStream, theme)),
+              RefreshIndicator(
+                  onRefresh: _handleRefresh,
+                  child: _buildQuizList(user.uid, theme)),
+              RefreshIndicator(
+                  onRefresh: _handleRefresh,
+                  child: _buildLibraryList(
+                      user.uid, 'flashcards', _flashcardsStream, theme)),
             ],
           ),
         ),
@@ -1121,20 +1117,6 @@ class LibraryScreenState extends State<LibraryScreen>
         final localSummary = await _localDb.getSummary(item.id);
         if (mounted && localSummary != null) {
           screen = SummaryScreen(summary: localSummary);
-        } else if (!_isOfflineMode) {
-          final content = await _firestoreService.getSpecificItem(userId, item);
-          if (mounted && content != null) {
-            final summary = content as Summary;
-            screen = SummaryScreen(
-                summary: LocalSummary(
-                    id: summary.id,
-                    title: summary.title,
-                    content: summary.content,
-                    tags: summary.tags,
-                    timestamp: summary.timestamp.toDate(),
-                    userId: userId,
-                    isReadOnly: item.isReadOnly));
-          }
         }
         break;
       case LibraryItemType.quiz:
@@ -1159,13 +1141,6 @@ class LibraryScreenState extends State<LibraryScreen>
               ),
               isReadOnly: localSet.isReadOnly,
               publicDeckId: localSet.publicDeckId);
-        } else if (!_isOfflineMode) {
-          final content = await _firestoreService.getSpecificItem(userId, item);
-          if (mounted && content != null) {
-            screen = FlashcardsScreen(
-                flashcardSet: content as FlashcardSet,
-                isReadOnly: item.isReadOnly);
-          }
         }
         break;
     }
@@ -1292,9 +1267,8 @@ class LibraryScreenState extends State<LibraryScreen>
   Future<void> _deleteContent(
       String userId, LibraryItem item, ThemeData theme) async {
     try {
-      if (!_isOfflineMode) {
-        await _firestoreService.deleteItem(userId, item);
-      }
+      // TODO: Implement SyncService delete propagation (tombstones) mechanism.
+      // For now, we only delete locally.
 
       switch (item.type) {
         case LibraryItemType.summary:

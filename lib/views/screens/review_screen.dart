@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,6 +20,8 @@ import 'quiz_screen.dart';
 import '../../models/local_summary.dart';
 import '../../models/local_quiz.dart';
 import '../../models/local_flashcard_set.dart';
+import 'package:sumquiz/views/screens/spaced_repetition_screen.dart';
+import '../../services/spaced_repetition_service.dart';
 import 'package:rxdart/rxdart.dart';
 
 class ReviewScreen extends StatefulWidget {
@@ -32,11 +35,39 @@ class _ReviewScreenState extends State<ReviewScreen> {
   DailyMission? _dailyMission;
   bool _isLoading = true;
   String? _error;
+  int _dueCount = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
     _loadMission();
+    _loadSrsStats();
+  }
+
+  Future<void> _loadSrsStats() async {
+    if (!mounted) return;
+    final userId =
+        Provider.of<AuthService>(context, listen: false).currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      final localDb = Provider.of<LocalDatabaseService>(context, listen: false);
+      await localDb.init();
+      final srsService =
+          SpacedRepetitionService(localDb.getSpacedRepetitionBox());
+      final stats = await srsService.getStatistics(userId);
+      if (mounted) {
+        setState(() {
+          _dueCount = stats['dueForReviewCount'] as int? ?? 0;
+        });
+      }
+    } catch (e) {
+      developer.log('Error loading SRS stats', error: e);
+    }
   }
 
   Future<void> _loadMission() async {
@@ -244,6 +275,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ).animate().fadeIn().slideX(),
 
           const SizedBox(height: 24),
+
+          // SRS Banner
+          _buildSrsBanner(theme),
+          if (_dueCount > 0) const SizedBox(height: 24),
 
           // Momentum & Goal Row
           Row(
@@ -635,5 +670,56 @@ class _ReviewScreenState extends State<ReviewScreen> {
         );
       },
     );
+  }
+
+  Widget _buildSrsBanner(ThemeData theme) {
+    if (_dueCount == 0) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SpacedRepetitionScreen(),
+          ),
+        );
+        _loadSrsStats(); // Refresh count on return
+      },
+      child: _buildGlassCard(
+        theme: theme,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        borderColor: Colors.amber.withOpacity(0.3),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.2), shape: BoxShape.circle),
+              child: const Icon(Icons.notifications_active_rounded,
+                  color: Colors.amber, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$_dueCount Quick Reviews Due',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface)),
+                  Text('Keep your streak alive!',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: theme.disabledColor, size: 16),
+          ],
+        ),
+      ),
+    ).animate().fadeIn().slideY(begin: -0.2);
   }
 }

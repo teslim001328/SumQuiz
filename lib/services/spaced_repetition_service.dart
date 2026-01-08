@@ -26,7 +26,7 @@ class SpacedRepetitionService {
 
     final now = DateTime.now().toUtc();
     final newItem = SpacedRepetitionItem(
-      id: _uuid.v4(),
+      id: flashcardId, // Use flashcardId as the key
       userId: userId,
       contentId: flashcardId,
       contentType: 'flashcards',
@@ -35,7 +35,8 @@ class SpacedRepetitionService {
       createdAt: now,
       updatedAt: now,
     );
-    await _box.put(newItem.id, newItem);
+    // Store using flashcardId so we can easily retrieve it later
+    await _box.put(flashcardId, newItem);
 
     // Update SRS card count for FREE tier users
     if (!isPro) {
@@ -97,7 +98,15 @@ class SpacedRepetitionService {
   }
 
   Future<void> updateReview(String itemId, bool answeredCorrectly) async {
-    final item = _box.get(itemId);
+    // The itemId passed here is typically the flashcardId.
+    // We first try to get it directly (new behavior).
+    var item = _box.get(itemId);
+
+    // Fallback: If not found, check if it was stored with a UUID (legacy behavior).
+    if (item == null) {
+      item = _box.values.firstWhereOrNull((i) => i.contentId == itemId);
+    }
+
     if (item == null) return;
 
     final now = DateTime.now().toUtc();
@@ -128,7 +137,7 @@ class SpacedRepetitionService {
     }
 
     final updatedItem = SpacedRepetitionItem(
-      id: item.id,
+      id: item.id, // Preserve the existing ID (whether UUID or flashcardId)
       userId: item.userId,
       contentId: item.contentId,
       contentType: item.contentType,
@@ -142,6 +151,7 @@ class SpacedRepetitionService {
       correctStreak: correctStreak,
     );
 
+    // Save back using the SAME key we retrieved it with
     await _box.put(item.id, updatedItem);
   }
 
