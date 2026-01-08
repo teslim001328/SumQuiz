@@ -14,21 +14,16 @@ import '../../services/local_database_service.dart';
 import '../../services/sync_service.dart';
 import '../../view_models/quiz_view_model.dart';
 import '../../models/editable_content.dart';
-import '../../models/summary_model.dart';
-import '../../models/quiz_model.dart';
+
 import '../../models/flashcard_set.dart';
 import '../../models/folder.dart';
 
 import '../screens/summary_screen.dart';
 import '../screens/quiz_screen.dart';
 import '../screens/flashcards_screen.dart';
-import '../../models/local_summary.dart';
+
 import '../../models/quiz_question.dart';
 import '../../models/flashcard.dart';
-import '../../models/local_quiz.dart';
-import '../../models/local_quiz_question.dart';
-import '../../models/local_flashcard_set.dart';
-import '../../models/local_flashcard.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -511,7 +506,8 @@ class LibraryScreenState extends State<LibraryScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.error_outline,
-                    size: 64, color: theme.colorScheme.error.withOpacity(0.5)),
+                    size: 64,
+                    color: theme.colorScheme.error.withValues(alpha: 0.5)),
                 const SizedBox(height: 16),
                 Text('Error loading folders',
                     style: theme.textTheme.titleMedium),
@@ -817,9 +813,10 @@ class LibraryScreenState extends State<LibraryScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: theme.cardColor.withOpacity(0.6),
+        color: theme.cardColor.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.cardColor.withOpacity(0.7), width: 1.5),
+        border: Border.all(
+            color: theme.cardColor.withValues(alpha: 0.7), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 13), // 0.05 * 255 = 13
@@ -840,7 +837,7 @@ class LibraryScreenState extends State<LibraryScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: iconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: iconColor, size: 24),
@@ -1026,7 +1023,7 @@ class LibraryScreenState extends State<LibraryScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 28),
@@ -1059,10 +1056,10 @@ class LibraryScreenState extends State<LibraryScreen>
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: theme.cardColor.withOpacity(0.7),
+            color: theme.cardColor.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(24),
-            border:
-                Border.all(color: theme.cardColor.withOpacity(0.9), width: 1.5),
+            border: Border.all(
+                color: theme.cardColor.withValues(alpha: 0.9), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 13), // 0.05 * 255 = 13
@@ -1161,20 +1158,6 @@ class LibraryScreenState extends State<LibraryScreen>
     switch (item.type) {
       case LibraryItemType.summary:
         var summary = await _localDb.getSummary(item.id);
-        if (summary == null && !_isOfflineMode) {
-          final cloudContent =
-              await _firestoreService.getSpecificItem(userId, item);
-          if (cloudContent is Summary) {
-            summary = LocalSummary(
-                id: cloudContent.id,
-                userId: userId,
-                title: cloudContent.title,
-                content: cloudContent.content,
-                tags: cloudContent.tags,
-                timestamp: cloudContent.timestamp.toDate(),
-                isSynced: true);
-          }
-        }
 
         if (summary != null) {
           editableContent = EditableContent.fromSummary(
@@ -1187,24 +1170,6 @@ class LibraryScreenState extends State<LibraryScreen>
         break;
       case LibraryItemType.quiz:
         var quiz = await _localDb.getQuiz(item.id);
-        if (quiz == null && !_isOfflineMode) {
-          final cloudContent =
-              await _firestoreService.getSpecificItem(userId, item);
-          if (cloudContent is Quiz) {
-            quiz = LocalQuiz(
-                id: cloudContent.id,
-                userId: userId,
-                title: cloudContent.title,
-                questions: cloudContent.questions
-                    .map((q) => LocalQuizQuestion(
-                        question: q.question,
-                        options: q.options,
-                        correctAnswer: q.correctAnswer))
-                    .toList(),
-                timestamp: cloudContent.timestamp.toDate(),
-                isSynced: true);
-          }
-        }
 
         if (quiz != null) {
           editableContent = EditableContent.fromQuiz(
@@ -1221,22 +1186,6 @@ class LibraryScreenState extends State<LibraryScreen>
         break;
       case LibraryItemType.flashcards:
         var flashcardSet = await _localDb.getFlashcardSet(item.id);
-        if (flashcardSet == null && !_isOfflineMode) {
-          final cloudContent =
-              await _firestoreService.getSpecificItem(userId, item);
-          if (cloudContent is FlashcardSet) {
-            flashcardSet = LocalFlashcardSet(
-                id: cloudContent.id,
-                userId: userId,
-                title: cloudContent.title,
-                flashcards: cloudContent.flashcards
-                    .map((f) =>
-                        LocalFlashcard(question: f.question, answer: f.answer))
-                    .toList(),
-                timestamp: cloudContent.timestamp.toDate(),
-                isSynced: true);
-          }
-        }
 
         if (flashcardSet != null) {
           editableContent = EditableContent.fromFlashcardSet(
