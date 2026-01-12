@@ -12,7 +12,6 @@ import 'package:sumquiz/models/local_quiz_question.dart';
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/services/iap_service.dart';
 import 'package:sumquiz/services/local_database_service.dart';
-import 'package:sumquiz/services/rate_limiter.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:developer' as developer;
 
@@ -29,10 +28,16 @@ class EnhancedAIServiceException implements Exception {
 
 // --- CONFIG ---
 class EnhancedAIConfig {
-  static const String primaryModel = 'gemini-1.5-flash';
-  static const String fallbackModel = 'gemini-1.5-pro';
-  static const String visionModel = 'gemini-1.5-flash';
-  static const int maxRetries = 2;
+  // Updated to Gemini 2.5 models (stable as of Jan 2026)
+  // Gemini 2.0 models are deprecated as of Feb 2026
+  static const String primaryModel =
+      'gemini-2.5-flash'; // Fast, stable, cost-effective
+  static const String fallbackModel =
+      'gemini-1.5-flash'; // Proven stable fallback
+  static const String visionModel = 'gemini-2.5-flash'; // Vision + multimodal
+  static const String experimentalModel =
+      'gemini-3-flash-preview'; // Latest preview (optional)
+  static const int maxRetries = 3; // Increased for better reliability
   static const int requestTimeoutSeconds = 120; // Increased for video
   static const int maxInputLength = 30000;
   static const int maxPdfSize = 15 * 1024 * 1024; // 15MB
@@ -44,17 +49,6 @@ class EnhancedAIService {
   late final GenerativeModel _model;
   late final GenerativeModel _fallbackModel;
   late final GenerativeModel _visionModel;
-
-  // Rate limiters for different tiers
-  final RateLimiter _freeUserLimiter = RateLimiter(
-    maxRequests: 10,
-    window: const Duration(minutes: 5),
-  );
-
-  final RateLimiter _proUserLimiter = RateLimiter(
-    maxRequests: 100,
-    window: const Duration(minutes: 5),
-  );
 
   EnhancedAIService({required IAPService iapService})
       : _iapService = iapService {
@@ -90,27 +84,19 @@ class EnhancedAIService {
     );
   }
 
-  Future<void> _checkRateLimit() async {
-    final isPro = await _iapService.hasProAccess();
-
-    if (isPro) {
-      await _proUserLimiter.checkLimit();
-    } else {
-      await _freeUserLimiter.checkLimit();
-    }
-  }
-
   Future<void> _checkUsageLimits(String userId) async {
     final isPro = await _iapService.hasProAccess();
 
     if (!isPro) {
-      final isUploadLimitReached = await _iapService.isUploadLimitReached(userId);
+      final isUploadLimitReached =
+          await _iapService.isUploadLimitReached(userId);
       if (isUploadLimitReached) {
         throw EnhancedAIServiceException(
             'You\'ve reached your weekly upload limit. Upgrade to Pro for unlimited uploads.');
       }
 
-      final isFolderLimitReached = await _iapService.isFolderLimitReached(userId);
+      final isFolderLimitReached =
+          await _iapService.isFolderLimitReached(userId);
       if (isFolderLimitReached) {
         throw EnhancedAIServiceException(
             'You\'ve reached your folder limit. Upgrade to Pro for unlimited folders.');
@@ -119,16 +105,26 @@ class EnhancedAIService {
   }
 
   Future<String> _generateWithFallback(String prompt) async {
-    await _checkRateLimit();
-
     try {
-      return await _generateWithModel(_model, prompt, 'Gemini 1.5 Flash');
-    } catch (e) {
-      developer.log('Primary model failed, trying fallback',
-          name: 'EnhancedAIService', error: e);
-      await _checkRateLimit();
       return await _generateWithModel(
-          _fallbackModel, prompt, 'Gemini 1.5 Pro');
+          _model, prompt, EnhancedAIConfig.primaryModel);
+    } catch (e) {
+      developer.log(
+          'Primary model (${EnhancedAIConfig.primaryModel}) failed, trying fallback',
+          name: 'EnhancedAIService',
+          error: e);
+      try {
+        return await _generateWithModel(
+            _fallbackModel, prompt, EnhancedAIConfig.fallbackModel);
+      } catch (fallbackError) {
+        developer.log(
+            'Fallback model (${EnhancedAIConfig.fallbackModel}) also failed',
+            name: 'EnhancedAIService',
+            error: fallbackError);
+        throw EnhancedAIServiceException(
+            'AI service temporarily unavailable. Please try again in a moment. '
+            'If the issue persists, check your internet connection.');
+      }
     }
   }
 
@@ -168,7 +164,10 @@ class EnhancedAIService {
   }
 
   String _sanitizeInput(String input) {
-    input = input.replaceAll(RegExp(r'\n{3,}'), '\n\n').replaceAll(RegExp(r' {2,}'), ' ').trim();
+    input = input
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .replaceAll(RegExp(r' {2,}'), ' ')
+        .trim();
 
     if (input.length <= EnhancedAIConfig.maxInputLength) {
       return input;
@@ -200,15 +199,48 @@ class EnhancedAIService {
   Future<String> refineContent(String rawText) async {
     final sanitizedText = _sanitizeInput(rawText);
     final prompt =
-        '''You are a text cleaning and structuring tool. Your task is to take the raw text provided and prepare it for studying.
-- You MUST remove all non-instructional content like ads, navigation, and conversational filler.
-- You MUST fix formatting and sentence structure and organize the content logically with headers.
-- You MUST NOT summarize or alter the core information.
-- You MUST return only a single, valid JSON object. Do not explain your actions. Do not use Markdown.
+        '''You are an expert content extractor preparing raw text for exam studying.
+
+CRITICAL: Your task is to EXTRACT and CLEAN the content, NOT to summarize or condense it.
+
+WHAT TO DO:
+1. REMOVE completely (discard these sections):
+   - Advertisements and promotional content
+   - Navigation menus, headers, footers
+   - "Like and subscribe" calls to action
+   - Sponsor messages
+   - Unrelated tangents or personal stories
+   - Boilerplate text (copyright notices, disclaimers)
+   - Repetitive filler phrases ("as I mentioned before", "let's get started")
+
+2. FIX and CLEAN:
+   - Broken sentences or formatting issues
+   - Merge fragmented thoughts into complete sentences
+   - Fix obvious typos or OCR errors
+   - Remove excessive whitespace or line breaks
+
+3. ORGANIZE:
+   - Structure content into logical sections with clear headers
+   - Group related concepts together
+   - Use bullet points or numbered lists where appropriate for clarity
+
+4. PRESERVE (keep everything):
+   - ALL factual information, data points, and statistics
+   - ALL key concepts, definitions, and explanations
+   - ALL examples, case studies, and practice problems
+   - ALL formulas, equations, code snippets, or technical details
+   - ALL step-by-step procedures or processes
+   - The instructor's exact wording for important concepts
+
+REMEMBER: You are EXTRACTING educational content, not creating a summary.
+If the original text has 1000 words of instructional content, your output should have close to 1000 words (minus ads/fluff).
+The goal is clean, organized, study-ready content with ALL the educational value intact.
+
+You MUST return only a single, valid JSON object. Do not explain your actions. Do not use Markdown.
 
 Structure:
 {
-  "cleanedText": "The cleaned and structured text content..."
+  "cleanedText": "The extracted, cleaned, and organized content..."
 }
 
 Raw Text:
@@ -223,30 +255,54 @@ $sanitizedText
       return jsonString;
     }
   }
-  
-  Future<String> analyzeYouTubeVideo(String videoUrl, {required String userId}) async {
-    await _checkUsageLimits(userId);
-    await _checkRateLimit();
 
-    final videoContent = Content.data('video/youtube', Uri.parse(videoUrl).data!.contentAsBytes());
+  Future<String> analyzeYouTubeVideo(String videoUrl,
+      {required String userId}) async {
+    await _checkUsageLimits(userId);
 
     final prompt =
-        '''You are an expert academic summarizer. Analyze the provided YouTube video and create a detailed, structured summary of its educational content.
+        '''You are analyzing a YouTube video using your native multimodal capabilities (vision + audio).
+Video URL: $videoUrl
 
-Your task is to:
-1.  **Extract Key Information:** Identify all main topics, key concepts, definitions, important arguments, and supporting evidence.
-2.  **Filter Non-Essential Content:** You MUST completely ignore and remove advertisements, sponsor messages, personal anecdotes, off-topic discussions, and repetitive conversational filler.
-3.  **Structure the Output:** Organize the extracted information into a clean, readable text document. Use clear headings, subheadings, and bullet points to create a logical flow.
-4.  **Include Timestamps:** Where relevant, include timestamps (e.g., [01:23]) to reference specific visual or audio cues, especially for demonstrations, charts, or critical statements.
-5.  **Maintain Neutrality:** Do not add your own opinions or interpretations. The output should be a faithful representation of the video's instructional content.
+CRITICAL INSTRUCTIONS:
+1. WATCH the video - analyze both visual content (slides, diagrams, demonstrations) AND audio (spoken words)
+2. EXTRACT all instructional content - do NOT summarize, condense, or paraphrase
+3. Capture EVERYTHING the instructor teaches, including:
+   - All concepts, definitions, and explanations (word-for-word when important)
+   - Visual content from slides, whiteboards, diagrams, or demonstrations
+   - Examples, case studies, and practice problems shown
+   - Formulas, equations, code snippets, or technical details
+   - Step-by-step procedures or processes demonstrated
+   - Timestamps for key moments (e.g., [01:23] when showing important diagrams)
 
-Return ONLY the structured text summary. Do not add any commentary or explanation of your actions.''';
+WHAT TO EXCLUDE (discard completely):
+- Video intros, outros, and channel promotions
+- Personal stories or anecdotes not related to the topic
+- Jokes, tangents, or off-topic discussions
+- Calls to action (like, subscribe, etc.)
+- Sponsor messages or advertisements
+- Navigation instructions ("in the next video...")
+- Repetitive filler phrases
+
+OUTPUT FORMAT:
+Return the extracted instructional content as clean, organized text.
+- Preserve all factual information, data points, and key concepts
+- Organize by topic/section if the video has clear segments
+- Include visual content descriptions where relevant (e.g., "The diagram shows...")
+- Maintain technical accuracy - do not simplify or rephrase technical terms
+- If the instructor writes something on screen, transcribe it exactly
+- Include timestamps for demonstrations or critical visual content
+
+REMEMBER: You are EXTRACTING content for study purposes, not creating a summary.
+The goal is to capture ALL the educational value from the video.
+''';
 
     try {
+      // Gemini 1.5 Flash has native YouTube video understanding
       final response = await _visionModel.generateContent([
         Content.text(prompt),
-        videoContent,
-      ]).timeout(const Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
+      ]).timeout(
+          const Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
 
       if (response.text == null || response.text!.trim().isEmpty) {
         throw EnhancedAIServiceException(
@@ -257,16 +313,17 @@ Return ONLY the structured text summary. Do not add any commentary or explanatio
       throw EnhancedAIServiceException(
           'Video analysis timed out. The video might be too long or complex.');
     } catch (e) {
-      developer.log('YouTube Video Analysis Failed', name: 'EnhancedAIService', error: e);
+      developer.log('YouTube Video Analysis Failed',
+          name: 'EnhancedAIService', error: e);
       if (e is EnhancedAIServiceException) rethrow;
       throw EnhancedAIServiceException(
           'Failed to analyze the YouTube video: ${e.toString()}');
     }
   }
 
-  Future<String> extractTextFromImage(Uint8List imageBytes, {required String userId}) async {
+  Future<String> extractTextFromImage(Uint8List imageBytes,
+      {required String userId}) async {
     await _checkUsageLimits(userId);
-    await _checkRateLimit();
 
     try {
       final imagePart = DataPart('image/jpeg', imageBytes);
@@ -308,14 +365,34 @@ Return ONLY the structured text summary. Do not add any commentary or explanatio
       ),
     );
 
-    final prompt = '''Create a comprehensive study guide from this text. Focus on key concepts, definitions, and important facts.
+    final prompt =
+        '''Create a comprehensive EXAM-FOCUSED study guide from this text.
+
+Your task:
+1. **Title**: Create a clear, topic-focused title that reflects the exam subject
+2. **Content**: Write a detailed study guide optimized for exam preparation:
+   - Start with key concepts and definitions (what will be tested)
+   - Include all important facts, dates, formulas, and technical details
+   - Highlight common exam topics and frequently tested areas
+   - Use clear headings and bullet points for easy review
+   - Include examples that illustrate key concepts
+   - Add memory aids or mnemonics where helpful
+   - Organize by topic/subtopic for structured studying
+3. **Tags**: Generate 3-5 relevant keywords for categorization
+
+FOCUS: This is for EXAM PREPARATION. Prioritize:
+- Information likely to appear on tests
+- Definitions and terminology
+- Key facts and figures
+- Cause-effect relationships
+- Processes and procedures
+- Common misconceptions to avoid
 
 Text: $sanitizedText''';
 
     try {
-      final response = await model
-          .generateContent([Content.text(prompt)])
-          .timeout(const Duration(seconds: 60));
+      final response = await model.generateContent(
+          [Content.text(prompt)]).timeout(const Duration(seconds: 60));
 
       if (response.text == null || response.text!.isEmpty) {
         throw EnhancedAIServiceException('Empty response from AI');
@@ -412,14 +489,16 @@ $sanitizedText''';
     );
     await localDb.saveFolder(folder);
 
-    final srsService = SpacedRepetitionService(localDb.getSpacedRepetitionBox());
+    final srsService =
+        SpacedRepetitionService(localDb.getSpacedRepetitionBox());
 
     int completed = 0;
     final total = requestedOutputs.length;
 
     try {
       for (String outputType in requestedOutputs) {
-        onProgress('Generating ${outputType.capitalize()} (${completed + 1}/$total)...');
+        onProgress(
+            'Generating ${outputType.capitalize()} (${completed + 1}/$total)...');
 
         try {
           switch (outputType) {

@@ -8,6 +8,7 @@ import 'package:sumquiz/providers/sync_provider.dart';
 import 'package:sumquiz/services/firestore_service.dart';
 import 'package:sumquiz/services/referral_service.dart';
 import 'package:sumquiz/services/user_service.dart';
+import 'package:sumquiz/services/notification_integration.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
@@ -160,6 +161,16 @@ class AuthService {
               // Just log the error and continue
             }
           }
+
+          // 🔔 Schedule notifications for new user
+          if (context.mounted) {
+            try {
+              await NotificationIntegration.onUserRegistered(context, user.uid);
+            } catch (e) {
+              developer.log('Failed to schedule notifications for new user',
+                  error: e);
+            }
+          }
         } else {
           developer.log('Existing user signed in with Google: ${user.uid}');
         }
@@ -291,6 +302,16 @@ class AuthService {
           }
         } catch (e) {
           developer.log('Failed to send verification email', error: e);
+        }
+
+        // 🔔 Schedule notifications for new user
+        if (context.mounted) {
+          try {
+            await NotificationIntegration.onUserRegistered(context, user.uid);
+          } catch (e) {
+            developer.log('Failed to schedule notifications for new user',
+                error: e);
+          }
         }
       }
     } on FirebaseAuthException catch (e, s) {

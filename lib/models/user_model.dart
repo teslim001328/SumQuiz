@@ -32,8 +32,8 @@ class UserModel {
   final DateTime? lastWeeklyReset;
   final UserRole role;
 
-  // Trial & Creator Logic
-  final bool isTrial;
+  // Trial & Creator Logic (stored fields)
+  final bool _isTrialUser; // Private - use isTrial getter
   final bool isCreatorPro;
 
   // Referral
@@ -63,33 +63,37 @@ class UserModel {
     this.totalDecksGenerated = 0,
     this.lastDeckGenerationDate,
     this.updatedAt,
-    this.isTrial = false,
+    bool isTrial = false,
     this.isCreatorPro = false,
     this.referralCode,
     this.creatorProfile = const {},
-  });
+  }) : _isTrialUser = isTrial;
 
+  /// Returns true if user has active Pro access
+  /// Priority: Creator Pro > Active Subscription
   bool get isPro {
-    // 1. Creator Bonus overrides everything
+    // 1. Creator Bonus (permanent Pro access)
     if (isCreatorPro) return true;
 
-    // 2. Lifetime Access
-    if (subscriptionExpiry == null && _hasPurchasedLifetime()) return true;
-
-    // 3. Subscription / Trial Access
+    // 2. Active Subscription (includes trial and paid)
     if (subscriptionExpiry != null) {
       return subscriptionExpiry!.isAfter(TimeSyncService.now);
     }
 
+    // 3. Not Pro
     return false;
   }
 
-  bool _hasPurchasedLifetime() {
-    // This is tough without an explicit flag.
-    // For this edit, I will rely on the passed `subscriptionExpiry`
-    // but mostly rely on `isCreatorPro` for the new feature.
-    // I'll leave the existing `isPro` logic mostly compatible but add Creator check.
-    return true; // Placeholder for logic reuse
+  /// Returns true if user is on trial (has trial flag AND active subscription)
+  bool get isTrial {
+    // Must have trial flag set
+    if (!_isTrialUser) return false;
+
+    // Must have active subscription
+    if (subscriptionExpiry == null) return false;
+
+    // Subscription must not be expired
+    return subscriptionExpiry!.isAfter(TimeSyncService.now);
   }
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -134,10 +138,6 @@ class UserModel {
       'role': role.name,
       if (subscriptionExpiry != null)
         'subscriptionExpiry': Timestamp.fromDate(subscriptionExpiry!),
-      // If lifetime (null), we usually want to WRITE null explicitly if they bought it,
-      // but here we just omit if null?
-      // For safety with 'containsKey' usage elsewhere, we should write it if it was fetched.
-      // But standard toFirestore here:
       'currentMomentum': currentMomentum,
       'momentumDecayRate': momentumDecayRate,
       'missionCompletionStreak': missionCompletionStreak,
@@ -155,7 +155,7 @@ class UserModel {
       if (lastWeeklyReset != null)
         'lastWeeklyReset': Timestamp.fromDate(lastWeeklyReset!),
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
-      'isTrial': isTrial,
+      'isTrial': _isTrialUser, // Store the private field
       'isCreatorPro': isCreatorPro,
       if (referralCode != null) 'referralCode': referralCode,
       'creatorProfile': creatorProfile,
@@ -211,7 +211,7 @@ class UserModel {
           lastDeckGenerationDate ?? this.lastDeckGenerationDate,
       lastWeeklyReset: lastWeeklyReset ?? this.lastWeeklyReset,
       updatedAt: updatedAt ?? this.updatedAt,
-      isTrial: isTrial ?? this.isTrial,
+      isTrial: isTrial ?? this._isTrialUser,
       isCreatorPro: isCreatorPro ?? this.isCreatorPro,
       referralCode: referralCode ?? this.referralCode,
       creatorProfile: creatorProfile ?? this.creatorProfile,

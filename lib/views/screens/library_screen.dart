@@ -9,8 +9,9 @@ import '../../models/folder.dart';
 import '../../services/firestore_service.dart';
 import '../../services/local_database_service.dart';
 import '../../services/sync_service.dart';
-import '../../view_models/library_view_model.dart';
-import '../../models/extensions/local_flashcard_set_extension.dart';
+// TODO: Create these missing files
+// import '../../view_models/library_view_model.dart';
+// import '../../models/extensions/local_flashcard_set_extension.dart';
 
 import '../screens/summary_screen.dart';
 import '../screens/quiz_screen.dart';
@@ -49,14 +50,19 @@ class LibraryScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.cloud_off_outlined, size: 80, color: theme.colorScheme.primary),
+                Icon(Icons.cloud_off_outlined,
+                    size: 80, color: theme.colorScheme.primary),
                 const SizedBox(height: 24),
-                Text('Please Log In', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                Text('Please Log In',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary)),
                 const SizedBox(height: 12),
                 Text(
                   'Log in to access your synchronized library across all your devices.',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withAlpha(153)),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withAlpha(153)),
                 ),
               ],
             ),
@@ -66,7 +72,8 @@ class LibraryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGlassContainer({required Widget child, required ThemeData theme}) {
+  Widget _buildGlassContainer(
+      {required Widget child, required ThemeData theme}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -76,7 +83,8 @@ class LibraryScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: theme.cardColor.withAlpha(178),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: theme.cardColor.withAlpha(230), width: 1.5),
+            border:
+                Border.all(color: theme.cardColor.withAlpha(230), width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(13),
@@ -99,7 +107,8 @@ class _LibraryView extends StatefulWidget {
   _LibraryViewState createState() => _LibraryViewState();
 }
 
-class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixin {
+class _LibraryViewState extends State<_LibraryView>
+    with TickerProviderStateMixin {
   late TabController _mainTabController;
   late TabController _folderTabController;
   final TextEditingController _searchController = TextEditingController();
@@ -147,9 +156,12 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
                     children: [
                       _buildFolderList(viewModel, theme),
                       _buildContentList(viewModel.allItems$, theme, viewModel),
-                      _buildContentList(viewModel.allSummaries$, theme, viewModel),
-                      _buildContentList(viewModel.allQuizzes$, theme, viewModel),
-                      _buildContentList(viewModel.allFlashcards$, theme, viewModel),
+                      _buildContentList(
+                          viewModel.allSummaries$, theme, viewModel),
+                      _buildContentList(
+                          viewModel.allQuizzes$, theme, viewModel),
+                      _buildContentList(
+                          viewModel.allFlashcards$, theme, viewModel),
                     ],
                   );
                 } else {
@@ -158,9 +170,12 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
                     controller: _folderTabController,
                     children: [
                       _buildContentList(viewModel.allItems$, theme, viewModel),
-                      _buildContentList(viewModel.allSummaries$, theme, viewModel),
-                      _buildContentList(viewModel.allQuizzes$, theme, viewModel),
-                      _buildContentList(viewModel.allFlashcards$, theme, viewModel),
+                      _buildContentList(
+                          viewModel.allSummaries$, theme, viewModel),
+                      _buildContentList(
+                          viewModel.allQuizzes$, theme, viewModel),
+                      _buildContentList(
+                          viewModel.allFlashcards$, theme, viewModel),
                     ],
                   );
                 }
@@ -172,27 +187,39 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
     );
   }
 
-  AppBar _buildAppBar(BuildContext context, ThemeData theme, LibraryViewModel viewModel) {
+  AppBar _buildAppBar(
+      BuildContext context, ThemeData theme, LibraryViewModel viewModel) {
     final selectedFolder = viewModel.selectedFolder;
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      leading: selectedFolder != null ? IconButton(icon: const Icon(Icons.arrow_back_ios_new), onPressed: () => viewModel.selectFolder(null)) : null,
-      title: Text(selectedFolder?.name ?? 'Library', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+      leading: selectedFolder != null
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new),
+              onPressed: () => viewModel.selectFolder(null))
+          : null,
+      title: Text(selectedFolder?.name ?? 'Library',
+          style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
       centerTitle: true,
       actions: [
         if (viewModel.isSyncing)
           const Padding(
             padding: EdgeInsets.only(right: 16.0),
-            child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2)),
           )
         else
-          IconButton(icon: const Icon(Icons.sync), onPressed: viewModel.syncAllData),
+          IconButton(
+              icon: const Icon(Icons.sync), onPressed: viewModel.syncAllData),
       ],
     );
   }
 
-  Widget _buildSearchAndTabs(BuildContext context, ThemeData theme, LibraryViewModel viewModel) {
+  Widget _buildSearchAndTabs(
+      BuildContext context, ThemeData theme, LibraryViewModel viewModel) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
@@ -211,11 +238,14 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
             ),
             child: TextField(
               controller: _searchController,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Search Library...',
-                hintStyle: TextStyle(color: theme.colorScheme.onSurface.withAlpha(128)),
-                prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurface.withAlpha(128)),
+                hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurface.withAlpha(128)),
+                prefixIcon: Icon(Icons.search,
+                    color: theme.colorScheme.onSurface.withAlpha(128)),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 15.0),
               ),
@@ -228,26 +258,42 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
     );
   }
 
-  Widget _buildTabBar(BuildContext context, ThemeData theme, LibraryViewModel viewModel) {
+  Widget _buildTabBar(
+      BuildContext context, ThemeData theme, LibraryViewModel viewModel) {
     final selectedFolder = viewModel.selectedFolder;
     return TabBar(
-      controller: selectedFolder == null ? _mainTabController : _folderTabController,
+      controller:
+          selectedFolder == null ? _mainTabController : _folderTabController,
       isScrollable: true,
       tabs: selectedFolder == null
-          ? const [Tab(text: 'Folders'), Tab(text: 'All'), Tab(text: 'Summaries'), Tab(text: 'Quizzes'), Tab(text: 'Flashcards')]
-          : const [Tab(text: 'All'), Tab(text: 'Summaries'), Tab(text: 'Quizzes'), Tab(text: 'Flashcards')],
+          ? const [
+              Tab(text: 'Folders'),
+              Tab(text: 'All'),
+              Tab(text: 'Summaries'),
+              Tab(text: 'Quizzes'),
+              Tab(text: 'Flashcards')
+            ]
+          : const [
+              Tab(text: 'All'),
+              Tab(text: 'Summaries'),
+              Tab(text: 'Quizzes'),
+              Tab(text: 'Flashcards')
+            ],
       indicator: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
         color: theme.colorScheme.primary,
       ),
-      labelStyle: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+      labelStyle:
+          theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
       unselectedLabelColor: theme.colorScheme.onSurface.withAlpha(153),
       labelColor: theme.colorScheme.onPrimary,
       dividerColor: Colors.transparent,
       splashFactory: NoSplash.splashFactory,
       overlayColor: WidgetStateProperty.resolveWith<Color?>(
         (Set<WidgetState> states) {
-          return states.contains(WidgetState.focused) ? null : Colors.transparent;
+          return states.contains(WidgetState.focused)
+              ? null
+              : Colors.transparent;
         },
       ),
     ).animate().fadeIn(delay: 100.ms).slideX();
@@ -267,7 +313,10 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
 
         final filteredFolders = _searchQuery.isEmpty
             ? folders
-            : folders.where((folder) => folder.name.toLowerCase().contains(_searchQuery)).toList();
+            : folders
+                .where((folder) =>
+                    folder.name.toLowerCase().contains(_searchQuery))
+                .toList();
 
         if (filteredFolders.isEmpty && _searchQuery.isNotEmpty) {
           return _buildNoSearchResultsState(theme);
@@ -285,28 +334,37 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
               iconColor: Colors.amber,
               theme: theme,
               onTap: () => viewModel.selectFolder(folder),
-            ).animate().fadeIn(delay: (50 * index).ms).slideY(begin: 0.1, duration: 300.ms);
+            )
+                .animate()
+                .fadeIn(delay: (50 * index).ms)
+                .slideY(begin: 0.1, duration: 300.ms);
           },
         );
       },
     );
   }
 
-  Widget _buildContentList(Stream<List<LibraryItem>> stream, ThemeData theme, LibraryViewModel viewModel) {
+  Widget _buildContentList(Stream<List<LibraryItem>> stream, ThemeData theme,
+      LibraryViewModel viewModel) {
     return StreamBuilder<List<LibraryItem>>(
       stream: stream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return _buildNoContentState(viewModel.selectedFolder == null ? 'content' : 'folder content', theme);
+          return _buildNoContentState(
+              viewModel.selectedFolder == null ? 'content' : 'folder content',
+              theme);
         }
 
-        final items = snapshot.data!.where((item) => item.title.toLowerCase().contains(_searchQuery)).toList();
+        final items = snapshot.data!
+            .where((item) => item.title.toLowerCase().contains(_searchQuery))
+            .toList();
 
         if (items.isEmpty && _searchQuery.isNotEmpty) {
           return _buildNoSearchResultsState(theme);
@@ -333,8 +391,12 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
                   ),
                   child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                child: _buildLibraryCard(item, theme, () => _navigateToContent(context, item)),
-              ).animate().fadeIn(delay: (50 * index).ms).slideY(begin: 0.1, duration: 300.ms);
+                child: _buildLibraryCard(
+                    item, theme, () => _navigateToContent(context, item)),
+              )
+                  .animate()
+                  .fadeIn(delay: (50 * index).ms)
+                  .slideY(begin: 0.1, duration: 300.ms);
             },
           ),
         );
@@ -342,7 +404,8 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
     );
   }
 
-  Widget _buildLibraryCard(LibraryItem item, ThemeData theme, VoidCallback onTap) {
+  Widget _buildLibraryCard(
+      LibraryItem item, ThemeData theme, VoidCallback onTap) {
     IconData icon;
     Color iconColor;
     switch (item.type) {
@@ -415,16 +478,27 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
-                      Text(subtitle, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12, color: theme.colorScheme.onSurface.withAlpha(153), fontWeight: FontWeight.w500)),
+                      Text(subtitle,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurface.withAlpha(153),
+                              fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
                 if (trailing != null)
                   trailing
                 else
-                  Icon(Icons.chevron_right, color: theme.colorScheme.onSurface.withAlpha(77)),
+                  Icon(Icons.chevron_right,
+                      color: theme.colorScheme.onSurface.withAlpha(77)),
               ],
             ),
           ),
@@ -446,7 +520,8 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
         break;
       default:
         title = 'No content yet';
-        message = 'Tap the + button to create your first set of study materials!';
+        message =
+            'Tap the + button to create your first set of study materials!';
     }
 
     return Center(
@@ -455,14 +530,19 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.school_outlined, size: 100, color: theme.colorScheme.primary.withAlpha(51)),
+            Icon(Icons.school_outlined,
+                size: 100, color: theme.colorScheme.primary.withAlpha(51)),
             const SizedBox(height: 24),
-            Text(title, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface.withAlpha(153))),
+            Text(title,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface.withAlpha(153))),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withAlpha(128)),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurface.withAlpha(128)),
             ),
           ],
         ),
@@ -477,14 +557,19 @@ class _LibraryViewState extends State<_LibraryView> with TickerProviderStateMixi
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off_outlined, size: 100, color: theme.colorScheme.primary.withAlpha(51)),
+            Icon(Icons.search_off_outlined,
+                size: 100, color: theme.colorScheme.primary.withAlpha(51)),
             const SizedBox(height: 24),
-            Text('No Results Found', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface.withAlpha(153))),
+            Text('No Results Found',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface.withAlpha(153))),
             const SizedBox(height: 12),
             Text(
               'Your search for "$_searchQuery" did not match any content. Try a different search term.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withAlpha(128)),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurface.withAlpha(128)),
             ),
           ],
         ),

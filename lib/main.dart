@@ -1,7 +1,9 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, PlatformDispatcher;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart'
+    show kDebugMode, kIsWeb, PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/providers/sync_provider.dart';
@@ -31,6 +33,7 @@ import 'package:sumquiz/services/spaced_repetition_service.dart';
 import 'package:sumquiz/services/mission_service.dart';
 import 'package:sumquiz/services/time_sync_service.dart';
 import 'package:sumquiz/services/error_reporting_service.dart';
+import 'package:sumquiz/services/notification_integration.dart';
 import 'package:sumquiz/widgets/notification_navigator.dart';
 
 void main() async {
@@ -69,7 +72,8 @@ void main() async {
 
   if (!kIsWeb) {
     await FirebaseAppCheck.instance.activate(
-      androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+      androidProvider:
+          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
       appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
     );
   }
@@ -107,6 +111,32 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _router = createAppRouter(widget.authService);
+
+    // 🔔 Schedule notifications on app launch
+    _scheduleNotificationsOnLaunch();
+  }
+
+  Future<void> _scheduleNotificationsOnLaunch() async {
+    // Wait a bit for providers to initialize
+    await Future.delayed(const Duration(seconds: 2));
+
+    try {
+      final user = widget.authService.currentUser;
+      if (user != null && mounted) {
+        // Get user model from Firestore
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists && mounted) {
+          final userModel = UserModel.fromFirestore(userDoc);
+          await NotificationIntegration.onAppLaunch(context, userModel);
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to schedule notifications on app launch: $e');
+    }
   }
 
   @override

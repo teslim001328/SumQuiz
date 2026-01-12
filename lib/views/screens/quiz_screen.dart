@@ -11,6 +11,7 @@ import '../../models/local_quiz_question.dart';
 import '../../services/enhanced_ai_service.dart';
 import '../../services/local_database_service.dart';
 import '../../services/usage_service.dart';
+import '../../services/notification_integration.dart';
 import '../../view_models/quiz_view_model.dart';
 import '../widgets/upgrade_dialog.dart';
 import '../widgets/quiz_view.dart';
@@ -52,7 +53,8 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
-    _aiService = EnhancedAIService(iapService: Provider.of<IAPService>(context, listen: false));
+    _aiService = EnhancedAIService(
+        iapService: Provider.of<IAPService>(context, listen: false));
     _localDbService.init();
 
     if (widget.quiz != null) {
@@ -219,6 +221,24 @@ class _QuizScreenState extends State<QuizScreen> {
       }
 
       quizViewModel.refresh();
+
+      // 🔔 Schedule notifications after quiz completion
+      if (mounted) {
+        try {
+          // Use title as topic since LocalQuiz doesn't have tags
+          final topic = _titleController.text.split(' ').first;
+          final score = percentageScore / 100.0; // Convert to 0-1 range
+
+          await NotificationIntegration.onQuizCompleted(
+            context,
+            topic,
+            score,
+          );
+        } catch (e) {
+          debugPrint('Failed to schedule notifications: $e');
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Final score saved!'),
@@ -283,14 +303,12 @@ class _QuizScreenState extends State<QuizScreen> {
                     children: [
                       Icon(Icons.person_outline_rounded,
                           size: 16,
-                          color: theme.colorScheme.onSurface
-                              .withOpacity(0.6)),
+                          color: theme.colorScheme.onSurface.withOpacity(0.6)),
                       const SizedBox(width: 6),
                       Text(
                         'Created by ${widget.quiz!.creatorName}',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withOpacity(0.6),
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -456,8 +474,8 @@ class _QuizScreenState extends State<QuizScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                        color: theme.colorScheme.primary, width: 2),
+                    borderSide:
+                        BorderSide(color: theme.colorScheme.primary, width: 2),
                   ),
                   contentPadding: const EdgeInsets.all(20),
                 ),
@@ -497,8 +515,8 @@ class _QuizScreenState extends State<QuizScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                        color: theme.colorScheme.primary, width: 2),
+                    borderSide:
+                        BorderSide(color: theme.colorScheme.primary, width: 2),
                   ),
                   contentPadding: const EdgeInsets.all(20),
                 ),
@@ -558,12 +576,12 @@ class _QuizScreenState extends State<QuizScreen> {
   Widget _buildResultScreen(ThemeData theme) {
     final percentage =
         _questions.isNotEmpty ? (_score / _questions.length) * 100 : 0;
-    
+
     // Determine performance level
     String performanceText;
     Color performanceColor;
     IconData performanceIcon;
-    
+
     if (percentage >= 90) {
       performanceText = 'Outstanding!';
       performanceColor = Colors.green;
@@ -645,8 +663,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     Text(
                       '$_score out of ${_questions.length} correct',
                       style: theme.textTheme.titleLarge?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withOpacity(0.7),
+                        color: theme.colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                   ],

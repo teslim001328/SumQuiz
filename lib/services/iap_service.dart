@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
+import 'package:sumquiz/models/user_model.dart';
 
 /// IAP Service for handling Play Store purchases
 /// Replaces RevenueCat with direct Play Store integration
@@ -116,10 +117,10 @@ class IAPService {
     try {
       // Determine subscription details
       DateTime? expiryDate;
-      bool isLifetime = false;
 
       if (purchaseDetails.productID == _proLifetimeId) {
-        isLifetime = true;
+        // Lifetime: Set expiry far in the future (100 years)
+        expiryDate = DateTime.now().add(const Duration(days: 36500));
       } else {
         // For recurring subscriptions, set expiry to 1 month or 1 year from now
         final now = DateTime.now();
@@ -131,11 +132,11 @@ class IAPService {
       }
 
       // Update user document in Firestore
+      // Note: isPro is a computed getter, so we only update subscriptionExpiry
       await _firestore.collection('users').doc(uid).set({
-        'isPro': true,
-        'subscriptionExpiry': expiryDate != null
-            ? Timestamp.fromDate(expiryDate)
-            : null, // null for lifetime
+        'subscriptionExpiry':
+            expiryDate != null ? Timestamp.fromDate(expiryDate) : null,
+        'isTrial': false, // Paid subscription, not trial
         'currentProduct': purchaseDetails.productID,
         'lastVerified': FieldValue.serverTimestamp(),
         'purchaseToken':
@@ -212,29 +213,13 @@ class IAPService {
         return false;
       }
 
-      // Check Firestore for subscription status
+      // Get user document and use UserModel to check Pro status
       final doc = await _firestore.collection('users').doc(user.uid).get();
       if (!doc.exists) return false;
 
-      final data = doc.data();
-      if (data == null ||
-          !data.containsKey('isPro') ||
-          !(data['isPro'] as bool)) {
-        return false;
-      }
-
-      // Check expiration
-      if (data.containsKey('subscriptionExpiry')) {
-        if (data['subscriptionExpiry'] == null) {
-          // Lifetime access
-          return true;
-        }
-
-        final expiryDate = (data['subscriptionExpiry'] as Timestamp).toDate();
-        return expiryDate.isAfter(DateTime.now());
-      }
-
-      return false;
+      // Use UserModel to properly check Pro status
+      final userModel = UserModel.fromFirestore(doc);
+      return userModel.isPro;
     } catch (e) {
       developer.log('Failed to check Pro access', name: 'IAPService', error: e);
       return false;
@@ -286,17 +271,10 @@ class IAPService {
   Stream<bool> isProStream(String uid) {
     return _firestore.collection('users').doc(uid).snapshots().map((snapshot) {
       if (!snapshot.exists) return false;
-      final data = snapshot.data() as Map<String, dynamic>;
 
-      // Check for 'subscriptionExpiry' field
-      if (data.containsKey('subscriptionExpiry')) {
-        // Lifetime access is handled by a null expiry date
-        if (data['subscriptionExpiry'] == null) return true;
-
-        final expiryDate = (data['subscriptionExpiry'] as Timestamp).toDate();
-        return expiryDate.isAfter(DateTime.now());
-      }
-      return false;
+      // Use UserModel to properly check Pro status
+      final userModel = UserModel.fromFirestore(snapshot);
+      return userModel.isPro;
     }).handleError((error) {
       developer.log('Error in isProStream: $error',
           name: 'IAPService', error: error);

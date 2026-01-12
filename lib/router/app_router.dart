@@ -12,7 +12,7 @@ import 'package:sumquiz/views/screens/auth_screen.dart';
 import 'package:sumquiz/views/screens/library_screen.dart';
 import 'package:sumquiz/views/screens/progress_screen.dart';
 import 'package:sumquiz/views/screens/settings_screen.dart';
-import 'package:sumquiz/views/screens/dashboard_screen.dart';
+// import 'package:sumquiz/views/screens/dashboard_screen.dart'; // TODO: Create this screen
 import 'package:sumquiz/views/screens/summary_screen.dart';
 import 'package:sumquiz/views/screens/quiz_screen.dart';
 import 'package:sumquiz/views/screens/flashcards_screen.dart';

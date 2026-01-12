@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -5,9 +6,13 @@ import 'package:provider/provider.dart';
 import 'package:sumquiz/services/enhanced_ai_service.dart';
 import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/services/usage_service.dart';
+import 'package:sumquiz/services/notification_integration.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 import 'package:sumquiz/services/auth_service.dart';
+import 'package:sumquiz/views/widgets/web/glass_card.dart';
+import 'package:sumquiz/views/widgets/web/neon_button.dart';
+import 'package:sumquiz/views/widgets/web/particle_background.dart';
 
 class ExtractionViewScreenWeb extends StatefulWidget {
   final String? initialText;
@@ -80,7 +85,6 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
 
     final user = context.read<UserModel?>();
 
-    // Check Limits
     if (user != null) {
       final usageService = UsageService();
       if (!await usageService.canGenerateDeck(user.uid)) {
@@ -101,8 +105,6 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
     try {
       final aiService = context.read<EnhancedAIService>();
       final localDb = context.read<LocalDatabaseService>();
-
-      // Fix: Get userId directly from AuthService for reliability
       final authService = context.read<AuthService>();
       final currentUser = authService.currentUser;
 
@@ -128,9 +130,23 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
         },
       );
 
-      // Record Usage
       if (user != null) {
         await UsageService().recordDeckGeneration(user.uid);
+      }
+
+      // 🔔 Schedule notifications after content generation
+      if (mounted) {
+        try {
+          await NotificationIntegration.onContentGenerated(
+            context,
+            userId,
+            _titleController.text.isNotEmpty
+                ? _titleController.text
+                : 'Untitled Creation',
+          );
+        } catch (e) {
+          debugPrint('Failed to schedule notifications: $e');
+        }
       }
 
       if (mounted) context.go('/library/results-view/$folderId');
@@ -148,188 +164,373 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    const backgroundColor = Color(0xFF0A0E27);
+
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.cardColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
-          onPressed: () => context.pop(),
-        ),
-        title: Text("Create Content",
-            style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.bold)),
-      ),
-      body: Row(
+      backgroundColor: backgroundColor,
+      body: Stack(
         children: [
-          // Left: Editor
-          Expanded(
-            flex: 2,
-            child: Container(
-              margin: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10)
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Text("Source Text",
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold)),
+          // Particle background
+          const Positioned.fill(
+            child: ParticleBackground(
+              numberOfParticles: 30,
+              particleColor: Colors.white,
+            ),
+          ),
+          // Gradient orb
+          Positioned(
+            top: -100,
+            right: -100,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+              child: Container(
+                width: 500,
+                height: 500,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF6366F1).withOpacity(0.25),
+                      const Color(0xFF6366F1).withOpacity(0.0),
+                    ],
                   ),
-                  Divider(height: 1, color: theme.dividerColor),
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      maxLines: null,
-                      expands: true,
-                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-                      cursorColor: theme.colorScheme.primary,
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.all(24),
-                        border: InputBorder.none,
-                        hintText:
-                            "Review and edit your text here before generating...",
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ).animate().slideX(begin: -0.05).fadeIn(),
-
-          // Right: Configuration
-          Expanded(
-            flex: 1,
-            child: Container(
-              color: theme.cardColor,
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Configuration",
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onSurface)),
-                  const SizedBox(height: 32),
-
-                  // Title Input
-                  Text("Title",
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.7))),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _titleController,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: theme.colorScheme.surface,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none),
-                      hintText: "Enter a title for this study set",
-                      hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5)),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Outputs
-                  Text("Generate",
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.7))),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: OutputType.values.map((type) {
-                      final isSelected = _selectedOutputs.contains(type);
-                      return FilterChip(
-                        selected: isSelected,
-                        label: Text(type.name.toUpperCase()),
-                        onSelected: (_) => _toggleOutput(type),
-                        backgroundColor: theme.colorScheme.surface,
-                        selectedColor:
-                            theme.colorScheme.primary.withValues(alpha: 0.1),
-                        labelStyle: theme.textTheme.labelLarge?.copyWith(
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.7),
-                          fontWeight: FontWeight.bold,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : Colors.transparent,
+          ),
+          // Main content
+          Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: Row(
+                  children: [
+                    // Left: Editor
+                    Expanded(
+                      flex: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: GlassCard(
+                          padding: EdgeInsets.zero,
+                          margin: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF6366F1),
+                                            Color(0xFF8B5CF6)
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.edit_note,
+                                          color: Colors.white, size: 20),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      "Source Content",
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                height: 1,
+                                color: Colors.white.withOpacity(0.1),
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  controller: _textController,
+                                  maxLines: null,
+                                  expands: true,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    height: 1.6,
+                                  ),
+                                  decoration: InputDecoration(
+                                    contentPadding: const EdgeInsets.all(24),
+                                    border: InputBorder.none,
+                                    hintText:
+                                        "Review and edit your content here...",
+                                    hintStyle: TextStyle(
+                                      color: Colors.white.withOpacity(0.4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    }).toList(),
-                  ),
-
-                  const Spacer(),
-
-                  // Generate Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleGenerate,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
-                        // dropdownColor: Colors.white, // REMOVED invalid parameter
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
                       ),
-                      child: _isLoading
-                          ? Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                        color: theme.colorScheme.onPrimary,
-                                        strokeWidth: 2)),
-                                const SizedBox(width: 12),
-                                Text(_loadingMessage),
-                              ],
-                            )
-                          : const Text("GENERATE CONTENT",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1)),
-                    ),
-                  ),
-                ],
+                    ).animate().slideX(begin: -0.05).fadeIn(),
+                    // Right: Configuration
+                    SizedBox(
+                      width: 400,
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                            top: 24, right: 24, bottom: 24),
+                        child: GlassCard(
+                          padding: const EdgeInsets.all(32),
+                          margin: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                "Configuration",
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+                              // Title
+                              Text(
+                                "Title",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.1),
+                                  ),
+                                ),
+                                child: TextField(
+                                  controller: _titleController,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 16),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    hintText: "Enter title...",
+                                    hintStyle: TextStyle(
+                                        color: Colors.white.withOpacity(0.4)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+                              // Output types
+                              Text(
+                                "Generate",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ...OutputType.values.map((type) {
+                                final isSelected =
+                                    _selectedOutputs.contains(type);
+                                final gradients = {
+                                  OutputType.summary: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF6366F1),
+                                      Color(0xFF8B5CF6)
+                                    ],
+                                  ),
+                                  OutputType.quiz: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF10B981),
+                                      Color(0xFF06B6D4)
+                                    ],
+                                  ),
+                                  OutputType.flashcards: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFEC4899),
+                                      Color(0xFFF97316)
+                                    ],
+                                  ),
+                                };
+                                final icons = {
+                                  OutputType.summary: Icons.article,
+                                  OutputType.quiz: Icons.quiz,
+                                  OutputType.flashcards: Icons.style,
+                                };
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: GestureDetector(
+                                    onTap: () => _toggleOutput(type),
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        gradient:
+                                            isSelected ? gradients[type] : null,
+                                        color: !isSelected
+                                            ? Colors.white.withOpacity(0.05)
+                                            : null,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Colors.transparent
+                                              : Colors.white.withOpacity(0.1),
+                                        ),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: gradients[type]!
+                                                      .colors
+                                                      .first
+                                                      .withOpacity(0.4),
+                                                  blurRadius: 20,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            icons[type],
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            type.name.toUpperCase(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          if (isSelected)
+                                            const Icon(
+                                              Icons.check_circle,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                              const Spacer(),
+                              // Generate button
+                              if (_isLoading)
+                                _buildLoadingIndicator()
+                              else
+                                NeonButton(
+                                  text: 'GENERATE CONTENT',
+                                  onPressed: _handleGenerate,
+                                  icon: Icons.auto_awesome,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF6366F1),
+                                      Color(0xFF8B5CF6),
+                                      Color(0xFFEC4899)
+                                    ],
+                                  ),
+                                  glowColor: const Color(0xFF6366F1),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 20),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ).animate().slideX(begin: 0.05).fadeIn(),
+                  ],
+                ),
               ),
-            ),
-          ).animate().slideX(begin: 0.05).fadeIn(),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildHeader() {
+    return GlassCard(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      blur: 20,
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+          const SizedBox(width: 16),
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+            ).createShader(bounds),
+            child: const Text(
+              'Review & Generate',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 30,
+            height: 30,
+            child: CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 3,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _loadingMessage,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    )
+        .animate(onPlay: (controller) => controller.repeat())
+        .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.2));
   }
 }

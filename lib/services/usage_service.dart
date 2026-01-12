@@ -2,6 +2,9 @@ import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/referral_service.dart';
+import 'package:sumquiz/services/notification_service.dart';
+import 'package:sumquiz/services/notification_manager.dart';
+import 'package:sumquiz/services/local_database_service.dart';
 
 class UsageConfig {
   static const int freeDecksPerDay =
@@ -22,9 +25,6 @@ class UsageService {
 
       final user = UserModel.fromFirestore(userDoc);
 
-      // Infinite Pro Check
-      if (user.isPro && user.subscriptionExpiry == null) return true;
-
       // Check daily reset
       final now = DateTime.now();
       final lastGen = user.lastDeckGenerationDate;
@@ -35,21 +35,39 @@ class UsageService {
 
       int currentUsage = isNewDay ? 0 : user.dailyDecksGenerated;
 
+      // Determine limit based on user tier
       int limit = UsageConfig.freeDecksPerDay;
 
-      // 1. Creator Bonus or Lifetime/Paid Pro (non-trial) gets high limit
       if (user.isCreatorPro) {
+        // Creator Pro: Unlimited (high cap)
         limit = UsageConfig.proDecksPerDay;
       } else if (user.isPro) {
-        // 2. Trial Pro check
+        // Pro user: Check if trial or paid
         if (user.isTrial) {
-          limit = UsageConfig.trialDecksPerDay; // 3 decks per day
+          limit = UsageConfig.trialDecksPerDay; // 3 decks/day
         } else {
-          limit = UsageConfig.proDecksPerDay; // 100 decks per day (Paid)
+          limit = UsageConfig.proDecksPerDay; // 100 decks/day
         }
       }
 
-      return currentUsage < limit;
+      final canGenerate = currentUsage < limit;
+
+      // 🔔 Schedule Pro upgrade notification if limit reached
+      if (!canGenerate && !user.isPro) {
+        try {
+          final notificationService = NotificationService();
+          final localDb = LocalDatabaseService();
+          final manager = NotificationManager(notificationService, localDb);
+          await manager.scheduleProUpgradeReminder();
+          developer.log('Pro upgrade notification scheduled',
+              name: 'UsageService');
+        } catch (e) {
+          developer.log('Failed to schedule Pro upgrade notification',
+              name: 'UsageService', error: e);
+        }
+      }
+
+      return canGenerate;
     } catch (e, s) {
       developer.log('Error checking usage limit',
           name: 'UsageService', error: e, stackTrace: s);
@@ -97,8 +115,10 @@ class UsageService {
       });
 
       // Grant reward outside the user transaction to ensure atomicity of that specific update
-      await _referralService.grantReferrerReward(referrerIdToReward);
-        } catch (e, s) {
+      if (referrerIdToReward != null) {
+        await _referralService.grantReferrerReward(referrerIdToReward);
+      }
+    } catch (e, s) {
       developer.log('Error recording action',
           name: 'UsageService', error: e, stackTrace: s);
       rethrow;

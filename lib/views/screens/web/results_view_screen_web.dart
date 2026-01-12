@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -11,6 +12,9 @@ import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/views/widgets/flashcards_view.dart';
 import 'package:sumquiz/views/widgets/quiz_view.dart';
 import 'package:sumquiz/views/widgets/summary_view.dart';
+import 'package:sumquiz/views/widgets/web/glass_card.dart';
+import 'package:sumquiz/views/widgets/web/neon_button.dart';
+import 'package:sumquiz/views/widgets/web/particle_background.dart';
 
 class ResultsViewScreenWeb extends StatefulWidget {
   final String folderId;
@@ -61,11 +65,16 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
 
   void _saveToLibrary() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Content saved to your library!'),
-        backgroundColor: Theme.of(context).colorScheme.secondary,
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12),
+            Text('Content saved to your library!'),
+          ],
+        ),
+        backgroundColor: Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
-        width: 400,
       ),
     );
     context.go('/library');
@@ -73,205 +82,276 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    const backgroundColor = Color(0xFF0A0E27);
+
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'Preparation Results',
-          style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-        ),
-        backgroundColor: theme.cardColor,
-        elevation: 0,
-        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
-        centerTitle: false,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: _saveToLibrary,
-              icon: Icon(Icons.check_circle_outline,
-                  size: 20, color: theme.colorScheme.onPrimary),
-              label: Text("Save & Continue",
-                  style: theme.textTheme.labelLarge
-                      ?.copyWith(color: theme.colorScheme.onPrimary)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+      backgroundColor: backgroundColor,
+      body: Stack(
+        children: [
+          // Particle background
+          const Positioned.fill(
+            child: ParticleBackground(
+              numberOfParticles: 30,
+              particleColor: Colors.white,
+            ),
+          ),
+          // Gradient orb
+          Positioned(
+            top: 200,
+            right: -100,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+              child: Container(
+                width: 400,
+                height: 400,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF10B981).withOpacity(0.2),
+                      const Color(0xFF10B981).withOpacity(0.0),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Text(_errorMessage!, style: theme.textTheme.bodyLarge))
-              : Row(
-                  children: [
-                    // Sidebar
-                    Container(
-                      width: 280,
-                      decoration: BoxDecoration(
-                        color: theme.cardColor,
-                        border: Border(
-                            right: BorderSide(color: theme.dividerColor)),
+          // Main content
+          _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+                )
+              : _errorMessage != null
+                  ? Center(
+                      child: Text(
+                        _errorMessage!,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 18),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Text("Generated Content",
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.5))),
-                          ),
-                          _buildNavItem(0, "Summary", Icons.article_outlined,
-                              _summary != null, theme),
-                          _buildNavItem(1, "Quiz", Icons.quiz_outlined,
-                              _quiz != null, theme),
-                          _buildNavItem(
-                              2,
-                              "Flashcards",
-                              Icons.view_carousel_outlined,
-                              _flashcardSet != null,
-                              theme),
-                        ],
-                      ),
-                    ),
-                    // Main Content
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(40),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 800),
-                            child: _buildSelectedTabView(theme)
-                                .animate()
-                                .fadeIn(duration: 300.ms)
-                                .slideX(begin: 0.1, curve: Curves.easeOut),
+                    )
+                  : Column(
+                      children: [
+                        _buildHeader(),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              _buildSidebar(),
+                              Expanded(child: _buildContent()),
+                            ],
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+        ],
+      ),
     );
   }
 
-  Widget _buildNavItem(int index, String label, IconData icon, bool hasContent,
-      ThemeData theme) {
-    if (!hasContent) return const SizedBox.shrink();
-
-    final isSelected = _selectedTab == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedTab = index),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primary.withValues(alpha: 0.05)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                : Colors.transparent,
+  Widget _buildHeader() {
+    return GlassCard(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      blur: 20,
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.pop(),
           ),
-        ),
-        child: Row(
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child:
+                const Icon(Icons.emoji_events, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 16),
+          const Text(
+            'Your Study Materials',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+          const Spacer(),
+          NeonButton(
+            text: 'Save to Library',
+            onPressed: _saveToLibrary,
+            icon: Icons.check_circle,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+            ),
+            glowColor: const Color(0xFF10B981),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return GlassCard(
+      margin: const EdgeInsets.only(left: 20, bottom: 20),
+      padding: const EdgeInsets.all(24),
+      blur: 20,
+      child: SizedBox(
+        width: 250,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon,
-                size: 20,
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-            const SizedBox(width: 12),
-            Text(label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.7))),
-            const Spacer(),
-            if (isSelected)
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                    color: theme.colorScheme.primary, shape: BoxShape.circle),
-              )
+            Text(
+              'Generated',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withOpacity(0.6),
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (_summary != null)
+              _buildNavItem(
+                0,
+                'Summary',
+                Icons.article,
+                const LinearGradient(
+                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                ),
+              ),
+            if (_quiz != null)
+              _buildNavItem(
+                1,
+                'Quiz',
+                Icons.quiz,
+                const LinearGradient(
+                  colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+                ),
+              ),
+            if (_flashcardSet != null)
+              _buildNavItem(
+                2,
+                'Flashcards',
+                Icons.style,
+                const LinearGradient(
+                  colors: [Color(0xFFEC4899), Color(0xFFF97316)],
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSelectedTabView(ThemeData theme) {
+  Widget _buildNavItem(
+      int index, String label, IconData icon, Gradient gradient) {
+    final isSelected = _selectedTab == index;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTab = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          decoration: BoxDecoration(
+            gradient: isSelected ? gradient : null,
+            color: !isSelected ? Colors.white.withOpacity(0.03) : null,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: (gradient as LinearGradient)
+                          .colors
+                          .first
+                          .withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: Colors.white,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 20, bottom: 20),
+      child: GlassCard(
+        padding: const EdgeInsets.all(40),
+        margin: EdgeInsets.zero,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: _buildSelectedTabView()
+                .animate()
+                .fadeIn(duration: 300.ms)
+                .slideX(begin: 0.05),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedTabView() {
     switch (_selectedTab) {
       case 0:
-        return _buildSummaryTab(theme);
+        return _buildSummaryTab();
       case 1:
-        return _buildQuizzesTab(theme);
+        return _buildQuizzesTab();
       case 2:
-        return _buildFlashcardsTab(theme);
+        return _buildFlashcardsTab();
       default:
         return Container();
     }
   }
 
-  Widget _buildSummaryTab(ThemeData theme) {
+  Widget _buildSummaryTab() {
     if (_summary == null) return const SizedBox();
-    return Card(
-      elevation: 0,
-      color: theme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: SummaryView(
-          title: _summary!.title,
-          content: _summary!.content,
-          tags: _summary!.tags,
-          showActions: true,
-          onCopy: () {
-            Clipboard.setData(ClipboardData(text: _summary!.content));
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Summary copied to clipboard')),
-            );
-          },
-        ),
-      ),
+    return SummaryView(
+      title: _summary!.title,
+      content: _summary!.content,
+      tags: _summary!.tags,
+      showActions: true,
+      onCopy: () {
+        Clipboard.setData(ClipboardData(text: _summary!.content));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Summary copied to clipboard')),
+        );
+      },
     );
   }
 
-  Widget _buildQuizzesTab(ThemeData theme) {
+  Widget _buildQuizzesTab() {
     if (_quiz == null) return const SizedBox();
-    return Card(
-      elevation: 0,
-      color: theme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: QuizView(
-          title: _quiz!.title,
-          questions: _quiz!.questions,
-          onAnswer: (isCorrect) {},
-          onFinish: () {},
-        ),
-      ),
+    return QuizView(
+      title: _quiz!.title,
+      questions: _quiz!.questions,
+      onAnswer: (isCorrect) {},
+      onFinish: () {},
     );
   }
 
-  Widget _buildFlashcardsTab(ThemeData theme) {
+  Widget _buildFlashcardsTab() {
     if (_flashcardSet == null) return const SizedBox();
 
     final flashcards = _flashcardSet!.flashcards
@@ -284,7 +364,7 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
 
     return Center(
       child: SizedBox(
-        height: 600, // Constrain height for the card swiper
+        height: 600,
         child: FlashcardsView(
           title: _flashcardSet!.title,
           flashcards: flashcards,

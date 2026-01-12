@@ -1,13 +1,16 @@
+import 'dart:ui';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
 import 'package:provider/provider.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/models/local_quiz.dart';
 import 'package:sumquiz/models/local_flashcard_set.dart';
+import 'package:sumquiz/views/widgets/web/glass_card.dart';
+import 'package:sumquiz/views/widgets/web/particle_background.dart';
+import 'package:sumquiz/views/widgets/web/exam_stats_card.dart';
 
 class ProgressScreenWeb extends StatefulWidget {
   const ProgressScreenWeb({super.key});
@@ -17,7 +20,6 @@ class ProgressScreenWeb extends StatefulWidget {
 }
 
 class _ProgressScreenWebState extends State<ProgressScreenWeb> {
-  // Stats
   int _summariesCount = 0;
   int _quizzesCount = 0;
   int _flashcardsCount = 0;
@@ -41,12 +43,10 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
       final dbService = LocalDatabaseService();
       await dbService.init();
 
-      // Fetch Local Data
       final summaries = await dbService.getAllSummaries(user.uid);
       final quizzes = await dbService.getAllQuizzes(user.uid);
       final flashcards = await dbService.getAllFlashcardSets(user.uid);
 
-      // Calculate Quiz Stats
       double totalAccuracy = 0.0;
       int quizCountWithScores = 0;
       int totalSeconds = 0;
@@ -57,25 +57,12 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
           totalAccuracy += avgQ;
           quizCountWithScores++;
         }
-        // Accumulate time spent
         totalSeconds += quiz.timeSpent;
       }
 
       final accuracy =
           quizCountWithScores > 0 ? totalAccuracy / quizCountWithScores : 0.0;
-
-      // Calculate Weekly Activity locally
       final activity = _calculateWeeklyActivity(summaries, quizzes, flashcards);
-
-      // Determine Most Active Day
-      // activity is [Mon, Tue, ... Sun] (0..6) logic in _calculateWeeklyActivity?
-      // Wait, _calculateWeeklyActivity implementation below uses diff from today.
-      // diff 0 = Today. diff 1 = Yesterday.
-      // So index 0 is Today, index 1 is Yesterday.
-      // We need to map that back to day names.
-      // Let's refine _calculateWeeklyActivity logic to be clear about indices.
-      // Current implementation: `activity[diff]++` where diff is days ago.
-      // So index 0 = Today, index 6 = 6 days ago.
 
       int maxActivityIndex = 0;
       double maxVal = -1;
@@ -86,10 +73,8 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
         }
       }
 
-      // Map index (days ago) to Day Name
       final activeDate =
           DateTime.now().subtract(Duration(days: maxActivityIndex));
-      // Simple day name
       const days = [
         'Monday',
         'Tuesday',
@@ -99,11 +84,8 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
         'Saturday',
         'Sunday'
       ];
-      // DateTime.weekday: 1=Mon, 7=Sun.
-      // days[weekday-1]
       String activeDayName = maxVal > 0 ? days[activeDate.weekday - 1] : 'None';
 
-      // Format Time
       final minutes = (totalSeconds / 60).floor();
       final hours = (minutes / 60).floor();
       final displayTime =
@@ -125,7 +107,6 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-      debugPrint('Error loading stats: $e');
     }
   }
 
@@ -133,7 +114,6 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
       List<LocalQuiz> quizzes, List<LocalFlashcardSet> flashcards) {
     final today = DateTime.now();
     final startOfToday = DateTime(today.year, today.month, today.day);
-    // 0 to 6 (7 days)
     final activity = List<double>.filled(7, 0);
 
     void processItems(List<dynamic> items) {
@@ -153,179 +133,187 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
     processItems(quizzes);
     processItems(flashcards);
 
-    // FlSpot(x, y) where x is index 0..6
     return List.generate(
         7, (index) => FlSpot(index.toDouble(), activity[index]));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final theme = Theme.of(context);
+    const backgroundColor = Color(0xFF0A0E27);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Your Progress",
-                style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface)),
-            const SizedBox(height: 8),
-            Text("Track your learning journey and stats",
-                style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
-            const SizedBox(height: 48),
-
-            // Top Stats Row
-            Row(
-              children: [
-                _buildStatCard("Total Summaries", _summariesCount.toString(),
-                    Icons.article_outlined, Colors.blue, theme),
-                const SizedBox(width: 24),
-                _buildStatCard("Quizzes Taken", _quizzesCount.toString(),
-                    Icons.quiz_outlined, Colors.orange, theme),
-                const SizedBox(width: 24),
-                _buildStatCard("Flashcards", _flashcardsCount.toString(),
-                    Icons.view_carousel_outlined, Colors.purple, theme),
-                const SizedBox(width: 24),
-                _buildStatCard(
-                    "Avg. Accuracy",
-                    "${(_averageAccuracy * 100).toStringAsFixed(1)}%",
-                    Icons.show_chart,
-                    Colors.green,
-                    theme),
-              ],
+      backgroundColor: backgroundColor,
+      body: Stack(
+        children: [
+          // Particle background
+          const Positioned.fill(
+            child: ParticleBackground(
+              numberOfParticles: 30,
+              particleColor: Colors.white,
             ),
-
-            const SizedBox(height: 40),
-
-            // Charts Row
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: _buildActivityChart(theme),
-                ),
-                const SizedBox(width: 24),
-                // Insight Column
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    height: 400,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                        color: theme.cardColor,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10)
-                        ]),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Quick Insights",
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 24),
-                        _buildInsightRow(
-                            "Most Active Day", _mostActiveDay, theme),
-                        _buildInsightRow(
-                            "Total Study Time", _totalTimeDisplay, theme),
-                        _buildInsightRow(
-                            "Learning Streak",
-                            "${Provider.of<UserModel?>(context)?.missionCompletionStreak ?? 0} Days",
-                            theme),
-                      ],
-                    ),
+          ),
+          // Gradient orbs
+          Positioned(
+            top: -100,
+            left: 200,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+              child: Container(
+                width: 400,
+                height: 400,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF10B981).withOpacity(0.2),
+                      const Color(0xFF10B981).withOpacity(0.0),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ],
-        ),
+          ),
+          // Main content
+          _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [Colors.white, Color(0xFFB4B4FF)],
+                        ).createShader(bounds),
+                        child: const Text(
+                          "Your Progress",
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ).animate().fadeIn().slideY(begin: -0.2),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Track your learning journey and achievements",
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ).animate().fadeIn(delay: 200.ms),
+                      const SizedBox(height: 48),
+                      // Stats cards
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ExamStatsCard(
+                              title: "Summaries",
+                              value: _summariesCount.toString(),
+                              icon: Icons.article,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                              ),
+                              animationDelay: 0,
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: ExamStatsCard(
+                              title: "Quizzes",
+                              value: _quizzesCount.toString(),
+                              icon: Icons.quiz,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+                              ),
+                              animationDelay: 100,
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: ExamStatsCard(
+                              title: "Flashcards",
+                              value: _flashcardsCount.toString(),
+                              icon: Icons.style,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFEC4899), Color(0xFFF97316)],
+                              ),
+                              animationDelay: 200,
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: ExamStatsCard(
+                              title: "Accuracy",
+                              value:
+                                  "${(_averageAccuracy * 100).toStringAsFixed(0)}%",
+                              icon: Icons.trending_up,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
+                              ),
+                              animationDelay: 300,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 40),
+                      // Charts row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: _buildActivityChart(),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: _buildInsightsCard(),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color, ThemeData theme) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)
-            ]),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(value,
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                Text(title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.6))),
-              ],
-            ),
-          ],
-        ),
-      )
-          .animate()
-          .scale(delay: 100.ms, duration: 400.ms, curve: Curves.easeOutBack),
-    );
-  }
-
-  Widget _buildActivityChart(ThemeData theme) {
-    return Container(
-      height: 400,
+  Widget _buildActivityChart() {
+    return GlassCard(
       padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)
-          ]),
+      margin: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Weekly Activity",
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+          const Text(
+            "Weekly Activity",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
           const SizedBox(height: 32),
-          Expanded(
+          SizedBox(
+            height: 300,
             child: LineChart(
               LineChartData(
-                gridData: const FlGridData(show: false),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.white.withOpacity(0.1),
+                    strokeWidth: 1,
+                  ),
+                ),
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        // meta required here
                         const days = [
                           'Mon',
                           'Tue',
@@ -335,15 +323,16 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
                           'Sat',
                           'Sun'
                         ];
-                        // Simple mapping, ideally match actual dates from data
                         if (value.toInt() >= 0 && value.toInt() < 7) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(days[value.toInt()],
-                                style: TextStyle(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.5),
-                                    fontSize: 12)),
+                            child: Text(
+                              days[value.toInt()],
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.6),
+                                fontSize: 12,
+                              ),
+                            ),
                           );
                         }
                         return const Text('');
@@ -361,15 +350,34 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: _weeklyActivity, // Using fetched data
+                    spots: _weeklyActivity,
                     isCurved: true,
-                    color: theme.colorScheme.primary,
-                    barWidth: 3,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    barWidth: 4,
                     isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 6,
+                          color: Colors.white,
+                          strokeWidth: 3,
+                          strokeColor: const Color(0xFF6366F1),
+                        );
+                      },
+                    ),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF6366F1).withOpacity(0.3),
+                          const Color(0xFF8B5CF6).withOpacity(0.1),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
                     ),
                   ),
                 ],
@@ -378,23 +386,97 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 600.ms);
+    ).animate().fadeIn(delay: 400.ms);
   }
 
-  Widget _buildInsightRow(String label, String value, ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildInsightsCard() {
+    final user = Provider.of<UserModel?>(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(32),
+      margin: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
-          Text(value,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+          const Text(
+            "Quick Insights",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 32),
+          _buildInsightRow("Most Active Day", _mostActiveDay),
+          const SizedBox(height: 24),
+          _buildInsightRow("Total Study Time", _totalTimeDisplay),
+          const SizedBox(height: 24),
+          _buildInsightRow(
+            "Learning Streak",
+            "${user?.missionCompletionStreak ?? 0} Days",
+          ),
+          const SizedBox(height: 32),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.emoji_events, color: Colors.white, size: 32),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Keep it up!",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        "You're doing great",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
+    ).animate().fadeIn(delay: 600.ms);
+  }
+
+  Widget _buildInsightRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 15,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ],
     );
   }
 }

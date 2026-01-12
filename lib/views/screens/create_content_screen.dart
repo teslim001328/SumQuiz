@@ -7,7 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/content_extraction_service.dart';
 import 'package:sumquiz/services/enhanced_ai_service.dart';
-import 'package:sumquiz/views/widgets/extraction_progress_dialog.dart';
+// TODO: Create this widget
+// import 'package:sumquiz/views/widgets/extraction_progress_dialog.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 
 class InputValidator {
@@ -156,7 +157,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   Future<void> _processAndNavigate() async {
     final user = Provider.of<UserModel?>(context, listen: false);
     if (user == null) {
-      setState(() => _errorMessage = 'You must be logged in to create content.');
+      setState(
+          () => _errorMessage = 'You must be logged in to create content.');
       return;
     }
 
@@ -184,7 +186,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       return;
     }
 
-    final extractionService = Provider.of<ContentExtractionService>(context, listen: false);
+    final extractionService =
+        Provider.of<ContentExtractionService>(context, listen: false);
 
     String? extractedTextResult = await showDialog<String>(
       context: context,
@@ -202,7 +205,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
               throw Exception('Upgrade to Pro to use web links.');
             }
             if (InputValidator.isYoutubeUrl(_linkController.text)) {
-              final ytRegex = RegExp(r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\\shorts\/)([a-zA-Z0-9_-]{11})');
+              final ytRegex = RegExp(
+                  r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\\shorts\/)([a-zA-Z0-9_-]{11})');
               if (!ytRegex.hasMatch(_linkController.text)) {
                 throw Exception('Invalid YouTube URL format');
               }
@@ -232,7 +236,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             throw Exception('Could not extract any content from the source.');
           }
           if (extractedText.trim().length < 100) {
-            throw Exception('Extracted content is too short. Please use a source with more content.');
+            throw Exception(
+                'Extracted content is too short. Please use a source with more content.');
           }
           return extractedText; // Return only the extracted text
         },
@@ -243,9 +248,10 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       // Navigate to ExtractionViewScreen, passing the extracted text
       context.push('/extraction-view', extra: extractedTextResult);
     } else {
-      if(mounted){
+      if (mounted) {
         setState(() {
-          _errorMessage = _getUserFriendlyError(Exception('Content extraction failed.'));
+          _errorMessage =
+              _getUserFriendlyError(Exception('Content extraction failed.'));
         });
       }
     }
@@ -286,12 +292,13 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             const SizedBox(height: 16),
             RichText(
               text: TextSpan(
-                style: theme.textTheme.displaySmall?.copyWith(
-                    color: colorScheme.onSurface, height: 1.3),
+                style: theme.textTheme.displaySmall
+                    ?.copyWith(color: colorScheme.onSurface, height: 1.3),
                 children: [
                   const TextSpan(text: 'What do you want to '),
                   TextSpan(
-                      text: 'learn', style: TextStyle(color: colorScheme.primary)),
+                      text: 'learn',
+                      style: TextStyle(color: colorScheme.primary)),
                   const TextSpan(text: ' today?'),
                 ],
               ),
@@ -303,7 +310,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             _buildSectionHeader(colorScheme, Icons.link, 'IMPORT WEBPAGE'),
             _buildImportWebpageSection(theme),
             const SizedBox(height: 32),
-            _buildSectionHeader(colorScheme, Icons.picture_as_pdf, 'UPLOAD PDF'),
+            _buildSectionHeader(
+                colorScheme, Icons.picture_as_pdf, 'UPLOAD PDF'),
             _buildUploadPdfSection(theme),
             const SizedBox(height: 32),
             _buildSectionHeader(colorScheme, Icons.fullscreen, 'SCAN IMAGE'),
@@ -370,9 +378,11 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                   _textController.text = data.text ?? '';
                 }
               },
-              icon: Icon(Icons.paste, size: 16, color: theme.colorScheme.onSecondaryContainer),
+              icon: Icon(Icons.paste,
+                  size: 16, color: theme.colorScheme.onSecondaryContainer),
               label: Text('Paste',
-                  style: TextStyle(color: theme.colorScheme.onSecondaryContainer)),
+                  style:
+                      TextStyle(color: theme.colorScheme.onSecondaryContainer)),
               style: TextButton.styleFrom(
                 backgroundColor: theme.colorScheme.secondaryContainer,
                 shape: RoundedRectangleBorder(
@@ -387,8 +397,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   }
 
   Widget _buildImportWebpageSection(ThemeData theme) {
-    final isValid =
-        _linkController.text.isNotEmpty && InputValidator.isValidUrl(_linkController.text);
+    final isValid = _linkController.text.isNotEmpty &&
+        InputValidator.isValidUrl(_linkController.text);
 
     return Container(
       margin: const EdgeInsets.only(top: 16),
@@ -484,7 +494,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             Text(
               _pdfName ?? 'Tap to browse',
               style: TextStyle(
-                  color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold),
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
             ),
@@ -577,7 +588,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         child: ElevatedButton.icon(
           onPressed: _processAndNavigate,
           icon: Icon(Icons.auto_awesome_sharp,
-                  color: theme.colorScheme.onPrimary, size: 20),
+              color: theme.colorScheme.onPrimary, size: 20),
           label: Text(
             'Extract Content',
             style: TextStyle(
@@ -588,7 +599,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: theme.colorScheme.primary,
             disabledBackgroundColor: theme.colorScheme.primary.withAlpha(128),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           ),
         ),
       ),

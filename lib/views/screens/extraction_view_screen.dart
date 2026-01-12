@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:sumquiz/services/enhanced_ai_service.dart';
 import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/services/usage_service.dart';
+import 'package:sumquiz/services/notification_integration.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 import 'package:sumquiz/services/auth_service.dart';
@@ -129,6 +130,22 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
       // Record usage (Deck Generation)
       if (user != null) {
         await UsageService().recordDeckGeneration(user.uid);
+      }
+
+      // 🔔 Schedule notifications after content generation
+      if (mounted) {
+        try {
+          await NotificationIntegration.onContentGenerated(
+            context,
+            userId,
+            _titleController.text.isNotEmpty
+                ? _titleController.text
+                : 'Untitled Creation',
+          );
+        } catch (e) {
+          // Don't block navigation if notification scheduling fails
+          debugPrint('Failed to schedule notifications: $e');
+        }
       }
 
       if (mounted) {

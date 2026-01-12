@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
+import 'package:sumquiz/services/notification_service.dart';
+import 'package:sumquiz/services/notification_manager.dart';
+import 'package:sumquiz/services/local_database_service.dart';
 
 /// A production-grade service for handling a referral system in Flutter and Firebase.
 ///
@@ -127,8 +130,7 @@ class ReferralService {
               'appliedReferralCode': trimmedCode,
               'referredBy': referrerDocRef.id,
               'referralAppliedAt': FieldValue.serverTimestamp(),
-              'isPro': true,
-              'isTrial': true, // MARK AS TRIAL USER
+              'isTrial': true, // Mark as trial user
               'subscriptionExpiry': Timestamp.fromDate(newExpiryDateForNewUser),
             },
             SetOptions(merge: true));
@@ -276,6 +278,19 @@ class ReferralService {
               name: 'ReferralService');
         }
       });
+
+      // 🔔 Schedule referral reward notification
+      try {
+        final notificationService = NotificationService();
+        final localDb = LocalDatabaseService();
+        final manager = NotificationManager(notificationService, localDb);
+        await manager.scheduleReferralReward();
+        developer.log('Referral reward notification scheduled',
+            name: 'ReferralService');
+      } catch (e) {
+        developer.log('Failed to schedule referral reward notification',
+            name: 'ReferralService', error: e);
+      }
     } catch (e) {
       developer.log('Failed to grant referrer reward', error: e);
     }

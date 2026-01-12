@@ -1,9 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/models/library_item.dart';
 import 'package:sumquiz/services/firestore_service.dart';
@@ -11,6 +12,9 @@ import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/view_models/quiz_view_model.dart';
 import 'package:sumquiz/views/screens/summary_screen.dart';
 import 'package:sumquiz/models/folder.dart';
+import 'package:sumquiz/views/widgets/web/glass_card.dart';
+import 'package:sumquiz/views/widgets/web/neon_button.dart';
+import 'package:sumquiz/views/widgets/web/particle_background.dart';
 
 class LibraryScreenWeb extends StatefulWidget {
   const LibraryScreenWeb({super.key});
@@ -26,12 +30,12 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
   final LocalDatabaseService _localDb = LocalDatabaseService();
   final TextEditingController _searchController = TextEditingController();
 
-  bool _isOfflineMode = false;
   String _searchQuery = '';
   Stream<List<LibraryItem>>? _allItemsStream;
   Stream<List<LibraryItem>>? _summariesStream;
   Stream<List<LibraryItem>>? _flashcardsStream;
   String? _userIdForStreams;
+  int _hoveredCard = -1;
 
   @override
   void initState() {
@@ -39,7 +43,6 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
     _tabController = TabController(length: 5, vsync: this);
     _searchController.addListener(_onSearchChanged);
     _localDb.init();
-    _loadOfflineModePreference();
   }
 
   @override
@@ -57,7 +60,6 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
   }
 
   void _initializeStreams(String userId) {
-    // Reusing the stream logic from LibraryScreen for consistency
     final localSummaries = _localDb.watchAllSummaries(userId).map((list) => list
         .map((s) => LibraryItem(
             id: s.id,
@@ -122,118 +124,169 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
   void _onSearchChanged() =>
       setState(() => _searchQuery = _searchController.text.toLowerCase());
 
-  Future<void> _loadOfflineModePreference() async {
-    final isOffline = await _localDb.isOfflineModeEnabled();
-    if (mounted) setState(() => _isOfflineMode = isOffline);
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel?>(context);
-    final theme = Theme.of(context);
+    const backgroundColor = Color(0xFF0A0E27);
 
-    // Desktop Layout: Sidebar + Main Content Area
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Row(
+      backgroundColor: backgroundColor,
+      body: Stack(
         children: [
-          // Sidebar (could be part of shell, but here we can customize filtering)
-          _buildWebSidebar(theme),
-          // Main Content
-          Expanded(
-            child: user == null
-                ? const Center(child: Text("Please Log In"))
-                : _buildWebMainContent(user, theme),
+          // Particle background
+          const Positioned.fill(
+            child: ParticleBackground(
+              numberOfParticles: 30,
+              particleColor: Colors.white,
+            ),
+          ),
+          // Gradient orbs
+          Positioned(
+            top: -100,
+            right: 200,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+              child: Container(
+                width: 400,
+                height: 400,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF6366F1).withOpacity(0.2),
+                      const Color(0xFF6366F1).withOpacity(0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Main content
+          Row(
+            children: [
+              _buildSidebar(),
+              Expanded(
+                child: user == null
+                    ? const Center(
+                        child: Text(
+                          "Please Log In",
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                      )
+                    : _buildMainContent(user),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildWebSidebar(ThemeData theme) {
-    return Container(
-      width: 250,
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        border: Border(right: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Text('Library',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary)),
-          const SizedBox(height: 32),
-          _buildSidebarTab(0, 'Folders', Icons.folder_open, theme),
-          _buildSidebarTab(1, 'All Content', Icons.dashboard_outlined, theme),
-          _buildSidebarTab(2, 'Summaries', Icons.article_outlined, theme),
-          _buildSidebarTab(3, 'Quizzes', Icons.quiz_outlined, theme),
-          _buildSidebarTab(4, 'Flashcards', Icons.style_outlined, theme),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebarTab(
-      int index, String title, IconData icon, ThemeData theme) {
-    final bool isSelected = _tabController.index == index;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _tabController.animateTo(index);
-        });
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          // Subtle background only when selected
-          color: isSelected
-              ? theme.colorScheme.primary.withValues(alpha: 0.08)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
+  Widget _buildSidebar() {
+    return GlassCard(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
+      blur: 20,
+      child: SizedBox(
+        width: 250,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon,
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                size: 22),
-            const SizedBox(width: 16),
-            Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+              ).createShader(bounds),
+              child: const Text(
+                'Library',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
               ),
             ),
+            const SizedBox(height: 40),
+            _buildSidebarTab(0, 'Folders', Icons.folder_open),
+            const SizedBox(height: 8),
+            _buildSidebarTab(1, 'All Content', Icons.dashboard_outlined),
+            const SizedBox(height: 8),
+            _buildSidebarTab(2, 'Summaries', Icons.article_outlined),
+            const SizedBox(height: 8),
+            _buildSidebarTab(3, 'Quizzes', Icons.quiz_outlined),
+            const SizedBox(height: 8),
+            _buildSidebarTab(4, 'Flashcards', Icons.style_outlined),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildWebMainContent(UserModel user, ThemeData theme) {
+  Widget _buildSidebarTab(int index, String title, IconData icon) {
+    final isSelected = _tabController.index == index;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => setState(() => _tabController.animateTo(index)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          decoration: BoxDecoration(
+            gradient: isSelected
+                ? const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  )
+                : null,
+            color: !isSelected ? Colors.white.withOpacity(0.03) : null,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF6366F1).withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color:
+                    isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+                size: 22,
+              ),
+              const SizedBox(width: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color:
+                      isSelected ? Colors.white : Colors.white.withOpacity(0.7),
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainContent(UserModel user) {
     return Column(
       children: [
-        _buildWebHeader(theme),
+        _buildHeader(),
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            physics:
-                const NeverScrollableScrollPhysics(), // Disable swipe on web
+            physics: const NeverScrollableScrollPhysics(),
             children: [
-              _buildFolderGrid(user.uid, theme),
-              _buildCombinedGrid(user.uid, theme),
-              _buildLibraryGrid(user.uid, 'summaries', _summariesStream, theme),
-              _buildQuizGrid(user.uid, theme),
-              _buildLibraryGrid(
-                  user.uid, 'flashcards', _flashcardsStream, theme),
+              _buildFolderGrid(user.uid),
+              _buildCombinedGrid(user.uid),
+              _buildLibraryGrid(user.uid, 'summaries', _summariesStream),
+              _buildQuizGrid(user.uid),
+              _buildLibraryGrid(user.uid, 'flashcards', _flashcardsStream),
             ],
           ),
         ),
@@ -241,118 +294,104 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
     );
   }
 
-  Widget _buildWebHeader(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(32),
       child: Row(
         children: [
           Expanded(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 600),
+            child: GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              margin: EdgeInsets.zero,
               child: TextField(
                 controller: _searchController,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurface),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
                 decoration: InputDecoration(
                   hintText: 'Search your library...',
-                  prefixIcon: Icon(Icons.search,
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: theme.cardColor,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+                  prefixIcon:
+                      Icon(Icons.search, color: Colors.white.withOpacity(0.6)),
+                  border: InputBorder.none,
                 ),
               ),
             ),
           ),
           const SizedBox(width: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showCreateOptions(context, theme),
-            icon: Icon(Icons.add, color: theme.colorScheme.onPrimary),
-            label: Text("Create New",
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(color: theme.colorScheme.onPrimary)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+          NeonButton(
+            text: 'Create New',
+            onPressed: () => context.push('/create'),
+            icon: Icons.add,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
             ),
+            glowColor: const Color(0xFF6366F1),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFolderGrid(String userId, ThemeData theme) {
+  Widget _buildFolderGrid(String userId) {
     return FutureBuilder<List<Folder>>(
       future: _localDb.getAllFolders(userId),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+          );
         }
         final folders = snapshot.data ?? [];
-        return GridView.builder(
-          padding: const EdgeInsets.all(32),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 300,
-            childAspectRatio: 1.2,
-            crossAxisSpacing: 24,
-            mainAxisSpacing: 24,
-          ),
-          itemCount: folders.length,
-          itemBuilder: (context, index) {
-            final folder = folders[index];
-            return _buildWebCard(
-              title: folder.name,
-              subtitle: 'Folder',
-              icon: Icons.folder,
-              color: Colors
-                  .amber, // Keep amber as a distinct folder color, or theme.primary
-              onTap: () => context.push('/library/results-view/${folder.id}'),
-              theme: theme,
-            );
-          },
+        return _buildMasonryGrid(
+          folders
+              .map((f) => _LibraryCardData(
+                    title: f.name,
+                    subtitle: 'Folder',
+                    icon: Icons.folder,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
+                    ),
+                    onTap: () => context.push('/library/results-view/${f.id}'),
+                  ))
+              .toList(),
         );
       },
     );
   }
 
-  Widget _buildCombinedGrid(String userId, ThemeData theme) {
+  Widget _buildCombinedGrid(String userId) {
     return StreamBuilder<List<LibraryItem>>(
       stream: _allItemsStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+          );
         }
         final items = snapshot.data ?? [];
         final filtered = items
             .where((i) => i.title.toLowerCase().contains(_searchQuery))
             .toList();
-        return _buildContentGrid(filtered, userId, theme);
+        return _buildContentGrid(filtered, userId);
       },
     );
   }
 
-  Widget _buildLibraryGrid(String userId, String type,
-      Stream<List<LibraryItem>>? stream, ThemeData theme) {
+  Widget _buildLibraryGrid(
+      String userId, String type, Stream<List<LibraryItem>>? stream) {
     return StreamBuilder<List<LibraryItem>>(
       stream: stream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF6366F1)),
+          );
         }
-        return _buildContentGrid(snapshot.data!, userId, theme);
+        return _buildContentGrid(snapshot.data!, userId);
       },
     );
   }
 
-  Widget _buildQuizGrid(String userId, ThemeData theme) {
+  Widget _buildQuizGrid(String userId) {
     return Consumer<QuizViewModel>(
       builder: (context, vm, _) {
         final items = vm.quizzes
@@ -362,165 +401,186 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
                 type: LibraryItemType.quiz,
                 timestamp: Timestamp.fromDate(q.timestamp)))
             .toList();
-        return _buildContentGrid(items, userId, theme);
+        return _buildContentGrid(items, userId);
       },
     );
   }
 
-  Widget _buildContentGrid(
-      List<LibraryItem> items, String userId, ThemeData theme) {
+  Widget _buildContentGrid(List<LibraryItem> items, String userId) {
+    final cardData = items.map((item) {
+      IconData icon;
+      Gradient gradient;
+      String typeName;
+      switch (item.type) {
+        case LibraryItemType.summary:
+          icon = Icons.article;
+          gradient = const LinearGradient(
+            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          );
+          typeName = 'Summary';
+          break;
+        case LibraryItemType.quiz:
+          icon = Icons.quiz;
+          gradient = const LinearGradient(
+            colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+          );
+          typeName = 'Quiz';
+          break;
+        case LibraryItemType.flashcards:
+          icon = Icons.style;
+          gradient = const LinearGradient(
+            colors: [Color(0xFFEC4899), Color(0xFFF97316)],
+          );
+          typeName = 'Flashcards';
+          break;
+      }
+
+      return _LibraryCardData(
+        title: item.title,
+        subtitle: typeName,
+        icon: icon,
+        gradient: gradient,
+        onTap: () {
+          if (item.type == LibraryItemType.summary) {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => SummaryScreen(summary: null)));
+          }
+        },
+      );
+    }).toList();
+
+    return _buildMasonryGrid(cardData);
+  }
+
+  Widget _buildMasonryGrid(List<_LibraryCardData> cards) {
     return GridView.builder(
       padding: const EdgeInsets.all(32),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 350,
-        childAspectRatio: 1.5,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
         crossAxisSpacing: 24,
         mainAxisSpacing: 24,
+        childAspectRatio: 1.3,
       ),
-      itemCount: items.length,
+      itemCount: cards.length,
       itemBuilder: (context, index) {
-        final item = items[index];
-        IconData icon;
-        Color color;
-        String typeName;
-        switch (item.type) {
-          case LibraryItemType.summary:
-            icon = Icons.article;
-            color = Colors.blue;
-            typeName = 'Summary';
-            break;
-          case LibraryItemType.quiz:
-            icon = Icons.quiz;
-            color = Colors.green;
-            typeName = 'Quiz';
-            break;
-          case LibraryItemType.flashcards:
-            icon = Icons.style;
-            color = Colors.orange;
-            typeName = 'Flashcards';
-            break;
-        }
-
-        return _buildWebCard(
-          title: item.title,
-          subtitle: typeName,
-          icon: icon,
-          color: color,
-          onTap: () {
-            // Navigation logic same as mobile
-            if (item.type == LibraryItemType.summary) {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => SummaryScreen(summary: null)));
-              // ideally fetch summary
-            } else if (item.type == LibraryItemType.quiz) {
-              // fetch quiz
-            }
-            // For now, placeholder or push with ID if route expects it
-          },
-          theme: theme,
+        final card = cards[index];
+        return MouseRegion(
+          onEnter: (_) => setState(() => _hoveredCard = index),
+          onExit: (_) => setState(() => _hoveredCard = -1),
+          child: _buildLibraryCard(
+            card: card,
+            isHovered: _hoveredCard == index,
+            delay: index * 50,
+          ),
         );
       },
     );
   }
 
-  Widget _buildWebCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-    required ThemeData theme,
+  Widget _buildLibraryCard({
+    required _LibraryCardData card,
+    required bool isHovered,
+    required int delay,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: card.onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        transform: Matrix4.identity()
+          ..translate(0.0, isHovered ? -8.0 : 0.0)
+          ..rotateZ(isHovered ? -0.01 : 0.0),
+        child: GlassCard(
+          padding: const EdgeInsets.all(24),
+          margin: EdgeInsets.zero,
+          boxShadow: isHovered
+              ? [
+                  BoxShadow(
+                    color: (card.gradient as LinearGradient)
+                        .colors
+                        .first
+                        .withOpacity(0.4),
+                    blurRadius: 30,
+                    offset: const Offset(0, 12),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: card.gradient,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (card.gradient as LinearGradient)
+                          .colors
+                          .first
+                          .withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Icon(card.icon, color: Colors.white, size: 32),
               ),
-              child: Icon(icon, color: color, size: 32),
-            ),
-            const Spacer(),
-            Text(title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface),
+              const Spacer(),
+              Text(
+                card.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  height: 1.3,
+                ),
                 maxLines: 2,
-                overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 8),
-            Text(subtitle,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
-          ],
-        ),
-      ).animate().scale(duration: 200.ms, curve: Curves.easeOut),
-    );
-  }
-
-  void _showCreateOptions(BuildContext context, ThemeData theme) {
-    // Show dialog instead of bottom sheet on web
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: theme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text("Create New Content",
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurface)),
-                const SizedBox(height: 24),
-                ListTile(
-                  leading: const Icon(Icons.article, color: Colors.blue),
-                  title: Text('Summary',
-                      style: theme.textTheme.bodyLarge
-                          ?.copyWith(color: theme.colorScheme.onSurface)),
-                  onTap: () => context.push('/create'),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                card.subtitle,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.6),
+                  fontWeight: FontWeight.w500,
                 ),
-                ListTile(
-                  leading: const Icon(Icons.quiz, color: Colors.green),
-                  title: Text('Quiz',
-                      style: theme.textTheme.bodyLarge
-                          ?.copyWith(color: theme.colorScheme.onSurface)),
-                  onTap: () => context.push('/create'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.style, color: Colors.orange),
-                  title: Text('Flashcards',
-                      style: theme.textTheme.bodyLarge
-                          ?.copyWith(color: theme.colorScheme.onSurface)),
-                  onTap: () => context.push('/create'),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
+    ).animate().fadeIn(delay: Duration(milliseconds: delay)).scale();
   }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+}
+
+class _LibraryCardData {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Gradient gradient;
+  final VoidCallback onTap;
+
+  _LibraryCardData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.gradient,
+    required this.onTap,
+  });
 }
