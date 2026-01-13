@@ -43,25 +43,24 @@ class EnhancedAIServiceException implements Exception {
   final String message;
   final String? code;
   final dynamic originalError;
-  
+
   EnhancedAIServiceException(
     this.message, {
     this.code,
     this.originalError,
   });
-  
+
   @override
   String toString() => code != null ? '[$code] $message' : message;
-  
-  bool get isRateLimitError => 
-      code == 'RESOURCE_EXHAUSTED' || 
+
+  bool get isRateLimitError =>
+      code == 'RESOURCE_EXHAUSTED' ||
       code == '429' ||
       message.contains('rate limit') ||
       message.contains('quota');
-      
+
   bool get isNetworkError =>
-      code == 'NETWORK_ERROR' ||
-      originalError is TimeoutException;
+      code == 'NETWORK_ERROR' || originalError is TimeoutException;
 }
 
 // --- CONFIG ---
@@ -70,18 +69,18 @@ class EnhancedAIConfig {
   static const String primaryModel = 'gemini-2.5-flash';
   static const String fallbackModel = 'gemini-1.5-flash';
   static const String visionModel = 'gemini-2.5-flash';
-  
+
   // Retry configuration with exponential backoff
   static const int maxRetries = 5;
   static const int initialRetryDelayMs = 1000;
   static const int maxRetryDelayMs = 60000;
   static const int requestTimeoutSeconds = 120;
-  
+
   // Input/output limits
   static const int maxInputLength = 30000;
   static const int maxPdfSize = 15 * 1024 * 1024; // 15MB
   static const int maxOutputTokens = 8192;
-  
+
   // Model parameters
   static const double defaultTemperature = 0.3;
   static const double fallbackTemperature = 0.4;
@@ -166,7 +165,7 @@ class EnhancedAIService {
         name: 'EnhancedAIService',
         error: e,
       );
-      
+
       try {
         return await _generateWithModel(
           _fallbackModel,
@@ -179,7 +178,7 @@ class EnhancedAIService {
           name: 'EnhancedAIService',
           error: fallbackError,
         );
-        
+
         throw EnhancedAIServiceException(
           'AI service temporarily unavailable. Please try again in a moment.',
           code: 'SERVICE_UNAVAILABLE',
@@ -196,7 +195,7 @@ class EnhancedAIService {
     String modelName,
   ) async {
     int attempt = 0;
-    
+
     while (attempt < EnhancedAIConfig.maxRetries) {
       try {
         final chat = model.startChat();
@@ -226,12 +225,12 @@ class EnhancedAIService {
         );
       } catch (e) {
         attempt++;
-        
+
         // Check if it's a rate limit error
         final isRateLimited = e.toString().contains('RESOURCE_EXHAUSTED') ||
             e.toString().contains('429') ||
             e.toString().contains('rate limit');
-        
+
         developer.log(
           'AI Generation Error ($modelName, Attempt $attempt/${EnhancedAIConfig.maxRetries})',
           name: 'EnhancedAIService',
@@ -250,22 +249,23 @@ class EnhancedAIService {
         }
 
         // Exponential backoff with jitter
-        final baseDelay = EnhancedAIConfig.initialRetryDelayMs * pow(2, attempt - 1);
+        final baseDelay =
+            EnhancedAIConfig.initialRetryDelayMs * pow(2, attempt - 1);
         final jitter = Random().nextInt(1000);
         final delay = min(
           baseDelay.toInt() + jitter,
           EnhancedAIConfig.maxRetryDelayMs,
         );
-        
+
         developer.log(
           'Retrying in ${delay}ms...',
           name: 'EnhancedAIService',
         );
-        
+
         await Future.delayed(Duration(milliseconds: delay));
       }
     }
-    
+
     throw EnhancedAIServiceException(
       'Generation failed after ${EnhancedAIConfig.maxRetries} attempts.',
       code: 'MAX_RETRIES_EXCEEDED',
@@ -307,7 +307,8 @@ class EnhancedAIService {
 
   Future<String> refineContent(String rawText) async {
     final sanitizedText = _sanitizeInput(rawText);
-    final prompt = '''You are an expert content extractor preparing raw text for exam studying.
+    final prompt =
+        '''You are an expert content extractor preparing raw text for exam studying.
 
 CRITICAL: Your task is to EXTRACT and CLEAN the content, NOT to summarize or condense it.
 
@@ -366,7 +367,7 @@ $sanitizedText''';
     }
   }
 
-  /// Enhanced YouTube video analysis with better error handling
+  /// Enhanced YouTube video analysis with proper URI handling
   Future<Result<String>> analyzeYouTubeVideo(
     String videoUrl, {
     required String userId,
@@ -374,56 +375,82 @@ $sanitizedText''';
     try {
       await _checkUsageLimits(userId);
 
-      final prompt = '''Analyze this YouTube video: $videoUrl
+      // Validate YouTube URL format
+      if (!_isValidYouTubeUrl(videoUrl)) {
+        return Result.error(
+          EnhancedAIServiceException(
+            'Invalid YouTube URL format. Please provide a valid YouTube video URL.',
+            code: 'INVALID_URL',
+          ),
+        );
+      }
+
+      final prompt =
+          '''Analyze this YouTube video and extract ALL educational content for study purposes.
 
 CRITICAL INSTRUCTIONS:
-1. WATCH the video - analyze both visual and audio content
-2. EXTRACT all instructional content (do NOT summarize)
-3. Capture EVERYTHING the instructor teaches:
+1. EXTRACT all instructional content (do NOT summarize)
+2. Capture EVERYTHING the instructor teaches:
    - All concepts, definitions, explanations (word-for-word when important)
-   - Visual content (slides, diagrams, demonstrations)
+   - Visual content (slides, diagrams, demonstrations shown in video)
    - Examples, case studies, practice problems
    - Formulas, equations, code, technical details
    - Step-by-step procedures
-   - Key timestamps [MM:SS]
+   - Key timestamps [MM:SS] for important sections
 
 EXCLUDE:
-- Intros, outros, promotions
-- Personal stories unrelated to topic
-- Jokes, tangents
-- Calls to action (like, subscribe)
+- Intros, outros, channel promotions
+- Personal stories unrelated to the topic
+- Jokes, tangents, filler content
+- Calls to action (like, subscribe, notifications)
 - Sponsor messages
 - Navigation instructions ("in the next video...")
-- Repetitive filler phrases
 
 OUTPUT FORMAT:
 Clean, organized text with:
+- Video title and main topic at the top
 - All factual information preserved
-- Organized by topic/section
-- Visual descriptions where relevant
+- Organized by topic/section with clear headers
+- Visual descriptions where relevant (e.g., "Diagram shows...")
 - Technical accuracy maintained
 - Timestamps for key moments
 
-REMEMBER: EXTRACT for study purposes, not summarize.''';
+REMEMBER: EXTRACT for study purposes, not summarize. Keep all educational value intact.''';
 
-      final response = await _visionModel
-          .generateContent([Content.text(prompt)])
-          .timeout(Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
+      // Create content with both the text prompt and YouTube URL reference
+      // Using Content.multi() allows Gemini to fetch and analyze the video
+      final content = Content.multi([
+        TextPart(prompt),
+        TextPart('YouTube Video URL: $videoUrl'),
+      ]);
+
+      developer.log(
+        'Analyzing YouTube video: $videoUrl',
+        name: 'EnhancedAIService',
+      );
+
+      final response = await _visionModel.generateContent([content]).timeout(
+          Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
 
       if (response.text == null || response.text!.trim().isEmpty) {
         return Result.error(
           EnhancedAIServiceException(
-            'Video analysis returned empty response.',
+            'Video analysis returned empty response. The video might be private, age-restricted, or too long.',
             code: 'EMPTY_RESPONSE',
           ),
         );
       }
 
+      developer.log(
+        'YouTube analysis completed: ${response.text!.substring(0, min(100, response.text!.length))}...',
+        name: 'EnhancedAIService',
+      );
+
       return Result.ok(response.text!);
     } on TimeoutException catch (e) {
       return Result.error(
         EnhancedAIServiceException(
-          'Video analysis timed out. Video might be too long.',
+          'Video analysis timed out. The video might be too long (max ~45 minutes with audio).',
           code: 'TIMEOUT',
           originalError: e,
         ),
@@ -436,13 +463,77 @@ REMEMBER: EXTRACT for study purposes, not summarize.''';
         name: 'EnhancedAIService',
         error: e,
       );
+
+      // Parse specific error messages
+      final errorStr = e.toString().toLowerCase();
+
+      if (errorStr.contains('quota') || errorStr.contains('limit')) {
+        return Result.error(
+          EnhancedAIServiceException(
+            'Daily YouTube video analysis limit reached. Try again tomorrow or upgrade to Pro.',
+            code: 'QUOTA_EXCEEDED',
+            originalError: e,
+          ),
+        );
+      }
+
+      if (errorStr.contains('unavailable') || errorStr.contains('not found')) {
+        return Result.error(
+          EnhancedAIServiceException(
+            'Video is unavailable, private, or has been removed.',
+            code: 'VIDEO_UNAVAILABLE',
+            originalError: e,
+          ),
+        );
+      }
+
+      if (errorStr.contains('permission') || errorStr.contains('access')) {
+        return Result.error(
+          EnhancedAIServiceException(
+            'Cannot access this video. It might be private or age-restricted.',
+            code: 'ACCESS_DENIED',
+            originalError: e,
+          ),
+        );
+      }
+
       return Result.error(
         EnhancedAIServiceException(
-          'Failed to analyze YouTube video.',
+          'Failed to analyze YouTube video. Please ensure the video is public and try again.',
           code: 'ANALYSIS_FAILED',
           originalError: e,
         ),
       );
+    }
+  }
+
+  /// Validate YouTube URL format
+  bool _isValidYouTubeUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+
+      // Check for valid YouTube domains
+      final validDomains = [
+        'youtube.com',
+        'www.youtube.com',
+        'youtu.be',
+        'm.youtube.com'
+      ];
+      if (!validDomains.contains(uri.host)) {
+        return false;
+      }
+
+      // Check for valid paths
+      if (uri.host.contains('youtu.be')) {
+        // Short URL format: https://youtu.be/VIDEO_ID
+        return uri.pathSegments.isNotEmpty;
+      } else {
+        // Standard format: https://youtube.com/watch?v=VIDEO_ID
+        // Shorts format: https://youtube.com/shorts/VIDEO_ID
+        return uri.path.contains('/watch') || uri.path.contains('/shorts');
+      }
+    } catch (e) {
+      return false;
     }
   }
 
@@ -460,11 +551,9 @@ REMEMBER: EXTRACT for study purposes, not summarize.''';
         'Ignore non-text visual elements.',
       );
 
-      final response = await _visionModel
-          .generateContent([
-            Content.multi([promptPart, imagePart])
-          ])
-          .timeout(Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
+      final response = await _visionModel.generateContent([
+        Content.multi([promptPart, imagePart])
+      ]).timeout(Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
 
       if (response.text == null || response.text!.isEmpty) {
         throw EnhancedAIServiceException(
@@ -513,7 +602,8 @@ REMEMBER: EXTRACT for study purposes, not summarize.''';
       ),
     );
 
-    final prompt = '''Create a comprehensive EXAM-FOCUSED study guide from this text.
+    final prompt =
+        '''Create a comprehensive EXAM-FOCUSED study guide from this text.
 
 Your task:
 1. **Title**: Create a clear, topic-focused title
@@ -539,9 +629,8 @@ Prioritize:
 Text: $sanitizedText''';
 
     try {
-      final response = await model
-          .generateContent([Content.text(prompt)])
-          .timeout(const Duration(seconds: 60));
+      final response = await model.generateContent(
+          [Content.text(prompt)]).timeout(const Duration(seconds: 60));
 
       if (response.text == null || response.text!.isEmpty) {
         throw EnhancedAIServiceException(
@@ -577,7 +666,7 @@ Text: $sanitizedText''';
 
   Future<String> _generateQuizJson(String text) async {
     final sanitizedText = _sanitizeInput(text);
-    
+
     final prompt = '''Create a challenging multiple-choice exam quiz.
 
 Requirements:
@@ -600,13 +689,13 @@ Return ONLY valid JSON (no markdown):
 }
 
 Text: $sanitizedText''';
-    
+
     return _generateWithFallback(prompt);
   }
 
   Future<String> _generateFlashcardsJson(String text) async {
     final sanitizedText = _sanitizeInput(text);
-    
+
     final prompt = '''Generate high-quality flashcards for Active Recall study.
 
 Requirements:
@@ -627,7 +716,7 @@ Return ONLY valid JSON (no markdown):
 }
 
 Text: $sanitizedText''';
-    
+
     return _generateWithFallback(prompt);
   }
 

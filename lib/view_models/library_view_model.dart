@@ -40,70 +40,67 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   void _initializeStreams() {
-    allFolders$ = localDb.watchAllFolders(userId);
+    // Folders stream with replay for multiple subscribers
+    allFolders$ = localDb.watchAllFolders(userId).shareReplay(maxSize: 1);
 
-    // Create independent streams for each content type
-    final allSummariesFromDb$ = localDb.watchAllSummaries(userId)
-        .map((summaries) => summaries.map(LibraryItem.fromLocalSummary).toList());
-    final allQuizzesFromDb$ = localDb.watchAllQuizzes(userId)
-        .map((quizzes) => quizzes.map(LibraryItem.fromLocalQuiz).toList());
-    final allFlashcardsFromDb$ = localDb.watchAllFlashcardSets(userId)
-        .map((flashcards) => flashcards.map(LibraryItem.fromLocalFlashcardSet).toList());
+    // Create independent streams for each content type from the database
+    // shareReplay allows multiple StreamBuilders in TabBarView to subscribe
+    final allSummariesFromDb$ = localDb
+        .watchAllSummaries(userId)
+        .map(
+            (summaries) => summaries.map(LibraryItem.fromLocalSummary).toList())
+        .shareReplay(maxSize: 1);
+
+    final allQuizzesFromDb$ = localDb
+        .watchAllQuizzes(userId)
+        .map((quizzes) => quizzes.map(LibraryItem.fromLocalQuiz).toList())
+        .shareReplay(maxSize: 1);
+
+    final allFlashcardsFromDb$ = localDb
+        .watchAllFlashcardSets(userId)
+        .map((flashcards) =>
+            flashcards.map(LibraryItem.fromLocalFlashcardSet).toList())
+        .shareReplay(maxSize: 1);
+
+    // FIXED: Create filtered streams directly from database streams
+    // These are used for the main tabs (no folder selected)
+    // This prevents the endless loading issue caused by folder filtering interference
+    allSummaries$ = allSummariesFromDb$;
+    allQuizzes$ = allQuizzesFromDb$;
+    allFlashcards$ = allFlashcardsFromDb$;
 
     // Combine all items without folder filtering
+    // shareReplay ensures all tabs get the cached value immediately
     final allItemsCombined$ = Rx.combineLatest3<List<LibraryItem>,
             List<LibraryItem>, List<LibraryItem>, List<LibraryItem>>(
         allSummariesFromDb$,
         allQuizzesFromDb$,
         allFlashcardsFromDb$,
         (summaries, quizzes, flashcards) =>
-            [...summaries, ...quizzes, ...flashcards]);
+            [...summaries, ...quizzes, ...flashcards]).shareReplay(maxSize: 1);
 
-    // Main allItems$ stream with folder filtering
-    allItems$ = selectedFolderStream.switchMap((folder) {
-      if (folder == null) {
-        // Return all items when no folder is selected
-        return allItemsCombined$;
-      } else {
-        // Watch folder contents and filter items
-        return localDb.watchContentIdsInFolder(folder.id).switchMap((contentIds) {
-          // For each contentIds update, filter the combined items
-          return allItemsCombined$.map((allItems) {
-            return allItems.where((item) => contentIds.contains(item.id)).toList();
-          });
-        });
-      }
-    });
-
-    // Create filtered streams for each content type
-    allSummaries$ = allItems$.map((items) =>
-        items.where((item) => item.type == LibraryItemType.summary).toList());
-    allQuizzes$ = allItems$.map((items) =>
-        items.where((item) => item.type == LibraryItemType.quiz).toList());
-    allFlashcards$ = allItems$.map((items) =>
-        items.where((item) => item.type == LibraryItemType.flashcards).toList());
+    // Main allItems$ stream (used for "All" tab)
+    // Simplified to just be the combined stream without folder filtering
+    allItems$ = allItemsCombined$;
   }
 
   // Helper methods for folder-specific content
   Stream<List<LibraryItem>> getFolderItemsStream(String folderId) {
     return localDb.watchContentIdsInFolder(folderId).switchMap((contentIds) {
-      return Rx.combineLatest3<List<LibraryItem>,
-          List<LibraryItem>, List<LibraryItem>, List<LibraryItem>>(
-        localDb.watchAllSummaries(userId)
-            .map((summaries) => summaries
-                .where((s) => contentIds.contains(s.id))
-                .map(LibraryItem.fromLocalSummary)
-                .toList()),
-        localDb.watchAllQuizzes(userId)
-            .map((quizzes) => quizzes
-                .where((q) => contentIds.contains(q.id))
-                .map(LibraryItem.fromLocalQuiz)
-                .toList()),
-        localDb.watchAllFlashcardSets(userId)
-            .map((flashcards) => flashcards
-                .where((f) => contentIds.contains(f.id))
-                .map(LibraryItem.fromLocalFlashcardSet)
-                .toList()),
+      return Rx.combineLatest3<List<LibraryItem>, List<LibraryItem>,
+          List<LibraryItem>, List<LibraryItem>>(
+        localDb.watchAllSummaries(userId).map((summaries) => summaries
+            .where((s) => contentIds.contains(s.id))
+            .map(LibraryItem.fromLocalSummary)
+            .toList()),
+        localDb.watchAllQuizzes(userId).map((quizzes) => quizzes
+            .where((q) => contentIds.contains(q.id))
+            .map(LibraryItem.fromLocalQuiz)
+            .toList()),
+        localDb.watchAllFlashcardSets(userId).map((flashcards) => flashcards
+            .where((f) => contentIds.contains(f.id))
+            .map(LibraryItem.fromLocalFlashcardSet)
+            .toList()),
         (summaries, quizzes, flashcards) =>
             [...summaries, ...quizzes, ...flashcards],
       );
@@ -155,7 +152,8 @@ class LibraryViewModel with ChangeNotifier {
     try {
       await syncService.syncAllData();
     } catch (e, s) {
-      developer.log('Error during sync', name: 'LibraryViewModel', error: e, stackTrace: s);
+      developer.log('Error during sync',
+          name: 'LibraryViewModel', error: e, stackTrace: s);
     } finally {
       _isSyncing.add(false);
       notifyListeners();
@@ -177,10 +175,11 @@ class LibraryViewModel with ChangeNotifier {
       }
       await firestoreService.deleteItem(userId, item);
     } catch (e, s) {
-      developer.log('Error deleting item', name: 'LibraryViewModel', error: e, stackTrace: s);
+      developer.log('Error deleting item',
+          name: 'LibraryViewModel', error: e, stackTrace: s);
     }
   }
-  
+
   @override
   void dispose() {
     _selectedFolderController.close();

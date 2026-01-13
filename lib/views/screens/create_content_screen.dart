@@ -205,6 +205,9 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     final extractionService =
         Provider.of<ContentExtractionService>(context, listen: false);
 
+    // Capture the navigator before showing dialog to avoid context issues
+    final navigator = Navigator.of(context);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -220,12 +223,22 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         userId: user.uid,
       );
       if (mounted) {
-        Navigator.of(context).pop(); // Close the progress dialog
+        // Safely close dialog using captured navigator
+        try {
+          navigator.pop();
+        } catch (e) {
+          // Dialog already closed or context invalid, ignore
+        }
         context.push('/extraction-view', extra: extractedTextResult);
       }
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop(); // Close the progress dialog
+        // Safely close dialog using captured navigator
+        try {
+          navigator.pop();
+        } catch (e) {
+          // Dialog already closed or context invalid, ignore
+        }
         setState(() {
           _errorMessage = _getUserFriendlyError(e);
         });
@@ -615,13 +628,31 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
 
     // YouTube specific
     if (errorStr.contains('youtube') || errorStr.contains('video')) {
-      if (errorStr.contains('unavailable') || errorStr.contains('private')) {
-        return '🎥 Video is unavailable or private. Try a different video';
+      if (errorStr.contains('quota') ||
+          errorStr.contains('limit') ||
+          errorStr.contains('daily')) {
+        return '🎥 Daily YouTube analysis limit reached (free tier: 8 hours/day). Try again tomorrow';
+      }
+      if (errorStr.contains('unavailable') ||
+          errorStr.contains('private') ||
+          errorStr.contains('removed')) {
+        return '🎥 Video is unavailable, private, or has been removed. Try a different video';
+      }
+      if (errorStr.contains('age-restricted') ||
+          errorStr.contains('access') ||
+          errorStr.contains('permission')) {
+        return '🔞 Cannot access age-restricted or private videos. Try a public video';
+      }
+      if (errorStr.contains('timeout') || errorStr.contains('too long')) {
+        return '⏱️ Video is too long to process (max ~45 min with audio). Try a shorter video';
+      }
+      if (errorStr.contains('invalid') || errorStr.contains('format')) {
+        return '🎥 Invalid YouTube URL. Use format: https://youtube.com/watch?v=VIDEO_ID';
       }
       if (errorStr.contains('caption') || errorStr.contains('transcript')) {
         return '📝 Video doesn\'t have captions. Try a video with subtitles enabled';
       }
-      return '🎥 Could not process video. Make sure the URL is correct';
+      return '🎥 Could not process video. Make sure it\'s a public YouTube video and try again';
     }
 
     // PDF errors
