@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/firestore_service.dart';
-import 'package:sumquiz/views/screens/public_deck_screen.dart';
 
 class EnterCodeDialog extends StatefulWidget {
   const EnterCodeDialog({super.key});
@@ -121,7 +118,7 @@ class _EnterCodeDialogState extends State<EnterCodeDialog> {
                     width: 2,
                   ),
                 ),
-                enabledBorder: OutlinedBorder(
+                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
                     color: theme.colorScheme.outline,

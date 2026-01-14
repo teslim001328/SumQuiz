@@ -15,6 +15,7 @@ class LibraryItem {
   final LibraryItemType type;
   final Timestamp timestamp;
   final bool isReadOnly;
+  final String? creatorName; // For imported decks
 
   LibraryItem({
     required this.id,
@@ -22,6 +23,7 @@ class LibraryItem {
     required this.type,
     required this.timestamp,
     this.isReadOnly = false,
+    this.creatorName,
   });
 
   factory LibraryItem.fromSummary(Summary summary) {
@@ -60,6 +62,7 @@ class LibraryItem {
       title: summary.title,
       type: LibraryItemType.summary,
       timestamp: Timestamp.fromDate(summary.timestamp),
+      creatorName: summary.creatorName,
     );
   }
 
@@ -69,6 +72,7 @@ class LibraryItem {
       title: quiz.title,
       type: LibraryItemType.quiz,
       timestamp: Timestamp.fromDate(quiz.timestamp),
+      creatorName: quiz.creatorName,
     );
   }
 
@@ -78,6 +82,7 @@ class LibraryItem {
       title: flashcardSet.title,
       type: LibraryItemType.flashcards,
       timestamp: Timestamp.fromDate(flashcardSet.timestamp),
+      creatorName: flashcardSet.creatorName,
     );
   }
 

@@ -14,6 +14,8 @@ import '../../view_models/library_view_model.dart';
 import '../screens/summary_screen.dart';
 import '../screens/quiz_screen.dart';
 import '../screens/flashcards_screen.dart';
+import '../widgets/enter_code_dialog.dart';
+import '../../utils/library_share_helper.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -139,6 +141,17 @@ class _LibraryViewState extends State<_LibraryView>
 
     return Scaffold(
       appBar: _buildAppBar(context, theme, viewModel),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (_) => const EnterCodeDialog(),
+          );
+        },
+        icon: const Icon(Icons.qr_code_scanner),
+        label: const Text('Enter Code'),
+        backgroundColor: theme.colorScheme.primary,
+      ),
       body: Column(
         children: [
           _buildSearchAndTabs(context, theme, viewModel),
@@ -180,7 +193,8 @@ class _LibraryViewState extends State<_LibraryView>
                           theme,
                           viewModel),
                       _buildContentList(
-                          viewModel.getFolderFlashcardsStream(selectedFolder.id),
+                          viewModel
+                              .getFolderFlashcardsStream(selectedFolder.id),
                           theme,
                           viewModel),
                     ],
@@ -442,6 +456,63 @@ class _LibraryViewState extends State<_LibraryView>
       iconColor: iconColor,
       theme: theme,
       onTap: onTap,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Creator badge if imported
+          if (item.creatorName != null && item.creatorName!.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withAlpha(26),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withAlpha(77)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person, size: 14, color: Colors.blue),
+                  const SizedBox(width: 4),
+                  Text(
+                    item.creatorName!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Share menu
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert,
+                color: theme.colorScheme.onSurface.withAlpha(153)),
+            onSelected: (value) async {
+              if (value == 'share') {
+                final user = context.read<UserModel?>();
+                if (user != null) {
+                  await LibraryShareHelper.shareLibraryItem(
+                      context, item, user);
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(Icons.share, size: 20),
+                    SizedBox(width: 12),
+                    Text('Share'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -589,8 +660,8 @@ class _LibraryViewState extends State<_LibraryView>
     ).animate().fadeIn();
   }
 
-  Future<void> _navigateToContent(
-      BuildContext context, LibraryItem item, LibraryViewModel viewModel) async {
+  Future<void> _navigateToContent(BuildContext context, LibraryItem item,
+      LibraryViewModel viewModel) async {
     if (!mounted) return;
     final user = Provider.of<UserModel?>(context, listen: false);
     if (user == null) return;
