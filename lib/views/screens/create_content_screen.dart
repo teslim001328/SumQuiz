@@ -406,7 +406,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       child: Row(
         children: [
           Icon(
-            Icons.public,
+            Icons.link,
             color: _linkController.text.isEmpty
                 ? theme.colorScheme.onSurfaceVariant.withAlpha(178)
                 : isValid
@@ -422,7 +422,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                   setState(() {}), // Trigger rebuild for validation
               style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               decoration: InputDecoration(
-                hintText: 'https://example.com/article',
+                hintText: 'YouTube, article, PDF link, or any URL',
                 hintStyle: TextStyle(
                   color: theme.colorScheme.onSurfaceVariant.withAlpha(128),
                 ),
