@@ -552,32 +552,69 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       child: Container(
         height: 120,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withAlpha(128),
+          color: isSelected
+              ? Colors.green.withAlpha(26)
+              : theme.colorScheme.surfaceContainerHighest.withAlpha(128),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline.withAlpha(77)),
+            color: isSelected
+                ? Colors.green
+                : theme.colorScheme.outline.withAlpha(77),
+            width: isSelected ? 2 : 1,
+          ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            CircleAvatar(
-              backgroundColor: isSelected
-                  ? theme.colorScheme.primary.withAlpha(51)
-                  : theme.colorScheme.secondaryContainer,
-              radius: 24,
-              child: Icon(icon,
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSecondaryContainer,
-                  size: 24),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  backgroundColor: isSelected
+                      ? Colors.green.withAlpha(51)
+                      : theme.colorScheme.secondaryContainer,
+                  radius: 24,
+                  child: Icon(icon,
+                      color: isSelected
+                          ? Colors.green
+                          : theme.colorScheme.onSecondaryContainer,
+                      size: 24),
+                ),
+                const SizedBox(height: 12),
+                Text(label,
+                    style: TextStyle(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.bold)),
+                if (isSelected)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '✓ Image selected',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(label,
-                style: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontWeight: FontWeight.bold)),
+            if (isSelected)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
