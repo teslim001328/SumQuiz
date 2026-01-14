@@ -1,17 +1,14 @@
 import 'dart:typed_data';
-import 'dart:ui';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:sumquiz/theme/web_theme.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/content_extraction_service.dart';
 import 'package:sumquiz/services/usage_service.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
-import 'package:sumquiz/views/widgets/web/glass_card.dart';
-import 'package:sumquiz/views/widgets/web/neon_button.dart';
-import 'package:sumquiz/views/widgets/web/particle_background.dart';
 
 class CreateContentScreenWeb extends StatefulWidget {
   const CreateContentScreenWeb({super.key});
@@ -30,7 +27,6 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
   bool _isLoading = false;
   String _errorMessage = '';
   String _selectedInputType = 'text';
-  int _hoveredTab = -1;
 
   @override
   void initState() {
@@ -174,156 +170,94 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFF0A0E27);
-
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Stack(
-        children: [
-          // Particle background
-          const Positioned.fill(
-            child: ParticleBackground(
-              numberOfParticles: 40,
-              particleColor: Colors.white,
-            ),
-          ),
-          // Gradient orbs
-          Positioned(
-            top: -100,
-            right: -100,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-              child: Container(
-                width: 500,
-                height: 500,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFF6366F1).withOpacity(0.3),
-                      const Color(0xFF6366F1).withOpacity(0.0),
-                    ],
+      backgroundColor: WebColors.background,
+      body: Center(
+        child: SingleChildScrollView(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Create Study Materials',
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w700,
+                    color: WebColors.textPrimary,
                   ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -150,
-            left: -150,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-              child: Container(
-                width: 600,
-                height: 600,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFFEC4899).withOpacity(0.25),
-                      const Color(0xFFEC4899).withOpacity(0.0),
-                    ],
+                  textAlign: TextAlign.center,
+                ).animate().fadeIn(duration: 300.ms),
+                const SizedBox(height: 16),
+                Text(
+                  'Transform any content into exam-ready summaries, quizzes, and flashcards',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: WebColors.textSecondary,
+                    height: 1.5,
                   ),
-                ),
-              ),
+                  textAlign: TextAlign.center,
+                ).animate().fadeIn(delay: 100.ms),
+                const SizedBox(height: 60),
+                _buildInputCard(),
+                const SizedBox(height: 24),
+                if (_errorMessage.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.red.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _errorMessage,
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 32),
+                _isLoading
+                    ? _buildLoadingIndicator()
+                    : ElevatedButton.icon(
+                        onPressed: _processAndNavigate,
+                        icon: const Icon(Icons.auto_awesome),
+                        label: const Text('Extract Content'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 48,
+                            vertical: 24,
+                          ),
+                        ),
+                      ),
+              ],
             ),
           ),
-          // Main content
-          Center(
-            child: SingleChildScrollView(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 1000),
-                padding: const EdgeInsets.all(40),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Header
-                    ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [Colors.white, Color(0xFFB4B4FF)],
-                      ).createShader(bounds),
-                      child: const Text(
-                        'Create Study Materials',
-                        style: TextStyle(
-                          fontSize: 56,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -1.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ).animate().fadeIn().slideY(begin: -0.2),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Transform any content into exam-ready summaries, quizzes, and flashcards',
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: Colors.white.withOpacity(0.7),
-                        height: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ).animate().fadeIn(delay: 200.ms),
-                    const SizedBox(height: 60),
-                    // Input card
-                    _buildInputCard().animate().fadeIn(delay: 400.ms).scale(),
-                    const SizedBox(height: 24),
-                    // Error message
-                    if (_errorMessage.isNotEmpty)
-                      GlassCard(
-                        padding: const EdgeInsets.all(16),
-                        color: const Color(0xFFEF4444).withOpacity(0.1),
-                        border: Border.all(
-                          color: const Color(0xFFEF4444).withOpacity(0.3),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline,
-                                color: Color(0xFFEF4444)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _errorMessage,
-                                style: const TextStyle(
-                                  color: Color(0xFFEF4444),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ).animate().shake(),
-                    const SizedBox(height: 32),
-                    // Generate button
-                    _isLoading
-                        ? _buildLoadingIndicator()
-                        : NeonButton(
-                            text: 'Extract Content',
-                            onPressed: _processAndNavigate,
-                            icon: Icons.auto_awesome,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                            ),
-                            glowColor: const Color(0xFF6366F1),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 48, vertical: 24),
-                          ).animate().fadeIn(delay: 600.ms),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildInputCard() {
-    return GlassCard(
-      padding: EdgeInsets.zero,
-      margin: EdgeInsets.zero,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: WebColors.border),
+        boxShadow: WebColors.cardShadow,
+      ),
       child: Column(
         children: [
-          // Tab bar
           Container(
             padding: const EdgeInsets.all(8),
             child: Row(
@@ -338,11 +272,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
               ],
             ),
           ),
-          Container(
-            height: 1,
-            color: Colors.white.withOpacity(0.1),
-          ),
-          // Content area
+          Divider(height: 1, color: WebColors.border),
           SizedBox(
             height: 300,
             child: TabBarView(
@@ -362,65 +292,41 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
 
   Widget _buildTab(int index, IconData icon, String label) {
     final isSelected = _tabController.index == index;
-    final isHovered = _hoveredTab == index;
 
     return Expanded(
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hoveredTab = index),
-        onExit: (_) => setState(() => _hoveredTab = -1),
-        child: GestureDetector(
-          onTap: () {
-            _tabController.animateTo(index);
-            _resetInputs();
-            setState(() {
-              _selectedInputType = ['text', 'link', 'pdf', 'image'][index];
-            });
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              gradient: isSelected
-                  ? const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                    )
-                  : null,
-              color: isHovered && !isSelected
-                  ? Colors.white.withOpacity(0.05)
-                  : null,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
+      child: GestureDetector(
+        onTap: () {
+          _tabController.animateTo(index);
+          _resetInputs();
+          setState(() {
+            _selectedInputType = ['text', 'link', 'pdf', 'image'][index];
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? WebColors.primaryLight : null,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? WebColors.primary : WebColors.textSecondary,
+                size: 24,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
                   color:
-                      isSelected ? Colors.white : Colors.white.withOpacity(0.6),
-                  size: 24,
+                      isSelected ? WebColors.primary : WebColors.textSecondary,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 14,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected
-                        ? Colors.white
-                        : Colors.white.withOpacity(0.6),
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -434,16 +340,15 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
         controller: _textController,
         maxLines: null,
         expands: true,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: WebColors.textPrimary,
           fontSize: 16,
           height: 1.6,
         ),
         decoration: InputDecoration(
-          hintText:
-              'Paste or type your content here...\n\nTip: The more content you provide, the better your study materials will be!',
+          hintText: 'Paste or type your content here...',
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.4),
+            color: WebColors.textTertiary,
             fontSize: 16,
           ),
           border: InputBorder.none,
@@ -464,50 +369,42 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
           Text(
             'Enter URL',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: WebColors.textPrimary,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.1),
+          TextField(
+            controller: _linkController,
+            style: TextStyle(
+              color: WebColors.textPrimary,
+              fontSize: 16,
+            ),
+            decoration: InputDecoration(
+              hintText: 'https://example.com/article',
+              hintStyle: TextStyle(
+                color: WebColors.textTertiary,
+              ),
+              prefixIcon: Icon(Icons.link, color: WebColors.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: WebColors.border),
               ),
             ),
-            child: TextField(
-              controller: _linkController,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
-              decoration: InputDecoration(
-                hintText: 'https://example.com/article',
-                hintStyle: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
-                ),
-                border: InputBorder.none,
-                icon: const Icon(Icons.link, color: Color(0xFF6366F1)),
-              ),
-              onChanged: (_) {
-                setState(() => _selectedInputType = 'link');
-              },
-            ),
+            onChanged: (_) {
+              setState(() => _selectedInputType = 'link');
+            },
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Icon(Icons.check_circle,
-                  color: const Color(0xFF10B981).withOpacity(0.8), size: 16),
+              Icon(Icons.check_circle, color: WebColors.secondary, size: 16),
               const SizedBox(width: 8),
               Text(
                 'Supports YouTube, articles, and web pages',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
+                  color: WebColors.textSecondary,
                   fontSize: 14,
                 ),
               ),
@@ -528,70 +425,51 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
   }
 
   Widget _buildUploadZone(String type) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => _pickFile(type),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: const Color(0xFF6366F1).withOpacity(0.3),
-              width: 2,
-              style: BorderStyle.solid,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                const Color(0xFF6366F1).withOpacity(0.05),
-                const Color(0xFF8B5CF6).withOpacity(0.05),
-              ],
-            ),
+    return GestureDetector(
+      onTap: () => _pickFile(type),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: WebColors.border,
+            width: 2,
+            style: BorderStyle.solid,
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6366F1).withOpacity(0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  type == 'pdf' ? Icons.picture_as_pdf : Icons.image,
-                  color: Colors.white,
-                  size: 48,
-                ),
+          borderRadius: BorderRadius.circular(12),
+          color: WebColors.backgroundAlt,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: WebColors.primaryLight,
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(height: 24),
-              Text(
-                'Click to upload ${type.toUpperCase()}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Icon(
+                type == 'pdf' ? Icons.picture_as_pdf : Icons.image,
+                color: WebColors.primary,
+                size: 48,
               ),
-              const SizedBox(height: 8),
-              Text(
-                type == 'pdf' ? 'Max size: 15MB' : 'Max size: 10MB',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 14,
-                ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Click to upload ${type.toUpperCase()}',
+              style: TextStyle(
+                color: WebColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              type == 'pdf' ? 'Max size: 15MB' : 'Max size: 10MB',
+              style: TextStyle(
+                color: WebColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -601,16 +479,9 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF10B981).withOpacity(0.1),
-            const Color(0xFF06B6D4).withOpacity(0.1),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF10B981).withOpacity(0.3),
-        ),
+        color: WebColors.secondaryLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: WebColors.secondary),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -618,10 +489,8 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-              ),
-              borderRadius: BorderRadius.circular(16),
+              color: WebColors.secondary,
+              borderRadius: BorderRadius.circular(12),
             ),
             child:
                 const Icon(Icons.check_circle, color: Colors.white, size: 48),
@@ -629,10 +498,10 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
           const SizedBox(height: 24),
           Text(
             _fileName!,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: WebColors.textPrimary,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
           ),
@@ -644,10 +513,10 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
                 _fileBytes = null;
               });
             },
-            icon: const Icon(Icons.close, color: Colors.white70),
-            label: const Text(
+            icon: Icon(Icons.close, color: WebColors.textSecondary),
+            label: Text(
               'Remove',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: WebColors.textSecondary),
             ),
           ),
         ],
@@ -656,48 +525,36 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
   }
 
   Widget _buildLoadingIndicator() {
-    return GlassCard(
+    return Container(
       padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: WebColors.border),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              ),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Center(
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 3,
-              ),
-            ),
-          ),
+          CircularProgressIndicator(color: WebColors.primary),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Extracting content...',
             style: TextStyle(
-              color: Colors.white,
+              color: WebColors.textPrimary,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'This may take a few moments',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: WebColors.textSecondary,
               fontSize: 14,
             ),
           ),
         ],
       ),
-    )
-        .animate(onPlay: (controller) => controller.repeat())
-        .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.1));
+    );
   }
 }

@@ -1,8 +1,8 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:sumquiz/theme/web_theme.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/local_database_service.dart';
 import '../../../models/flashcard.dart';
@@ -12,9 +12,6 @@ import '../../../models/daily_mission.dart';
 import '../../../services/mission_service.dart';
 import '../../../services/user_service.dart';
 import '../flashcards_screen.dart';
-import '../../widgets/web/glass_card.dart';
-import '../../widgets/web/neon_button.dart';
-import '../../widgets/web/particle_background.dart';
 
 class ReviewScreenWeb extends StatefulWidget {
   const ReviewScreenWeb({super.key});
@@ -152,73 +149,39 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserModel?>(context);
-    const backgroundColor = Color(0xFF0A0E27);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
-      body: Stack(
-        children: [
-          // Particle background
-          const Positioned.fill(
-            child: ParticleBackground(
-              numberOfParticles: 30,
-              particleColor: Colors.white,
-            ),
-          ),
-          // Gradient orb
-          Positioned(
-            top: 100,
-            right: -100,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-              child: Container(
-                width: 500,
-                height: 500,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFFEC4899).withOpacity(0.2),
-                      const Color(0xFFEC4899).withOpacity(0.0),
-                    ],
+      backgroundColor: WebColors.background,
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(color: WebColors.primary),
+            )
+          : _error != null
+              ? Center(
+                  child: Text(
+                    _error!,
+                    style:
+                        TextStyle(color: WebColors.textPrimary, fontSize: 18),
                   ),
-                ),
-              ),
-            ),
-          ),
-          // Main content
-          _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF6366F1)),
                 )
-              : _error != null
-                  ? Center(
-                      child: Text(
-                        _error!,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 18),
-                      ),
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(40),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1000),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildWelcomeHeader(user),
-                              const SizedBox(height: 48),
-                              _buildDailyMissionCard(),
-                              const SizedBox(height: 32),
-                              _buildStatsOverview(user),
-                            ],
-                          ),
-                        ),
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(40),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1000),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildWelcomeHeader(user),
+                          const SizedBox(height: 48),
+                          _buildDailyMissionCard(),
+                          const SizedBox(height: 32),
+                          _buildStatsOverview(user),
+                        ],
                       ),
                     ),
-        ],
-      ),
+                  ),
+                ),
     );
   }
 
@@ -226,37 +189,37 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFB4B4FF)],
-          ).createShader(bounds),
-          child: Text(
-            'Welcome back, ${user?.displayName.split(' ').first ?? 'Friend'}! 👋',
-            style: const TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+        Text(
+          'Welcome back, ${user?.displayName.split(' ').first ?? 'Friend'}! 👋',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.w700,
+            color: WebColors.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
         Text(
           'Ready to crush your daily mission?',
           style: TextStyle(
-            fontSize: 20,
-            color: Colors.white.withOpacity(0.7),
+            fontSize: 18,
+            color: WebColors.textSecondary,
           ),
         ),
       ],
-    ).animate().fadeIn().slideY(begin: -0.2);
+    ).animate().fadeIn(duration: 300.ms);
   }
 
   Widget _buildDailyMissionCard() {
     if (_dailyMission == null) return const SizedBox.shrink();
 
-    return GlassCard(
+    return Container(
       padding: const EdgeInsets.all(40),
-      margin: EdgeInsets.zero,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: WebColors.border),
+        boxShadow: WebColors.cardShadow,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -267,28 +230,26 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
-                    ),
+                    color: WebColors.primaryLight,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
+                  child: Text(
                     '🎯 DAILY MISSION',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      color: WebColors.primary,
+                      fontWeight: FontWeight.w600,
                       fontSize: 12,
                       letterSpacing: 1,
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Review 5 Flashcards',
                   style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: WebColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -296,28 +257,27 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
                   'Complete today\'s mission to maintain your streak',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.7),
+                    color: WebColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 32),
-                NeonButton(
-                  text: _dailyMission!.isCompleted
-                      ? 'Mission Completed! 🎉'
-                      : 'Start Mission',
-                  onPressed: _dailyMission!.isCompleted ? () {} : _startMission,
-                  icon: _dailyMission!.isCompleted
+                ElevatedButton.icon(
+                  onPressed: _dailyMission!.isCompleted ? null : _startMission,
+                  icon: Icon(_dailyMission!.isCompleted
                       ? Icons.check_circle
-                      : Icons.play_arrow,
-                  gradient: _dailyMission!.isCompleted
-                      ? const LinearGradient(
-                          colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-                        )
-                      : const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
-                  glowColor: _dailyMission!.isCompleted
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFF6366F1),
+                      : Icons.play_arrow),
+                  label: Text(_dailyMission!.isCompleted
+                      ? 'Mission Completed! 🎉'
+                      : 'Start Mission'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _dailyMission!.isCompleted
+                        ? WebColors.secondary
+                        : WebColors.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 20,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -326,114 +286,90 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
           Container(
             padding: const EdgeInsets.all(40),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF6366F1).withOpacity(0.2),
-                  const Color(0xFF8B5CF6).withOpacity(0.2),
-                ],
-              ),
+              color: WebColors.primaryLight,
               borderRadius: BorderRadius.circular(24),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.track_changes,
-              color: Colors.white,
+              color: WebColors.primary,
               size: 120,
             ),
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 200.ms).scale();
+    ).animate().fadeIn(delay: 100.ms);
   }
 
   Widget _buildStatsOverview(UserModel? user) {
     return Row(
       children: [
         Expanded(
-          child: GlassCard(
-            padding: const EdgeInsets.all(32),
-            margin: EdgeInsets.zero,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFBBF24), Color(0xFFF59E0B)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.local_fire_department,
-                      color: Colors.white, size: 32),
-                ),
-                const SizedBox(width: 20),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${user?.missionCompletionStreak ?? 0} Days',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'Current Streak',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          child: _buildStatCard(
+            icon: Icons.local_fire_department,
+            value: '${user?.missionCompletionStreak ?? 0} Days',
+            label: 'Current Streak',
+            color: WebColors.accentOrange,
           ),
         ),
         const SizedBox(width: 24),
         Expanded(
-          child: GlassCard(
-            padding: const EdgeInsets.all(32),
-            margin: EdgeInsets.zero,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child:
-                      const Icon(Icons.school, color: Colors.white, size: 32),
-                ),
-                const SizedBox(width: 20),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${user?.itemsCompletedToday ?? 0} Items',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'Studied Today',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          child: _buildStatCard(
+            icon: Icons.school,
+            value: '${user?.itemsCompletedToday ?? 0} Items',
+            label: 'Studied Today',
+            color: WebColors.secondary,
           ),
         ),
       ],
-    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1);
+    ).animate().fadeIn(delay: 200.ms);
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: WebColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 32),
+          ),
+          const SizedBox(width: 20),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: WebColors.textPrimary,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: WebColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
