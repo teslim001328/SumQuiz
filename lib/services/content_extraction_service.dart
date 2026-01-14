@@ -16,7 +16,8 @@ class ContentExtractionService {
     required String type, // 'text', 'link', 'pdf', 'image'
     dynamic input,
     String? userId,
-    bool refineWithAI = true, // Optional AI refinement
+    bool refineWithAI =
+        false, // Skip AI refinement by default - raw text is clean
   }) async {
     String rawText;
     switch (type) {
@@ -30,8 +31,8 @@ class ContentExtractionService {
             throw Exception('User ID is required for YouTube analysis.');
           }
           // YouTube requires AI for video analysis
-          final result = await _enhancedAiService.analyzeYouTubeVideo(url,
-              userId: userId);
+          final result =
+              await _enhancedAiService.analyzeYouTubeVideo(url, userId: userId);
           if (result is Ok<String>) {
             return result.value;
           } else {
