@@ -16,6 +16,11 @@ class _LandingPageWebState extends State<LandingPageWeb>
   final ScrollController _scrollController = ScrollController();
   late TabController _tabController;
 
+  // Section keys for scrolling
+  final GlobalKey _featuresKey = GlobalKey();
+  final GlobalKey _pricingKey = GlobalKey();
+  final GlobalKey _faqKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -27,6 +32,38 @@ class _LandingPageWebState extends State<LandingPageWeb>
     _scrollController.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _scrollToFeatures() => _scrollToSection(_featuresKey);
+  void _scrollToPricing() => _scrollToSection(_pricingKey);
+  void _scrollToFAQ() => _scrollToSection(_faqKey);
+
+  void _scrollToSection(GlobalKey key) {
+    final context = key.currentContext;
+    if (context != null) {
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  Widget _buildNavLink(String text, VoidCallback onTap) {
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: WebColors.textSecondary,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 15,
+        ),
+      ),
+    );
   }
 
   @override
@@ -116,39 +153,50 @@ class _LandingPageWebState extends State<LandingPageWeb>
                   ),
                 ],
               ),
-              // Tab switcher
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: WebColors.backgroundAlt,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: WebColors.primary.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+              // Navigation Links
+              Row(
+                children: [
+                  _buildNavLink('Features', _scrollToFeatures),
+                  const SizedBox(width: 8),
+                  _buildNavLink('Pricing', _scrollToPricing),
+                  const SizedBox(width: 8),
+                  _buildNavLink('FAQ', _scrollToFAQ),
+                  const SizedBox(width: 24),
+                  // Tab switcher
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: WebColors.backgroundAlt,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      indicator: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: WebColors.primary.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      labelColor: WebColors.primary,
+                      unselectedLabelColor: WebColors.textSecondary,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      tabs: const [
+                        Tab(text: 'For Students'),
+                        Tab(text: 'For Creators'),
+                      ],
+                    ),
                   ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  labelColor: WebColors.primary,
-                  unselectedLabelColor: WebColors.textSecondary,
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                  tabs: const [
-                    Tab(text: 'For Students'),
-                    Tab(text: 'For Creators'),
-                  ],
-                ),
+                ],
               ),
               // Auth buttons
               Row(
@@ -590,6 +638,7 @@ class _LandingPageWebState extends State<LandingPageWeb>
     ];
 
     return Container(
+      key: _featuresKey,
       padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 24),
       child: Center(
         child: Container(
@@ -1033,6 +1082,7 @@ class _LandingPageWebState extends State<LandingPageWeb>
 
   Widget _buildPricing(BuildContext context) {
     return Container(
+      key: _pricingKey,
       padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 24),
       color: WebColors.backgroundAlt,
       child: Center(
@@ -1299,6 +1349,7 @@ class _LandingPageWebState extends State<LandingPageWeb>
     ];
 
     return Container(
+      key: _faqKey,
       padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 24),
       child: Center(
         child: Container(
