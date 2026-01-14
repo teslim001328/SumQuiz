@@ -25,13 +25,15 @@ class LocalSummaryAdapter extends TypeAdapter<LocalSummary> {
       userId: fields[4] as String,
       tags: (fields[6] as List).cast<String>(),
       isReadOnly: fields[7] as bool,
+      publicDeckId: fields[8] as String?,
+      creatorName: fields[9] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, LocalSummary obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +49,11 @@ class LocalSummaryAdapter extends TypeAdapter<LocalSummary> {
       ..writeByte(6)
       ..write(obj.tags)
       ..writeByte(7)
-      ..write(obj.isReadOnly);
+      ..write(obj.isReadOnly)
+      ..writeByte(8)
+      ..write(obj.publicDeckId)
+      ..writeByte(9)
+      ..write(obj.creatorName);
   }
 
   @override

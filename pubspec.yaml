@@ -80,6 +80,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/web/
     - assets/icons/
     - assets/notification_templates.json
     - assets/fonts/
