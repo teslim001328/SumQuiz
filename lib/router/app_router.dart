@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sumquiz/models/editable_content.dart';
@@ -74,7 +75,12 @@ final _progressShellNavigatorKey =
 GoRouter createAppRouter(AuthService authService) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: kIsWeb ? '/landing' : '/splash',
+    initialLocation: (kIsWeb ||
+            defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.macOS)
+        ? '/landing'
+        : '/splash',
     refreshListenable: GoRouterRefreshStream(authService.authStateChanges),
     redirect: (context, state) {
       final user = authService.currentUser;
@@ -83,8 +89,13 @@ GoRouter createAppRouter(AuthService authService) {
       final isOnboarding = state.matchedLocation == '/onboarding';
       final isLanding = state.matchedLocation == '/landing';
 
-      // Web Logic: Bypass Splash and Onboarding completely
-      if (kIsWeb) {
+      // Web & Desktop Logic: Bypass Splash and Onboarding completely
+      final isDesktop = !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.linux ||
+              defaultTargetPlatform == TargetPlatform.macOS);
+
+      if (kIsWeb || isDesktop) {
         if (state.matchedLocation == '/splash' ||
             state.matchedLocation == '/onboarding') {
           return '/landing';
