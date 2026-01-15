@@ -18,7 +18,7 @@ class _LandingPageWebState extends State<LandingPageWeb>
 
   // Section keys for scrolling
   final GlobalKey _featuresKey = GlobalKey();
-  final GlobalKey _pricingKey = GlobalKey();
+
   final GlobalKey _faqKey = GlobalKey();
 
   @override
@@ -35,7 +35,7 @@ class _LandingPageWebState extends State<LandingPageWeb>
   }
 
   void _scrollToFeatures() => _scrollToSection(_featuresKey);
-  void _scrollToPricing() => _scrollToSection(_pricingKey);
+
   void _scrollToFAQ() => _scrollToSection(_faqKey);
 
   void _scrollToSection(GlobalKey key) {
@@ -88,7 +88,6 @@ class _LandingPageWebState extends State<LandingPageWeb>
                       _buildFeaturesGrid(context),
                       _buildHowItWorks(context),
                       _buildTestimonials(context),
-                      _buildPricing(context),
                       _buildFAQ(context),
                       _buildCTASection(context),
                       _buildFooter(context),
@@ -158,7 +157,6 @@ class _LandingPageWebState extends State<LandingPageWeb>
                 children: [
                   _buildNavLink('Features', _scrollToFeatures),
                   const SizedBox(width: 8),
-                  _buildNavLink('Pricing', _scrollToPricing),
                   const SizedBox(width: 8),
                   _buildNavLink('FAQ', _scrollToFAQ),
                   const SizedBox(width: 24),
@@ -1074,250 +1072,6 @@ class _LandingPageWebState extends State<LandingPageWeb>
                 ],
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPricing(BuildContext context) {
-    return Container(
-      key: _pricingKey,
-      padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 24),
-      color: WebColors.backgroundAlt,
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Column(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: WebColors.primaryLight,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'PRICING',
-                  style: TextStyle(
-                    color: WebColors.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Simple, Transparent Pricing',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w700,
-                  color: WebColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Start free and upgrade when you\'re ready',
-                style: TextStyle(
-                  fontSize: 20,
-                  color: WebColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 60),
-              Row(
-                children: [
-                  Expanded(
-                      child: _buildPricingCard(
-                    title: 'Free',
-                    price: '\$0',
-                    period: '/month',
-                    description: 'Perfect for getting started',
-                    features: [
-                      '5 uploads per week',
-                      'Basic AI generation',
-                      'Cloud sync',
-                      'Basic analytics',
-                    ],
-                    buttonText: 'Get Started',
-                    isPopular: false,
-                  )),
-                  Expanded(
-                      child: _buildPricingCard(
-                    title: 'Pro',
-                    price: '\$9.99',
-                    period: '/month',
-                    description: 'For serious students',
-                    features: [
-                      'Unlimited uploads',
-                      'Advanced AI generation',
-                      'Priority processing',
-                      'Advanced analytics',
-                      'Export to PDF/Anki',
-                      'Priority support',
-                    ],
-                    buttonText: 'Upgrade to Pro',
-                    isPopular: true,
-                  )),
-                  Expanded(
-                      child: _buildPricingCard(
-                    title: 'Creator',
-                    price: 'Free Pro',
-                    period: '',
-                    description: 'Share & earn forever',
-                    features: [
-                      'All Pro features',
-                      'Publish public decks',
-                      'Creator analytics',
-                      'Earn when students use your content',
-                      'Creator badge',
-                    ],
-                    buttonText: 'Become a Creator',
-                    isPopular: false,
-                  )),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPricingCard({
-    required String title,
-    required String price,
-    required String period,
-    required String description,
-    required List<String> features,
-    required String buttonText,
-    required bool isPopular,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: isPopular ? WebColors.primary : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: isPopular ? null : Border.all(color: WebColors.border),
-        boxShadow: isPopular
-            ? [
-                BoxShadow(
-                  color: WebColors.primary.withOpacity(0.3),
-                  blurRadius: 30,
-                  offset: const Offset(0, 15),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-      ),
-      child: Column(
-        children: [
-          if (isPopular)
-            Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                '⭐ MOST POPULAR',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: isPopular ? Colors.white : WebColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                price,
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.w700,
-                  color: isPopular ? Colors.white : WebColors.textPrimary,
-                ),
-              ),
-              if (period.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Text(
-                    period,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: isPopular
-                          ? Colors.white.withOpacity(0.8)
-                          : WebColors.textSecondary,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: 16,
-              color: isPopular
-                  ? Colors.white.withOpacity(0.9)
-                  : WebColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ...features.map((feature) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: isPopular ? Colors.white : WebColors.secondary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      feature,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color:
-                            isPopular ? Colors.white : WebColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => context.go('/auth'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isPopular ? Colors.white : WebColors.primary,
-                foregroundColor: isPopular ? WebColors.primary : Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(buttonText),
-            ),
           ),
         ],
       ),
