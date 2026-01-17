@@ -296,6 +296,45 @@ class _ReferralScreenState extends State<ReferralScreen> {
               },
             ),
           ),
+          const SizedBox(height: 12),
+          // Regenerate Code Button
+          TextButton.icon(
+            icon: Icon(Icons.refresh, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+            label: Text(
+              'Regenerate Code',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary.withValues(alpha: 0.7),
+              ),
+            ),
+            onPressed: () async {
+              final authService = Provider.of<AuthService>(context, listen: false);
+              final referralService = Provider.of<ReferralService>(context, listen: false);
+              
+              try {
+                final newCode = await referralService.forceGenerateReferralCode(authService.currentUser!.uid);
+                setState(() {
+                  _referralCodeFuture = Future.value(newCode);
+                });
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('New code generated: $newCode'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to regenerate code: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
         ],
       ),
     );

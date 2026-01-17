@@ -63,27 +63,46 @@ class NotificationService {
     await _localNotifications.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (response.payload != null) {
-          didReceiveLocalNotificationSubject.add(
-            ReceivedNotification(
-              id: response.id ?? 0,
-              title: response.notificationResponseType ==
-                      NotificationResponseType.selectedNotification
-                  ? response.payload
-                  : null,
-              body: response.notificationResponseType ==
-                      NotificationResponseType.selectedNotification
-                  ? response.payload
-                  : null,
-              payload: response.payload,
-            ),
-          );
-        }
+        _handleNotificationResponse(response);
       },
     );
 
+    // Handle initial notification if app was closed
+    final NotificationAppLaunchDetails? notificationAppLaunchDetails =
+        await _localNotifications.getNotificationAppLaunchDetails();
+    if (notificationAppLaunchDetails?.didNotificationLaunchApp ?? false) {
+      final response = notificationAppLaunchDetails!.notificationResponse;
+      if (response != null) {
+        _handleNotificationResponse(response);
+      }
+    }
+
     await _setupPushNotifications();
     await requestPermissions();
+  }
+
+  void _handleNotificationResponse(NotificationResponse response) {
+    if (response.payload != null) {
+      didReceiveLocalNotificationSubject.add(
+        ReceivedNotification(
+          id: response.id ?? 0,
+          title: response.notificationResponseType ==
+                  NotificationResponseType.selectedNotification
+              ? response.payload
+              : null,
+          body: response.notificationResponseType ==
+                  NotificationResponseType.selectedNotification
+              ? response.payload
+              : null,
+          payload: response.payload,
+        ),
+      );
+    }
+  }
+
+  Future<void> cancelNotification(int id) async {
+    await _localNotifications.cancel(id);
+    debugPrint('🚫 Cancelled notification: $id');
   }
 
   Future<void> _loadNotificationTemplates() async {

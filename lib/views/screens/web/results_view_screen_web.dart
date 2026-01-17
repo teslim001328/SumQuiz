@@ -228,7 +228,7 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
                     borderRadius: BorderRadius.circular(12)),
               ),
             ),
-          ).animate().pulse(delay: 1.seconds, duration: 2.seconds),
+          ).animate().shimmer(delay: 1.seconds, duration: 2.seconds),
         ],
       ),
     );

@@ -54,14 +54,8 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
   }
 
   void _toggleOutput(OutputType type) {
-    if (type == OutputType.flashcards) {
-      final user = context.read<UserModel?>();
-      if (user != null && !user.isPro) {
-        _showUpgradeDialog('Interactive Flashcards');
-        return;
-      }
-    }
-
+    // All output types now available to all users within their limits
+    // The limit check happens in _handleGenerate()
     setState(() {
       if (_selectedOutputs.contains(type)) {
         _selectedOutputs.remove(type);
@@ -256,6 +250,8 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Usage Banner for free users
+                  _buildUsageBanner(theme),
                   Text('1. Choose content to create:',
                           style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
@@ -464,6 +460,82 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
         ),
       ),
     );
+  }
+
+  /// Usage banner showing remaining generations for free users
+  Widget _buildUsageBanner(ThemeData theme) {
+    final user = context.watch<UserModel?>();
+    
+    // Don't show for Pro users
+    if (user == null || user.isPro) {
+      return const SizedBox.shrink();
+    }
+
+    // Calculate usage
+    final now = DateTime.now();
+    final lastGen = user.lastDeckGenerationDate;
+    final isNewDay = lastGen == null ||
+        now.year != lastGen.year ||
+        now.month != lastGen.month ||
+        now.day != lastGen.day;
+    
+    final used = isNewDay ? 0 : user.dailyDecksGenerated;
+    final limit = 2; // Free tier daily limit
+    final remaining = limit - used;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: remaining > 0 
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : Colors.orange.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: remaining > 0 
+              ? theme.colorScheme.primary.withValues(alpha: 0.3)
+              : Colors.orange.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            remaining > 0 ? Icons.info_outline : Icons.warning_amber_rounded,
+            color: remaining > 0 ? theme.colorScheme.primary : Colors.orange[700],
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              remaining > 0
+                  ? 'Free Plan: $used/$limit today'
+                  : 'Daily limit reached',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => context.push('/subscription'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Upgrade',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn().slideY(begin: -0.2);
   }
 }
 

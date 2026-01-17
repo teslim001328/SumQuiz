@@ -309,7 +309,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         const SizedBox(width: 16),
         Expanded(
             child: _buildStatCard(
-                'Streak',
+                'Study Streak',
                 '${user.missionCompletionStreak} days',
                 Icons.whatshot_rounded,
                 Colors.redAccent,

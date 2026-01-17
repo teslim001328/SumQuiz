@@ -73,8 +73,19 @@ class ContentExtractionService {
             }
 
           case UrlContentType.webpage:
-            // Regular web scraping for HTML pages
-            rawText = await _extractWebContent(url);
+            // Use Gemini-powered extraction for webpages
+            if (userId == null) {
+              throw Exception('User ID is required for webpage extraction.');
+            }
+            final result = await _enhancedAiService.extractWebpageContent(
+              url: url,
+              userId: userId,
+            );
+            if (result is Ok<String>) {
+              return result.value;
+            } else {
+              throw (result as Error).error;
+            }
         }
         break;
       case 'pdf':

@@ -15,12 +15,16 @@ class IAPService {
   static const String _proMonthlyId = 'sumquiz_pro_monthly';
   static const String _proYearlyId = 'sumquiz_pro_yearly';
   static const String _proLifetimeId = 'sumquiz_pro_lifetime';
+  static const String _examPassId = 'sumquiz_exam_24h';     // NEW: 24-hour pass
+  static const String _weekPassId = 'sumquiz_week_pass';    // NEW: 7-day pass
 
   late StreamSubscription<List<PurchaseDetails>> _subscription;
   final Set<String> _productIds = {
     _proMonthlyId,
     _proYearlyId,
     _proLifetimeId,
+    _examPassId,    // NEW
+    _weekPassId,    // NEW
   };
 
   // Freemium limits
@@ -121,6 +125,12 @@ class IAPService {
       if (purchaseDetails.productID == _proLifetimeId) {
         // Lifetime: Set expiry far in the future (100 years)
         expiryDate = DateTime.now().add(const Duration(days: 36500));
+      } else if (purchaseDetails.productID == _examPassId) {
+        // NEW: Exam Pass - 24 hours
+        expiryDate = DateTime.now().add(const Duration(hours: 24));
+      } else if (purchaseDetails.productID == _weekPassId) {
+        // NEW: Week Pass - 7 days
+        expiryDate = DateTime.now().add(const Duration(days: 7));
       } else {
         // For recurring subscriptions, set expiry to 1 month or 1 year from now
         final now = DateTime.now();
@@ -164,13 +174,20 @@ class IAPService {
         orElse: () => throw Exception('Product not found: $productId'),
       );
 
-      // Make purchase
+      // Make purchase - use consumable for passes, non-consumable for subscriptions
       final purchaseParam = PurchaseParam(productDetails: product);
-      final response = await InAppPurchase.instance.buyNonConsumable(
-        purchaseParam: purchaseParam,
-      );
-
-      return response;
+      
+      if (productId == _examPassId || productId == _weekPassId) {
+        // Consumable: can be purchased multiple times
+        return await InAppPurchase.instance.buyConsumable(
+          purchaseParam: purchaseParam,
+        );
+      } else {
+        // Non-consumable: subscriptions and lifetime
+        return await InAppPurchase.instance.buyNonConsumable(
+          purchaseParam: purchaseParam,
+        );
+      }
     } catch (e) {
       developer.log('Failed to purchase product: $productId',
           name: 'IAPService', error: e);
@@ -206,12 +223,7 @@ class IAPService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-      // Check email verification
-      if (!user.emailVerified) {
-        developer.log('User email not verified, blocking Pro access',
-            name: 'IAPService');
-        return false;
-      }
+      // Email verification check removed - not fully implemented
 
       // Get user document and use UserModel to check Pro status
       final doc = await _firestore.collection('users').doc(user.uid).get();

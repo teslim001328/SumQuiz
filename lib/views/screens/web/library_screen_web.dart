@@ -446,7 +446,7 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
           folders
               .map((f) => _LibraryCardData(
                     title: f.name,
-                    subtitle: '${f.itemCount} items',
+                    subtitle: 'View items',
                     icon: Icons.folder_rounded,
                     color: WebColors.accentOrange,
                     onTap: () => context.push('/library/results-view/${f.id}'),

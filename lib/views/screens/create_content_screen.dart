@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/content_extraction_service.dart';
 import 'package:sumquiz/services/enhanced_ai_service.dart';
+import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/views/widgets/extraction_progress_dialog.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 
@@ -69,11 +70,17 @@ class CreateContentScreen extends StatefulWidget {
 class _CreateContentScreenState extends State<CreateContentScreen> {
   final _textController = TextEditingController();
   final _linkController = TextEditingController();
+  final _topicController = TextEditingController();
   String? _pdfName;
   Uint8List? _pdfBytes;
   String? _imageName;
   Uint8List? _imageBytes;
   String _errorMessage = '';
+
+  // Topic-based learning state
+  String _topicDepth = 'intermediate';
+  double _topicCardCount = 15;
+  bool _isTopicMode = false;
 
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -81,13 +88,25 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   void _resetInputs() {
     _textController.clear();
     _linkController.clear();
+    _topicController.clear();
     setState(() {
       _pdfName = null;
       _pdfBytes = null;
       _imageName = null;
       _imageBytes = null;
       _errorMessage = '';
+      _isTopicMode = false;
     });
+  }
+
+  void _activateTopicMode() {
+    if (_textController.text.isNotEmpty ||
+        _linkController.text.isNotEmpty ||
+        _pdfBytes != null ||
+        _imageBytes != null) {
+      _resetInputs();
+    }
+    setState(() => _isTopicMode = true);
   }
 
   // These methods will set the active input type and clear others
@@ -163,6 +182,12 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     if (user == null) {
       setState(
           () => _errorMessage = 'You must be logged in to create content.');
+      return;
+    }
+
+    // TOPIC-BASED GENERATION FLOW
+    if (_isTopicMode && _topicController.text.trim().isNotEmpty) {
+      await _processTopicGeneration(user);
       return;
     }
 
@@ -293,6 +318,16 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
               ),
             ),
             const SizedBox(height: 40),
+            // NEW: Learn Topic Section
+            _buildSectionHeader(colorScheme, Icons.lightbulb, 'LEARN SOMETHING NEW'),
+            _buildLearnTopicSection(theme),
+            const SizedBox(height: 32),
+            Divider(color: colorScheme.outline.withValues(alpha: 0.3)),
+            const SizedBox(height: 16),
+            Text('Or import your own content:',
+                style: theme.textTheme.titleSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 24),
             _buildSectionHeader(colorScheme, Icons.edit, 'PASTE TEXT'),
             _buildPasteTextSection(theme),
             const SizedBox(height: 32),
@@ -330,6 +365,280 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         ),
       ],
     );
+  }
+
+  // ===========================================================
+  // LEARN TOPIC SECTION
+  // ===========================================================
+  
+  Widget _buildLearnTopicSection(ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primaryContainer.withValues(alpha: 0.3),
+            colorScheme.secondaryContainer.withValues(alpha: 0.2),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _isTopicMode 
+              ? colorScheme.primary 
+              : colorScheme.outline.withValues(alpha: 0.3),
+          width: _isTopicMode ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Topic Input
+          TextField(
+            controller: _topicController,
+            onTap: _activateTopicMode,
+            style: TextStyle(
+              color: colorScheme.onSurface,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Enter any topic (e.g., "Spanish travel phrases")',
+              hintStyle: TextStyle(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
+              prefixIcon: Icon(Icons.search, color: colorScheme.primary),
+              filled: true,
+              fillColor: colorScheme.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Depth Selector
+          Text(
+            'Difficulty Level',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildDepthChip('Beginner', 'beginner', theme),
+              const SizedBox(width: 8),
+              _buildDepthChip('Intermediate', 'intermediate', theme),
+              const SizedBox(width: 8),
+              _buildDepthChip('Advanced', 'advanced', theme),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Card Count Slider
+          Row(
+            children: [
+              Text(
+                'Flashcards:',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_topicCardCount.toInt()}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: colorScheme.primary,
+              inactiveTrackColor: colorScheme.primary.withValues(alpha: 0.2),
+              thumbColor: colorScheme.primary,
+              overlayColor: colorScheme.primary.withValues(alpha: 0.1),
+            ),
+            child: Slider(
+              value: _topicCardCount,
+              min: 5,
+              max: 30,
+              divisions: 5,
+              label: '${_topicCardCount.toInt()} cards',
+              onChanged: (value) {
+                _activateTopicMode();
+                setState(() => _topicCardCount = value);
+              },
+            ),
+          ),
+          
+          // AI Disclaimer
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 16, color: Colors.amber[800]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'AI-generated content. Verify facts with trusted sources.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.amber[900],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildDepthChip(String label, String value, ThemeData theme) {
+    final isSelected = _topicDepth == value;
+    final colorScheme = theme.colorScheme;
+    
+    return GestureDetector(
+      onTap: () {
+        _activateTopicMode();
+        setState(() => _topicDepth = value);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? colorScheme.primary 
+              : colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected 
+                ? colorScheme.primary 
+                : colorScheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: isSelected 
+                ? colorScheme.onPrimary 
+                : colorScheme.onSurface,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Future<void> _processTopicGeneration(UserModel user) async {
+    final topic = _topicController.text.trim();
+    if (topic.isEmpty) {
+      setState(() => _errorMessage = 'Please enter a topic to learn about.');
+      return;
+    }
+    
+    final aiService = Provider.of<EnhancedAIService>(context, listen: false);
+    final localDb = Provider.of<LocalDatabaseService>(context, listen: false);
+    final navigator = Navigator.of(context);
+    
+    // Show progress dialog
+    String progressMessage = 'Preparing to generate study materials...';
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 16),
+                  CircularProgressIndicator(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Learning about "$topic"',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    progressMessage,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    
+    try {
+      final folderId = await aiService.generateFromTopic(
+        topic: topic,
+        userId: user.uid,
+        localDb: localDb,
+        depth: _topicDepth,
+        cardCount: _topicCardCount.toInt(),
+        onProgress: (message) {
+          // Progress updates can be shown in future enhancement
+        },
+      );
+      
+      if (mounted) {
+        try {
+          navigator.pop(); // Close progress dialog
+        } catch (_) {}
+        
+        // Navigate to results
+        context.push('/library/results-view/$folderId');
+        
+        // Clear inputs
+        _resetInputs();
+      }
+    } catch (e) {
+      if (mounted) {
+        try {
+          navigator.pop(); // Close progress dialog
+        } catch (_) {}
+        
+        setState(() {
+          _errorMessage = _getUserFriendlyError(e);
+        });
+      }
+    }
   }
 
   Widget _buildPasteTextSection(ThemeData theme) {

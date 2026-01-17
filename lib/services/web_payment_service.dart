@@ -22,6 +22,24 @@ class WebPaymentService {
 
   /// Centralized Product Definitions for Web
   static final List<ProductDetails> webProducts = [
+    // Quick Access Passes (NEW)
+    ProductDetails(
+      id: 'sumquiz_exam_24h',
+      title: 'Exam Pass (24h)',
+      description: 'Unlimited access for 24 hours',
+      price: '\$2.99',
+      rawPrice: 2.99,
+      currencyCode: 'USD',
+    ),
+    ProductDetails(
+      id: 'sumquiz_week_pass',
+      title: 'Week Pass',
+      description: 'Unlimited access for 7 days',
+      price: '\$3.99',
+      rawPrice: 3.99,
+      currencyCode: 'USD',
+    ),
+    // Subscription Plans
     ProductDetails(
       id: 'sumquiz_pro_monthly',
       title: 'SumQuiz Pro Monthly',
@@ -88,10 +106,17 @@ class WebPaymentService {
       final ChargeResponse response = await flutterwave.charge(context);
 
       if (response.success == true) {
-        // 2. Determine Duration
+        // 2. Determine Duration based on product
         Duration? duration;
-        if (product.id.contains('monthly')) duration = const Duration(days: 30);
-        if (product.id.contains('yearly')) duration = const Duration(days: 365);
+        if (product.id.contains('24h')) {
+          duration = const Duration(hours: 24);  // Exam Pass
+        } else if (product.id.contains('week')) {
+          duration = const Duration(days: 7);    // Week Pass
+        } else if (product.id.contains('monthly')) {
+          duration = const Duration(days: 30);
+        } else if (product.id.contains('yearly')) {
+          duration = const Duration(days: 365);
+        }
         // Lifetime: duration is null
 
         // 3. Upgrade User

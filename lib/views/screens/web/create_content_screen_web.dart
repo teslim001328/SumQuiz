@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:sumquiz/theme/web_theme.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/content_extraction_service.dart';
+import 'package:sumquiz/services/enhanced_ai_service.dart';
+import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/services/usage_service.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 import 'dart:math' as dart_math;
@@ -27,12 +29,17 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
   Uint8List? _fileBytes;
   bool _isLoading = false;
   String _errorMessage = '';
-  String _selectedInputType = 'text';
+  String _selectedInputType = 'topic'; // Default to topic now
+
+  // Topic-based learning state
+  final _topicController = TextEditingController();
+  String _topicDepth = 'intermediate';
+  double _topicCardCount = 15;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);  // Now 5 tabs
   }
 
   @override
@@ -40,12 +47,14 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
     _tabController.dispose();
     _textController.dispose();
     _linkController.dispose();
+    _topicController.dispose();
     super.dispose();
   }
 
   void _resetInputs() {
     _textController.clear();
     _linkController.clear();
+    _topicController.clear();
     setState(() {
       _fileName = null;
       _fileBytes = null;
@@ -122,6 +131,10 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
       String extractedText = '';
 
       switch (_selectedInputType) {
+        case 'topic':
+          // Handle topic-based generation separately
+          await _processTopicGeneration(user);
+          return;  // Exit early, topic handling is complete
         case 'text':
           if (_textController.text.trim().isEmpty) {
             throw Exception('Text field cannot be empty.');
@@ -256,6 +269,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
             child: TabBarView(
               controller: _tabController,
               children: [
+                _buildTopicInput(),  // NEW: Topic tab first
                 _buildTextInput(),
                 _buildLinkInput(),
                 _buildFileUpload('pdf'),
@@ -300,10 +314,11 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
         onTap: (index) {
           _resetInputs();
           setState(() {
-            _selectedInputType = ['text', 'link', 'pdf', 'image'][index];
+            _selectedInputType = ['topic', 'text', 'link', 'pdf', 'image'][index];
           });
         },
         tabs: [
+          _buildTabItem(Icons.lightbulb, 'Learn Topic'),  // NEW tab first
           _buildTabItem(Icons.edit_note, 'Text'),
           _buildTabItem(Icons.link, 'Web Link'),
           _buildTabItem(Icons.picture_as_pdf, 'Upload PDF'),
@@ -325,6 +340,260 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
         ],
       ),
     );
+  }
+
+  // ===========================================================
+  // TOPIC-BASED LEARNING
+  // ===========================================================
+  
+  Widget _buildTopicInput() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Header
+          ShaderMask(
+            shaderCallback: (bounds) => LinearGradient(
+              colors: [WebColors.primary, const Color(0xFF9333EA)],
+            ).createShader(bounds),
+            child: const Icon(Icons.auto_awesome, size: 48, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'What do you want to learn?',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: WebColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Enter any topic and we\'ll create a complete study deck for you.',
+            style: TextStyle(
+              fontSize: 16,
+              color: WebColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          
+          // Topic Input
+          Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: WebColors.primary.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _topicController,
+              style: TextStyle(
+                color: WebColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.all(20),
+                hintText: 'e.g., "Spanish travel phrases", "Python basics"...',
+                hintStyle: TextStyle(color: WebColors.textTertiary),
+                prefixIcon: Icon(Icons.search, color: WebColors.primary, size: 24),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: WebColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: WebColors.primary, width: 2),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          
+          // Options Row
+          Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Row(
+              children: [
+                // Depth Selector
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Difficulty',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: WebColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _buildWebDepthChip('Beginner', 'beginner'),
+                          const SizedBox(width: 8),
+                          _buildWebDepthChip('Intermediate', 'intermediate'),
+                          const SizedBox(width: 8),
+                          _buildWebDepthChip('Advanced', 'advanced'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          // Card Count
+          Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Flashcards: ',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: WebColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      '${_topicCardCount.toInt()}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: WebColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: WebColors.primary,
+                    inactiveTrackColor: WebColors.primary.withOpacity(0.2),
+                    thumbColor: WebColors.primary,
+                    overlayColor: WebColors.primary.withOpacity(0.1),
+                  ),
+                  child: Slider(
+                    value: _topicCardCount,
+                    min: 5,
+                    max: 30,
+                    divisions: 5,
+                    onChanged: (value) => setState(() => _topicCardCount = value),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // AI Disclaimer
+          Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 20, color: Colors.amber[800]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'AI-generated content. Verify important facts with trusted sources.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.amber[900],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildWebDepthChip(String label, String value) {
+    final isSelected = _topicDepth == value;
+    return GestureDetector(
+      onTap: () => setState(() => _topicDepth = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? WebColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? WebColors.primary : WebColors.border,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: WebColors.primary.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ] : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: isSelected ? Colors.white : WebColors.textPrimary,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Future<void> _processTopicGeneration(UserModel user) async {
+    final topic = _topicController.text.trim();
+    if (topic.isEmpty) {
+      setState(() => _errorMessage = 'Please enter a topic to learn about.');
+      setState(() => _isLoading = false);
+      return;
+    }
+    
+    try {
+      final aiService = Provider.of<EnhancedAIService>(context, listen: false);
+      final localDb = Provider.of<LocalDatabaseService>(context, listen: false);
+      
+      final folderId = await aiService.generateFromTopic(
+        topic: topic,
+        userId: user.uid,
+        localDb: localDb,
+        depth: _topicDepth,
+        cardCount: _topicCardCount.toInt(),
+      );
+      
+      if (mounted) {
+        _resetInputs();
+        context.push('/library/results-view/$folderId');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Widget _buildTextInput() {

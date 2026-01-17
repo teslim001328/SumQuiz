@@ -161,15 +161,12 @@ class MissionService {
         newMomentum += dailyGain;
 
         // 3. Cap Total Momentum
-        if (newMomentum > 500) newMomentum = 500;
+        if (newMomentum > 1000) newMomentum = 1000; // Increased cap for more growth
 
-        // 4. Update Streak
-        int newStreak = user.missionCompletionStreak + 1;
-
-        // 5. Save to Firestore
+        // 4. Save to Firestore
         final updatedUser = user.copyWith(
           currentMomentum: newMomentum,
-          missionCompletionStreak: newStreak,
+          // Streak is now handled by incrementItemsCompleted
         );
         await _firestoreService.saveUserData(updatedUser);
 
@@ -179,6 +176,9 @@ class MissionService {
         // 6. Schedule Recall Notification (20h from now)
         if (_notificationService != null) {
           try {
+            // 🚫 Cancel streak saver notification for today
+            await _notificationService.cancelNotification(1003);
+
             await _notificationService.scheduleRecallNotification(
               momentumGain: dailyGain.round(),
             );

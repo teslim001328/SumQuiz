@@ -40,7 +40,7 @@ class UpgradeDialog extends StatelessWidget {
         ElevatedButton(
           onPressed: () {
             Navigator.of(context).pop();
-            context.go('/subscription');
+            context.go('/settings/subscription');
           },
           child: const Text('Upgrade Now'),
         ),

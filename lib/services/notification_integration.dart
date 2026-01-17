@@ -133,13 +133,23 @@ class NotificationIntegration {
     required int cardCount,
   }) async {
     try {
+      // Get user model from Firestore for preferred study time
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      String preferredStudyTime = '10:00'; // Default if not set
+      if (userDoc.exists) {
+        final user = UserModel.fromFirestore(userDoc);
+        preferredStudyTime = user.preferredStudyTime;
+      }
+
       final notificationManager = NotificationManager(
         context.read<NotificationService>(),
         context.read<LocalDatabaseService>(),
       );
 
-      // Default study time: 6 PM
-      const preferredStudyTime = '18:00';
       final estimatedMinutes = (cardCount * 0.6).ceil(); // ~36 seconds per card
 
       // Schedule priming notification (30 min before)
@@ -150,7 +160,7 @@ class NotificationIntegration {
         estimatedMinutes: estimatedMinutes,
       );
 
-      debugPrint('✅ Mission priming notification scheduled');
+      debugPrint('✅ Mission priming notification scheduled for $preferredStudyTime');
     } catch (e) {
       debugPrint('❌ Failed to schedule mission priming: $e');
     }
@@ -163,17 +173,21 @@ class NotificationIntegration {
     required int momentumGain,
   }) async {
     try {
+      final notificationService = context.read<NotificationService>();
       final notificationManager = NotificationManager(
-        context.read<NotificationService>(),
+        notificationService,
         context.read<LocalDatabaseService>(),
       );
+
+      // 🚫 Cancel streak saver notification for today if it was scheduled
+      await notificationService.cancelNotification(1003);
 
       // Schedule recall notification (20 hours later)
       await notificationManager.scheduleMissionRecall(
         momentumGain: momentumGain,
       );
 
-      debugPrint('✅ Mission recall notification scheduled');
+      debugPrint('✅ Mission recall notification scheduled and streak saver cancelled');
     } catch (e) {
       debugPrint('❌ Failed to schedule mission recall: $e');
     }

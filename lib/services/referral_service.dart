@@ -171,16 +171,48 @@ class ReferralService {
 
   /// Generates a unique referral code for a user if they don't have one.
   Future<String> generateReferralCode(String uid) async {
-    final userDocRef = _firestore.collection('users').doc(uid);
-    final doc = await userDocRef.get();
+    try {
+      final userDocRef = _firestore.collection('users').doc(uid);
+      final doc = await userDocRef.get();
 
-    if (doc.exists &&
-        (doc.data() as Map<String, dynamic>).containsKey('referralCode')) {
-      return (doc.data() as Map<String, dynamic>)['referralCode'];
-    } else {
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final existingCode = data['referralCode'] as String?;
+        // Check if code exists AND is not empty
+        if (existingCode != null && existingCode.isNotEmpty) {
+          developer.log('User $uid already has referral code: $existingCode',
+              name: 'ReferralService');
+          return existingCode;
+        }
+      }
+      
+      // Generate new code
       String code = await _generateUniqueCode();
       await userDocRef.set({'referralCode': code}, SetOptions(merge: true));
+      developer.log('Generated new referral code for $uid: $code',
+          name: 'ReferralService');
       return code;
+    } catch (e, s) {
+      developer.log('Error generating referral code for $uid',
+          name: 'ReferralService', error: e, stackTrace: s);
+      rethrow;
+    }
+  }
+
+  /// Force generates a new referral code, overwriting any existing one.
+  /// Useful for users who had accounts before referral system was implemented.
+  Future<String> forceGenerateReferralCode(String uid) async {
+    try {
+      final userDocRef = _firestore.collection('users').doc(uid);
+      String code = await _generateUniqueCode();
+      await userDocRef.set({'referralCode': code}, SetOptions(merge: true));
+      developer.log('Force generated new referral code for $uid: $code',
+          name: 'ReferralService');
+      return code;
+    } catch (e, s) {
+      developer.log('Error force generating referral code for $uid',
+          name: 'ReferralService', error: e, stackTrace: s);
+      rethrow;
     }
   }
 
@@ -188,7 +220,11 @@ class ReferralService {
   Future<String> _generateUniqueCode() async {
     String code = '';
     bool isUnique = false;
-    while (!isUnique) {
+    int attempts = 0;
+    const maxAttempts = 10;
+    
+    while (!isUnique && attempts < maxAttempts) {
+      attempts++;
       code = _uuid.v4().substring(0, 8).toUpperCase();
       final query = await _firestore
           .collection('users')
@@ -199,6 +235,12 @@ class ReferralService {
         isUnique = true;
       }
     }
+    
+    if (!isUnique) {
+      // Fallback: use longer code if we can't find unique short one
+      code = _uuid.v4().replaceAll('-', '').substring(0, 12).toUpperCase();
+    }
+    
     return code;
   }
 

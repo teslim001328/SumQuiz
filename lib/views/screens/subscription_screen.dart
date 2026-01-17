@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:go_router/go_router.dart';
@@ -25,31 +26,34 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _loadProducts() async {
-    final isWeb = Theme.of(context).platform != TargetPlatform.android &&
-        Theme.of(context).platform != TargetPlatform.iOS;
+    try {
+      List<ProductDetails> products = [];
 
-    List<ProductDetails> products = [];
-
-    if (isWeb) {
-      // Web Flow
-      products = await WebPaymentService().getAvailableProducts();
-    } else {
-      // Mobile Flow
-      final iapService = context.read<IAPService?>();
-      if (iapService != null) {
-        products = await iapService.getAvailableProducts();
+      if (kIsWeb) {
+        // Web Flow
+        products = await WebPaymentService().getAvailableProducts();
+      } else {
+        // Mobile Flow
+        final iapService = context.read<IAPService?>();
+        if (iapService != null) {
+          products = await iapService.getAvailableProducts();
+        }
       }
-    }
 
-    // Sort: Monthly < Yearly < Lifetime
-    products.sort((a, b) => a.rawPrice.compareTo(b.rawPrice));
+      // Sort: Monthly < Yearly < Lifetime
+      products.sort((a, b) => a.rawPrice.compareTo(b.rawPrice));
 
-    if (mounted) {
-      setState(() {
-        _products = products;
-        _setDefaultSelection();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _products = products;
+          _setDefaultSelection();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -64,11 +68,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     if (_selectedProduct == null) return;
     setState(() => _isLoading = true);
 
-    final isWeb = Theme.of(context).platform != TargetPlatform.android &&
-        Theme.of(context).platform != TargetPlatform.iOS;
-
     try {
-      if (isWeb) {
+      if (kIsWeb) {
         // Web Payment Flow
         final user = context.read<UserModel?>();
         if (user == null) {
@@ -203,11 +204,46 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             ),
                           ),
 
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 32),
 
-                          // Products List
-                          ..._products.map((product) =>
-                              _buildProductCard(product, theme, isDark)),
+                          // Quick Access Passes Section (NEW)
+                          _buildQuickAccessSection(theme, isDark),
+
+                          const SizedBox(height: 32),
+
+                          // Divider with "OR SUBSCRIBE" text
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Divider(
+                                  color: theme.dividerColor.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'OR SUBSCRIBE',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Divider(
+                                  color: theme.dividerColor.withValues(alpha: 0.3),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Products List (filter out passes) - Yearly pre-selected
+                          ..._products
+                              .where((p) => !p.id.contains('24h') && !p.id.contains('week_pass'))
+                              .map((product) => _buildProductCard(product, theme, isDark)),
 
                           const SizedBox(height: 20),
                         ],
@@ -340,18 +376,27 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.tertiary,
+                            gradient: LinearGradient(
+                              colors: [Colors.amber[600]!, Colors.orange[400]!],
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(
-                            'BEST VALUE',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: Colors.black, // Always black on amber
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, color: Colors.white, size: 12),
+                              const SizedBox(width: 4),
+                              Text(
+                                'POPULAR',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
                           ),
                         )
                       ]
@@ -389,7 +434,129 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
+  /// Quick Access Section for Exam Pass and Week Pass
+  Widget _buildQuickAccessSection(ThemeData theme, bool isDark) {
+    final passes = _products.where((p) => 
+        p.id.contains('24h') || p.id.contains('week_pass')).toList();
+    
+    if (passes.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.flash_on, color: Colors.amber[700], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Quick Access',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Exam tomorrow? Get instant unlimited access!',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: passes.map((pass) => Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: passes.indexOf(pass) == 0 ? 8 : 0,
+                left: passes.indexOf(pass) == 1 ? 8 : 0,
+              ),
+              child: _buildPassCard(pass, theme, isDark),
+            ),
+          )).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPassCard(ProductDetails pass, ThemeData theme, bool isDark) {
+    final isExamPass = pass.id.contains('24h');
+    final isSelected = _selectedProduct?.id == pass.id;
+    
+    return GestureDetector(
+      onTap: () => setState(() => _selectedProduct = pass),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [
+                    theme.colorScheme.primary.withValues(alpha: 0.15),
+                    Colors.amber.withValues(alpha: 0.1),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isSelected ? null : theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected 
+                ? theme.colorScheme.primary 
+                : theme.dividerColor.withValues(alpha: 0.3),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          children: [
+            Icon(
+              isExamPass ? Icons.timer : Icons.calendar_today,
+              color: isSelected ? theme.colorScheme.primary : Colors.amber[700],
+              size: 28,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isExamPass ? 'Exam Pass' : 'Week Pass',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              pass.price,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isExamPass ? '24 hours' : '7 days',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _getProductTitle(String id) {
+    if (id.contains('24h')) return 'Exam';
+    if (id.contains('week')) return 'Week';
     if (id.contains('monthly')) return 'Monthly';
     if (id.contains('yearly')) return 'Annual';
     if (id.contains('lifetime')) return 'Lifetime';

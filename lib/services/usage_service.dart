@@ -97,10 +97,19 @@ class UsageService {
         int newDailyCount = isNewDay ? 1 : user.dailyDecksGenerated + 1;
         int newTotalCount = user.totalDecksGenerated + 1;
 
+        // Check for weekly reset (7 days since last reset)
+        final lastWeeklyReset = user.lastWeeklyReset;
+        bool isNewWeek = lastWeeklyReset == null ||
+            now.difference(lastWeeklyReset).inDays >= 7;
+        
+        int newWeeklyUploads = isNewWeek ? 1 : user.weeklyUploads + 1;
+
         transaction.update(userRef, {
           'dailyDecksGenerated': newDailyCount,
           'totalDecksGenerated': newTotalCount,
+          'weeklyUploads': newWeeklyUploads,
           'lastDeckGenerationDate': FieldValue.serverTimestamp(),
+          if (isNewWeek) 'lastWeeklyReset': FieldValue.serverTimestamp(),
         });
 
         // REFERRAL TRIGGER: "Referrer bonus activates after invitee generates 1 deck"
