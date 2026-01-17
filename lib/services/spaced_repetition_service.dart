@@ -200,4 +200,39 @@ class SpacedRepetitionService {
       'upcomingReviews': upcomingReviews,
     };
   }
+
+  /// Get the date of the very next review due (after now)
+  DateTime? getNextReviewDate(String userId) {
+    final now = DateTime.now().toUtc();
+    final userItems =
+        _box.values.where((item) => item.userId == userId).toList();
+
+    if (userItems.isEmpty) return null;
+
+    final futureReviews = userItems
+        .where((item) => item.nextReviewDate.isAfter(now))
+        .map((item) => item.nextReviewDate)
+        .toList();
+
+    if (futureReviews.isEmpty) return null;
+
+    return futureReviews.reduce((a, b) => a.isBefore(b) ? a : b);
+  }
+
+  /// Calculate mastery score (0-100) based on SRS proficiency
+  double getMasteryScore(String userId) {
+    final userItems =
+        _box.values.where((item) => item.userId == userId).toList();
+    if (userItems.isEmpty) return 0.0;
+
+    // Weight correct streak and ease factor
+    double totalMastery = 0.0;
+    for (var item in userItems) {
+      double itemMastery = (item.correctStreak * 10) + (item.easeFactor * 10);
+      if (itemMastery > 100) itemMastery = 100;
+      totalMastery += itemMastery;
+    }
+
+    return totalMastery / userItems.length;
+  }
 }

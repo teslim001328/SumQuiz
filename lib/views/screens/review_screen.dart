@@ -36,6 +36,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
   bool _isLoading = true;
   String? _error;
   int _dueCount = 0;
+  DateTime? _nextReviewDate;
+  double _masteryScore = 0.0;
 
   @override
   void didChangeDependencies() {
@@ -63,9 +65,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final srsService =
           SpacedRepetitionService(localDb.getSpacedRepetitionBox());
       final stats = await srsService.getStatistics(userId);
+      final nextDate = srsService.getNextReviewDate(userId);
+      final mastery = srsService.getMasteryScore(userId);
+
       if (mounted) {
         setState(() {
           _dueCount = stats['dueForReviewCount'] as int? ?? 0;
+          _nextReviewDate = nextDate;
+          _masteryScore = mastery;
         });
       }
     } catch (e) {
@@ -272,23 +279,37 @@ class _ReviewScreenState extends State<ReviewScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.info_outline,
-                    size: 48,
+                Icon(Icons.auto_awesome_rounded,
+                    size: 64,
                     color: theme.colorScheme.primary.withOpacity(0.5)),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 Text(
-                  'No mission available',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  'Your mission is waiting...',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
-                  'Check back later for your daily mission',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  'Summarize a document or a link to generate your first study mission for today.',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
                   ),
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () => context.push('/create'),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Create New Topic'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
                 ),
               ],
             ),
@@ -314,7 +335,54 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
           // SRS Banner
           _buildSrsBanner(theme),
-          if (_dueCount > 0) const SizedBox(height: 24),
+          const SizedBox(height: 24),
+
+          // Mastery Overview Header
+          _buildGlassCard(
+            theme: theme,
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      height: 50,
+                      width: 50,
+                      child: CircularProgressIndicator(
+                        value: _masteryScore / 100,
+                        strokeWidth: 4,
+                        color: theme.colorScheme.secondary,
+                        backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                      ),
+                    ),
+                    Icon(Icons.auto_awesome_rounded, color: theme.colorScheme.secondary, size: 24),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Mastery Level',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                      Text('${_masteryScore.toStringAsFixed(0)}% Overall Progress',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface)),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/progress'),
+                  child: const Text('Details'),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(delay: 50.ms).slideX(),
+
+          const SizedBox(height: 24),
 
           // Momentum & Goal Row
           Row(
@@ -547,18 +615,45 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     color: theme.colorScheme.onSurface.withOpacity(0.8)),
               ),
               const SizedBox(height: 16),
+              // Growth CTA when finished
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color:
+                          theme.colorScheme.primary.withValues(alpha: 0.2)),
                 ),
-                child: Center(
-                    child: Text('Come back tomorrow',
+                child: Column(
+                  children: [
+                    Text('Ready for more?',
                         style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.green[800],
-                            fontWeight: FontWeight.w600))),
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary)),
+                    const SizedBox(height: 8),
+                    Text('Generate a new quiz to strengthen your knowledge.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface
+                                .withOpacity(0.7))),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => context.push('/create'),
+                      icon: const Icon(Icons.add_rounded, size: 20),
+                      label: const Text('New Review Content'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ],
@@ -723,7 +818,55 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   Widget _buildSrsBanner(ThemeData theme) {
-    if (_dueCount == 0) return const SizedBox.shrink();
+    if (_dueCount == 0) {
+      if (_nextReviewDate == null) return const SizedBox.shrink();
+
+      // Show "Next Review" info
+      final now = DateTime.now();
+      final diff = _nextReviewDate!.difference(now);
+      String timeText;
+      if (diff.inHours > 0) {
+        timeText = "in ${diff.inHours}h ${diff.inMinutes % 60}m";
+      } else if (diff.inMinutes > 0) {
+        timeText = "in ${diff.inMinutes}m";
+      } else {
+        timeText = "any moment now";
+      }
+
+      return _buildGlassCard(
+        theme: theme,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  shape: BoxShape.circle),
+              child: Icon(Icons.timer_outlined,
+                  color: theme.colorScheme.primary, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('All Caught Up! ✓',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface)),
+                  Text('Next review session $timeText',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return GestureDetector(
       onTap: () async {

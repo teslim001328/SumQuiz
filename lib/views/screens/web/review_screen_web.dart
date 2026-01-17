@@ -25,6 +25,8 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
   DailyMission? _dailyMission;
   bool _isLoading = true;
   String? _error;
+  DateTime? _nextReviewDate;
+  int _dueCount = 0;
 
   // Study Session State
   bool _isStudying = false;
@@ -68,9 +70,19 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
           Provider.of<MissionService>(context, listen: false);
       final mission = await missionService.generateDailyMission(userId);
 
+      // Also load SRS stats for the banner
+      final localDb = Provider.of<LocalDatabaseService>(context, listen: false);
+      await localDb.init();
+      final srsService =
+          SpacedRepetitionService(localDb.getSpacedRepetitionBox());
+      final stats = await srsService.getStatistics(userId);
+      final nextDate = srsService.getNextReviewDate(userId);
+
       if (mounted)
         setState(() {
           _dailyMission = mission;
+          _dueCount = stats['dueForReviewCount'] as int? ?? 0;
+          _nextReviewDate = nextDate;
           _isLoading = false;
           _error = null;
         });
@@ -256,8 +268,12 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
                         children: [
                           _buildWelcomeHeader(user),
                           const SizedBox(height: 48),
-                          _buildDailyMissionCard(),
+                          _buildDailyMissionCard(context),
                           const SizedBox(height: 32),
+                          if (_dueCount > 0 || _nextReviewDate != null) ...[
+                            _buildSrsBanner(context),
+                            const SizedBox(height: 32),
+                          ],
                           _buildStatsOverview(user),
                         ],
                       ),
@@ -560,8 +576,71 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
     ).animate().fadeIn(duration: 300.ms);
   }
 
-  Widget _buildDailyMissionCard() {
-    if (_dailyMission == null) return const SizedBox.shrink();
+  Widget _buildDailyMissionCard(BuildContext context) {
+    if (_dailyMission == null) {
+      return Container(
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: WebColors.border),
+          boxShadow: WebColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your mission is waiting... 🚀',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: WebColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Summarize a document or link to generate your first study mission for today.',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: WebColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () => context.push('/create'),
+                    icon: const Icon(Icons.add_rounded, color: Colors.white),
+                    label: const Text(
+                      'Create New Topic',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: WebColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 22,
+                      ),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 40),
+            Image.asset(
+              'assets/images/web/empty_library_illustration.png',
+              width: 250,
+              height: 250,
+              fit: BoxFit.contain,
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(40),
@@ -596,7 +675,9 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Review 5 Flashcards',
+                  _dailyMission!.isCompleted
+                      ? 'Mission Accomplished! 🎉'
+                      : 'Review 5 Flashcards',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
@@ -606,7 +687,7 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
                 const SizedBox(height: 12),
                 Text(
                   _dailyMission!.isCompleted
-                      ? 'You have completed your daily mission!'
+                      ? "You've crushed today's goals! Ready to master something new?"
                       : 'Complete today\'s mission to maintain your streak',
                   style: TextStyle(
                     fontSize: 16,
@@ -615,45 +696,58 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed:
-                      _dailyMission!.isCompleted ? null : _fetchAndStartMission,
-                  icon: Icon(
-                      _dailyMission!.isCompleted
-                          ? Icons.check_circle
-                          : Icons.play_arrow,
-                      color: Colors.white),
-                  label: Text(
-                    _dailyMission!.isCompleted
-                        ? 'Mission Completed! 🎉'
-                        : 'Start Mission',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _dailyMission!.isCompleted
-                        ? WebColors.secondary
-                        : WebColors.primary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 22,
-                    ),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 8,
-                    shadowColor: WebColors.primary.withOpacity(0.4),
-                  ),
-                )
-                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .shimmer(duration: 2.seconds, delay: 1.seconds),
+                _dailyMission!.isCompleted
+                    ? ElevatedButton.icon(
+                        onPressed: () => context.push('/create'),
+                        icon: const Icon(Icons.auto_awesome, color: Colors.white),
+                        label: const Text(
+                          'Master a New Topic',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: WebColors.secondary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 22,
+                          ),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: _fetchAndStartMission,
+                        icon: const Icon(Icons.play_arrow, color: Colors.white),
+                        label: const Text(
+                          'Start Mission',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 16),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: WebColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 22,
+                          ),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                      )
+                        .animate(onPlay: (c) => c.repeat(reverse: true))
+                        .shimmer(duration: 2.seconds, delay: 1.seconds),
               ],
             ),
           ),
           const SizedBox(width: 40),
           Image.asset(
-            'assets/images/web/study_illustration.png',
+            _dailyMission!.isCompleted
+                ? 'assets/images/web/success_illustration.png'
+                : 'assets/images/web/study_illustration.png',
             width: 250,
             height: 250,
             fit: BoxFit.contain,
@@ -661,6 +755,85 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
         ],
       ),
     ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildSrsBanner(BuildContext context) {
+    bool isDue = _dueCount > 0;
+    String timeText = "";
+
+    if (!isDue && _nextReviewDate != null) {
+      final now = DateTime.now();
+      final diff = _nextReviewDate!.difference(now);
+      if (diff.inHours > 0) {
+        timeText = "in ${diff.inHours}h ${diff.inMinutes % 60}m";
+      } else if (diff.inMinutes > 0) {
+        timeText = "in ${diff.inMinutes}m";
+      } else {
+        timeText = "any moment now";
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDue ? Colors.amber[50] : Colors.blue[50],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: isDue
+                ? Colors.amber.withOpacity(0.3)
+                : Colors.blue.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(isDue ? Icons.notifications_active : Icons.timer,
+              color: isDue ? Colors.amber[700] : Colors.blue[700], size: 32),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isDue ? '$_dueCount Reviews Due Now' : 'All Caught Up! ✓',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDue ? Colors.amber[900] : Colors.blue[900],
+                  ),
+                ),
+                Text(
+                  isDue
+                      ? 'Review these items now to maintain long-term retention.'
+                      : 'Your next scheduled review is $timeText.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDue ? Colors.amber[800] : Colors.blue[800],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isDue)
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to SRS (not yet implemented for web specifically, but could use generic)
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text("SRS for web coming soon!")));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber[700],
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Review Now',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildStatsOverview(UserModel? user) {
