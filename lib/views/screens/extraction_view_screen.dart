@@ -316,6 +316,17 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
                                 ?.copyWith(color: theme.colorScheme.onSurface),
                             textAlign: TextAlign.center,
                           ),
+                          const SizedBox(height: 24),
+                          TextButton.icon(
+                            onPressed: () {
+                              setState(() => _isLoading = false);
+                            },
+                            icon: Icon(Icons.close, color: Colors.redAccent),
+                            label: Text(
+                              'Cancel',
+                              style: TextStyle(color: Colors.redAccent),
+                            ),
+                          ),
                         ],
                       ),
                     ),

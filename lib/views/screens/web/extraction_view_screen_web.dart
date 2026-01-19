@@ -463,6 +463,17 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 16),
+          TextButton.icon(
+            onPressed: () {
+              setState(() => _isLoading = false);
+            },
+            icon: const Icon(Icons.close, color: Colors.redAccent),
+            label: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
         ],
       ),
     );
