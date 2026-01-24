@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 import 'dart:developer' as developer;
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:flip_card/flip_card.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:sumquiz/theme/web_theme.dart';
 import '../../models/flashcard.dart';
 
 class FlashcardsView extends StatefulWidget {
@@ -129,15 +131,21 @@ class _FlashcardsViewState extends State<FlashcardsView> {
               controller: _swiperController,
               cardsCount: widget.flashcards.length,
               onSwipe: _onSwipe,
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+              padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
               cardBuilder:
                   (context, index, percentThresholdX, percentThresholdY) {
                 final card = widget.flashcards[index];
-                return FlipCard(
-                  front: _buildCardSide(card.question,
-                      isFront: true, theme: theme),
-                  back: _buildCardSide(card.answer,
-                      isFront: false, cardIndex: index, theme: theme),
+                return Center(
+                  child: ConstrainedBox(
+                    constraints:
+                        const BoxConstraints(maxWidth: 600, maxHeight: 400),
+                    child: FlipCard(
+                      front: _buildCardSide(card.question,
+                          isFront: true, theme: theme),
+                      back: _buildCardSide(card.answer,
+                          isFront: false, cardIndex: index, theme: theme),
+                    ),
+                  ),
                 );
               },
             ),
@@ -239,30 +247,17 @@ class _FlashcardsViewState extends State<FlashcardsView> {
   }
 
   Widget _buildGlassCard({required Widget child, required ThemeData theme}) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          padding: const EdgeInsets.all(32.0),
-          decoration: BoxDecoration(
-            color: theme.cardColor.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-                color: theme.cardColor.withValues(alpha: 0.9), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: child,
-        ),
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      padding: const EdgeInsets.all(40.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: WebColors.border),
+        boxShadow: WebColors.cardShadow,
       ),
+      child: child,
     );
   }
 

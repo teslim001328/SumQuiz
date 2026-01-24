@@ -35,6 +35,7 @@ import 'package:sumquiz/services/time_sync_service.dart';
 import 'package:sumquiz/services/error_reporting_service.dart';
 import 'package:sumquiz/services/notification_integration.dart';
 import 'package:sumquiz/widgets/notification_navigator.dart';
+import 'package:sumquiz/theme/web_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -234,9 +235,11 @@ class _MyAppState extends State<MyApp> {
               return NotificationNavigator(
                 child: MaterialApp.router(
                   title: 'SumQuiz',
-                  theme: ThemeProvider.lightTheme,
-                  darkTheme: ThemeProvider.darkTheme,
-                  themeMode: themeProvider.themeMode,
+                  theme:
+                      kIsWeb ? WebTheme.lightTheme : ThemeProvider.lightTheme,
+                  darkTheme:
+                      kIsWeb ? WebTheme.lightTheme : ThemeProvider.darkTheme,
+                  themeMode: kIsWeb ? ThemeMode.light : themeProvider.themeMode,
                   routerConfig: _router,
                   debugShowCheckedModeBanner: false,
                   localizationsDelegates: const [

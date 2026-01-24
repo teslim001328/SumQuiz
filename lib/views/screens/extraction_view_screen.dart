@@ -10,11 +10,12 @@ import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 import 'package:sumquiz/services/auth_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:sumquiz/models/extraction_result.dart';
 
 class ExtractionViewScreen extends StatefulWidget {
-  final String? initialText;
+  final ExtractionResult? result;
 
-  const ExtractionViewScreen({super.key, this.initialText});
+  const ExtractionViewScreen({super.key, this.result});
 
   @override
   State<ExtractionViewScreen> createState() => _ExtractionViewScreenState();
@@ -28,8 +29,7 @@ enum OutputType {
 
 class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
   late TextEditingController _textController;
-  final TextEditingController _titleController =
-      TextEditingController(text: 'Untitled Creation');
+  late TextEditingController _titleController;
   final Set<OutputType> _selectedOutputs =
       {}; // Default to none, allow multi-select
   bool _isLoading = false;
@@ -42,7 +42,9 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.initialText ?? '');
+    _textController = TextEditingController(text: widget.result?.text ?? '');
+    _titleController = TextEditingController(
+        text: widget.result?.suggestedTitle ?? 'Untitled Creation');
     _selectedOutputs.add(OutputType.summary); // Select Summary by default
   }
 
@@ -476,7 +478,7 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
   /// Usage banner showing remaining generations for free users
   Widget _buildUsageBanner(ThemeData theme) {
     final user = context.watch<UserModel?>();
-    
+
     // Don't show for Pro users
     if (user == null || user.isPro) {
       return const SizedBox.shrink();
@@ -489,7 +491,7 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
         now.year != lastGen.year ||
         now.month != lastGen.month ||
         now.day != lastGen.day;
-    
+
     final used = isNewDay ? 0 : user.dailyDecksGenerated;
     final limit = 2; // Free tier daily limit
     final remaining = limit - used;
@@ -498,12 +500,12 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: remaining > 0 
+        color: remaining > 0
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
             : Colors.orange.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: remaining > 0 
+          color: remaining > 0
               ? theme.colorScheme.primary.withValues(alpha: 0.3)
               : Colors.orange.withValues(alpha: 0.5),
         ),
@@ -512,7 +514,8 @@ class _ExtractionViewScreenState extends State<ExtractionViewScreen> {
         children: [
           Icon(
             remaining > 0 ? Icons.info_outline : Icons.warning_amber_rounded,
-            color: remaining > 0 ? theme.colorScheme.primary : Colors.orange[700],
+            color:
+                remaining > 0 ? theme.colorScheme.primary : Colors.orange[700],
             size: 20,
           ),
           const SizedBox(width: 12),

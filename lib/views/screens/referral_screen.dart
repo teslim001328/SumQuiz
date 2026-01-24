@@ -159,6 +159,34 @@ class _ReferralScreenState extends State<ReferralScreen> {
                           .animate()
                           .fadeIn(delay: 600.ms),
                       const SizedBox(height: 40),
+
+                      // Redeem Section for existing users
+                      Consumer<UserModel?>(
+                        builder: (context, user, _) {
+                          if (user == null ||
+                              (user
+                                  .toFirestore()
+                                  .containsKey('appliedReferralCode'))) {
+                            return const SizedBox.shrink();
+                          }
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Received a Code?',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildRedeemCard(
+                                  context, referralService, uid, theme),
+                              const SizedBox(height: 40),
+                            ],
+                          );
+                        },
+                      ),
+
                       _buildHowItWorks(theme).animate().fadeIn(delay: 700.ms),
                     ],
                   ),
@@ -299,7 +327,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
           const SizedBox(height: 12),
           // Regenerate Code Button
           TextButton.icon(
-            icon: Icon(Icons.refresh, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+            icon: Icon(Icons.refresh,
+                size: 18,
+                color: theme.colorScheme.primary.withValues(alpha: 0.7)),
             label: Text(
               'Regenerate Code',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -307,11 +337,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
               ),
             ),
             onPressed: () async {
-              final authService = Provider.of<AuthService>(context, listen: false);
-              final referralService = Provider.of<ReferralService>(context, listen: false);
-              
+              final authService =
+                  Provider.of<AuthService>(context, listen: false);
+              final referralService =
+                  Provider.of<ReferralService>(context, listen: false);
+
               try {
-                final newCode = await referralService.forceGenerateReferralCode(authService.currentUser!.uid);
+                final newCode = await referralService
+                    .forceGenerateReferralCode(authService.currentUser!.uid);
                 setState(() {
                   _referralCodeFuture = Future.value(newCode);
                 });
@@ -407,6 +440,84 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 ?.copyWith(color: theme.colorScheme.onSurface),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  final TextEditingController _redeemController = TextEditingController();
+  bool _isRedeeming = false;
+
+  @override
+  void dispose() {
+    _redeemController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _redeemCode(ReferralService service, String uid) async {
+    final code = _redeemController.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() => _isRedeeming = true);
+    try {
+      await service.applyReferralCode(code, uid);
+      if (mounted) {
+        _redeemController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Success! 7 Days of Pro added!'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMsg = e.toString().replaceFirst('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRedeeming = false);
+    }
+  }
+
+  Widget _buildRedeemCard(BuildContext context, ReferralService service,
+      String uid, ThemeData theme) {
+    return _buildGlassContainer(
+      theme: theme,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Column(
+        children: [
+          TextField(
+            controller: _redeemController,
+            decoration: InputDecoration(
+              hintText: 'Enter referral code',
+              prefixIcon: const Icon(Icons.card_giftcard),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            textCapitalization: TextCapitalization.characters,
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _isRedeeming ? null : () => _redeemCode(service, uid),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isRedeeming
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Apply Code'),
+            ),
           ),
         ],
       ),

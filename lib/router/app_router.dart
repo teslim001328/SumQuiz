@@ -8,6 +8,7 @@ import 'package:sumquiz/models/flashcard_set.dart';
 import 'package:sumquiz/models/local_quiz.dart';
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/models/summary_model.dart';
+import 'package:sumquiz/models/extraction_result.dart';
 import 'package:sumquiz/services/auth_service.dart';
 import 'package:sumquiz/views/screens/auth_screen.dart';
 import 'package:sumquiz/views/screens/library_screen.dart';
@@ -263,9 +264,9 @@ GoRouter createAppRouter(AuthService authService) {
                       parentNavigatorKey: _rootNavigatorKey,
                       builder: (context, state) => ResponsiveView(
                         mobile: ExtractionViewScreen(
-                            initialText: state.extra as String?),
+                            result: state.extra as ExtractionResult?),
                         desktop: ExtractionViewScreenWeb(
-                            initialText: state.extra as String?),
+                            result: state.extra as ExtractionResult?),
                       ),
                     ),
                     GoRoute(

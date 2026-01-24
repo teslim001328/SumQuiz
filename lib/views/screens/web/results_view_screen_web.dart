@@ -1,3 +1,4 @@
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,11 +8,16 @@ import 'package:sumquiz/theme/web_theme.dart';
 import 'package:sumquiz/models/flashcard.dart';
 import 'package:sumquiz/models/local_flashcard_set.dart';
 import 'package:sumquiz/models/local_quiz.dart';
-import 'package:sumquiz/models/local_summary.dart';
-import 'package:sumquiz/services/local_database_service.dart';
-import 'package:sumquiz/views/widgets/flashcards_view.dart';
-import 'package:sumquiz/views/widgets/quiz_view.dart';
-import 'package:sumquiz/views/widgets/summary_view.dart';
+import 'package:sumquiz/models/user_model.dart';
+import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
+import '../../widgets/summary_view.dart';
+import '../../widgets/quiz_view.dart';
+import '../../widgets/flashcards_view.dart';
+import '../../../services/export_service.dart';
+import '../../../services/local_database_service.dart';
+import '../../../models/local_summary.dart';
+import '../../../models/local_quiz_question.dart';
+import '../../../models/local_flashcard.dart';
 
 class ResultsViewScreenWeb extends StatefulWidget {
   final String folderId;
@@ -54,9 +60,11 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
 
       // Auto-select first available tab if default (0) is empty
       if (_summary == null) {
-        if (_quiz != null)
+        if (_quiz != null) {
           _selectedTab = 1;
-        else if (_flashcardSet != null) _selectedTab = 2;
+        } else if (_flashcardSet != null) {
+          _selectedTab = 2;
+        }
       }
     } catch (e) {
       _errorMessage = 'Failed to load results: $e';
@@ -68,6 +76,15 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
   }
 
   void _saveToLibrary() {
+    final user = context.read<UserModel?>();
+    if (user != null && !user.isPro) {
+      showDialog(
+        context: context,
+        builder: (context) => const UpgradeDialog(featureName: 'Sharing Decks'),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -98,7 +115,7 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
             end: Alignment.bottomCenter,
             colors: [
               WebColors.background,
-              WebColors.primaryLight.withOpacity(0.3),
+              WebColors.primaryLight.withValues(alpha: 0.3),
             ],
           ),
         ),
@@ -153,9 +170,10 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
       decoration: BoxDecoration(
         color: Colors.white,
+        border: Border(bottom: BorderSide(color: WebColors.border)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -163,51 +181,124 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
       ),
       child: Row(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: WebColors.backgroundAlt,
-              borderRadius: BorderRadius.circular(12),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
+            onPressed: () {
+              final user = context.read<UserModel?>();
+              if (user != null && !user.isPro) {
+                showDialog(
+                  context: context,
+                  builder: (context) =>
+                      const UpgradeDialog(featureName: 'PDF Export'),
+                );
+                return;
+              }
+
+              final summary = _summary;
+              if (summary == null) return;
+
+              // Construct models same as mobile
+              final localSummary = LocalSummary(
+                  id: 'temp',
+                  title: summary.title,
+                  content: summary.content,
+                  tags: [],
+                  timestamp: DateTime.now(),
+                  userId: user?.uid ?? '',
+                  isSynced: false);
+
+              final localQuiz = LocalQuiz(
+                  id: 'temp',
+                  title: summary.title,
+                  questions: _quiz?.questions
+                          .map((q) => LocalQuizQuestion(
+                              question: q.question,
+                              options: q.options,
+                              correctAnswer: q.correctAnswer))
+                          .toList() ??
+                      [],
+                  timestamp: DateTime.now(),
+                  userId: user?.uid ?? '',
+                  isSynced: false);
+
+              final localFlash = LocalFlashcardSet(
+                  id: 'temp',
+                  title: summary.title,
+                  flashcards: _flashcardSet?.flashcards
+                          .map((f) => LocalFlashcard(
+                              question: f.question, answer: f.answer))
+                          .toList() ??
+                      [],
+                  timestamp: DateTime.now(),
+                  userId: user?.uid ?? '',
+                  isSynced: false);
+
+              ExportService().exportPdf(context,
+                  summary: localSummary,
+                  quiz: localQuiz,
+                  flashcardSet: localFlash);
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: WebColors.backgroundAlt,
+              padding: const EdgeInsets.all(12),
             ),
-            child: IconButton(
-              icon: Icon(Icons.arrow_back, color: WebColors.textPrimary),
-              onPressed: () => context.pop(),
-              tooltip: 'Back',
+          ),
+          const SizedBox(width: 16),
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () => context.pop(),
+            style: IconButton.styleFrom(
+              backgroundColor: WebColors.backgroundAlt,
+              padding: const EdgeInsets.all(12),
             ),
           ),
           const SizedBox(width: 24),
-          Image.asset('assets/images/web/success_illustration.png',
-              width: 48, height: 48),
+          ShaderMask(
+            shaderCallback: (bounds) =>
+                WebColors.HeroGradient.createShader(bounds),
+            child: Text(
+              'Content Ready',
+              style: GoogleFonts.outfit(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -1,
+              ),
+            ),
+          ),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Content Ready!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: WebColors.textPrimary,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: WebColors.secondary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: WebColors.secondary.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded,
+                    size: 14, color: WebColors.secondary),
+                const SizedBox(width: 6),
+                Text(
+                  'AI GENERATED',
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: WebColors.secondary,
+                    letterSpacing: 1,
+                  ),
                 ),
-              ),
-              Text(
-                'Your study materials have been generated successfully',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: WebColors.textSecondary,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           const Spacer(),
           Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [WebColors.secondary, const Color(0xFF34D399)],
-              ),
-              borderRadius: BorderRadius.circular(12),
+              gradient: WebColors.HeroGradient,
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: WebColors.secondary.withOpacity(0.4),
+                  color: WebColors.primary.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -215,20 +306,26 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
             ),
             child: ElevatedButton.icon(
               onPressed: _saveToLibrary,
-              icon: const Icon(Icons.check_circle, color: Colors.white),
-              label: const Text('Save to Library',
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w600)),
+              icon:
+                  const Icon(Icons.bookmark_added_rounded, color: Colors.white),
+              label: Text(
+                'Save to Library',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(16)),
               ),
             ),
-          ).animate().shimmer(delay: 1.seconds, duration: 2.seconds),
+          ).animate().shimmer(delay: 2.seconds, duration: 1.5.seconds),
         ],
       ),
     );
@@ -275,24 +372,26 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
                 WebColors.accentPink),
           const SizedBox(height: 32),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: WebColors.primaryLight.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: WebColors.primary.withOpacity(0.2)),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: WebColors.primary.withOpacity(0.1)),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.tips_and_updates,
-                    color: WebColors.primary, size: 20),
-                const SizedBox(width: 12),
+                Icon(Icons.tips_and_updates_rounded,
+                    color: WebColors.primary, size: 22),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    'Tip: Review the summary first, then test yourself with the quiz.',
-                    style: TextStyle(
+                    'PRO TIP: Review the summary first, then master it with the quiz and flashcards.',
+                    style: GoogleFonts.outfit(
                         fontSize: 13,
-                        color: WebColors.primary,
-                        fontWeight: FontWeight.w500),
+                        color: WebColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4),
                   ),
                 ),
               ],
@@ -305,45 +404,49 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
 
   Widget _buildNavItem(int index, String label, IconData icon, Color color) {
     final isSelected = _selectedTab == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedTab = index),
-      child: AnimatedContainer(
-        duration: 200.ms,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? color : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.white.withOpacity(0.2)
-                    : color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTab = index),
+        child: AnimatedContainer(
+          duration: 200.ms,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? color : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
                 icon,
-                color: isSelected ? Colors.white : color,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected ? Colors.white : WebColors.textSecondary,
-                fontSize: 15,
+                size: 24,
               ),
-            ),
-            if (isSelected) ...[
-              const Spacer(),
-              Icon(Icons.chevron_right, color: Colors.white, size: 18),
+              const SizedBox(width: 16),
+              Text(
+                label,
+                style: GoogleFonts.outfit(
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected ? Colors.white : WebColors.textSecondary,
+                  fontSize: 16,
+                ),
+              ),
+              if (isSelected) ...[
+                const Spacer(),
+                const Icon(Icons.keyboard_arrow_right_rounded,
+                    color: Colors.white, size: 20),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -357,7 +460,7 @@ class _ResultsViewScreenWebState extends State<ResultsViewScreenWeb> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

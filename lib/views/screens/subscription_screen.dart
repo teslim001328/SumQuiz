@@ -192,14 +192,32 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             ),
                             child: Column(
                               children: [
-                                _buildFeatureRow('Unlimited AI Summaries (Know what matters)',
+                                _buildFeatureRow(
+                                    'Unlimited AI Summaries & Quizzes',
+                                    isUnlocked: true,
+                                    theme: theme),
+                                _buildFeatureRow(
+                                    'Import from YouTube & Web Articles',
+                                    isUnlocked: true,
+                                    theme: theme),
+                                _buildFeatureRow(
+                                    'Export PDF (Summary, Quiz, Flashcards)',
+                                    isUnlocked: true,
+                                    theme: theme),
+                                _buildFeatureRow(
+                                    'Unlimited Spaced Repetition Review',
+                                    isUnlocked: true,
+                                    theme: theme),
+                                _buildFeatureRow('Offline Access & Cloud Sync',
                                     isUnlocked: true, theme: theme),
-                                _buildFeatureRow('Unlimited Exam Prep Quizzes',
-                                    isUnlocked: true, theme: theme),
-                                _buildFeatureRow('Daily Review with Spaced Repetition',
-                                    isUnlocked: true, theme: theme),
-                                _buildFeatureRow('Offline Access & Remote Sync',
-                                    isUnlocked: true, theme: theme),
+                                _buildFeatureRow(
+                                    'Creator Dashboard & Publishing',
+                                    isUnlocked: true,
+                                    theme: theme),
+                                _buildFeatureRow(
+                                    'Expert Difficulty & Large Review Sets',
+                                    isUnlocked: true,
+                                    theme: theme),
                               ],
                             ),
                           ),
@@ -216,15 +234,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             children: [
                               Expanded(
                                 child: Divider(
-                                  color: theme.dividerColor.withValues(alpha: 0.3),
+                                  color:
+                                      theme.dividerColor.withValues(alpha: 0.3),
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   'OR SUBSCRIBE',
                                   style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.5),
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 1.2,
                                   ),
@@ -232,7 +253,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               ),
                               Expanded(
                                 child: Divider(
-                                  color: theme.dividerColor.withValues(alpha: 0.3),
+                                  color:
+                                      theme.dividerColor.withValues(alpha: 0.3),
                                 ),
                               ),
                             ],
@@ -242,8 +264,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
                           // Products List (filter out passes) - Yearly pre-selected
                           ..._products
-                              .where((p) => !p.id.contains('24h') && !p.id.contains('week_pass'))
-                              .map((product) => _buildProductCard(product, theme, isDark)),
+                              .where((p) =>
+                                  !p.id.contains('24h') &&
+                                  !p.id.contains('week_pass'))
+                              .map((product) =>
+                                  _buildProductCard(product, theme, isDark)),
 
                           const SizedBox(height: 20),
                         ],
@@ -386,7 +411,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.star, color: Colors.white, size: 12),
+                              const Icon(Icons.star,
+                                  color: Colors.white, size: 12),
                               const SizedBox(width: 4),
                               Text(
                                 'POPULAR',
@@ -436,9 +462,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   /// Quick Access Section for Exam Pass and Week Pass
   Widget _buildQuickAccessSection(ThemeData theme, bool isDark) {
-    final passes = _products.where((p) => 
-        p.id.contains('24h') || p.id.contains('week_pass')).toList();
-    
+    final passes = _products
+        .where((p) => p.id.contains('24h') || p.id.contains('week_pass'))
+        .toList();
+
     if (passes.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -466,15 +493,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
         const SizedBox(height: 16),
         Row(
-          children: passes.map((pass) => Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                right: passes.indexOf(pass) == 0 ? 8 : 0,
-                left: passes.indexOf(pass) == 1 ? 8 : 0,
-              ),
-              child: _buildPassCard(pass, theme, isDark),
-            ),
-          )).toList(),
+          children: passes
+              .map((pass) => Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: passes.indexOf(pass) == 0 ? 8 : 0,
+                        left: passes.indexOf(pass) == 1 ? 8 : 0,
+                      ),
+                      child: _buildPassCard(pass, theme, isDark),
+                    ),
+                  ))
+              .toList(),
         ),
       ],
     );
@@ -483,7 +512,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Widget _buildPassCard(ProductDetails pass, ThemeData theme, bool isDark) {
     final isExamPass = pass.id.contains('24h');
     final isSelected = _selectedProduct?.id == pass.id;
-    
+
     return GestureDetector(
       onTap: () => setState(() => _selectedProduct = pass),
       child: AnimatedContainer(
@@ -503,8 +532,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           color: isSelected ? null : theme.cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected 
-                ? theme.colorScheme.primary 
+            color: isSelected
+                ? theme.colorScheme.primary
                 : theme.dividerColor.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
           ),

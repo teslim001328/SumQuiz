@@ -17,6 +17,7 @@ import '../../view_models/quiz_view_model.dart';
 import '../widgets/upgrade_dialog.dart';
 import '../widgets/quiz_view.dart';
 import '../../services/firestore_service.dart';
+import '../../services/export_service.dart';
 
 enum QuizState { creation, loading, inProgress, finished, error }
 
@@ -300,7 +301,36 @@ class _QuizScreenState extends State<QuizScreen> {
               icon: const Icon(Icons.bookmark_add_outlined),
               onPressed: _saveInProgress,
               tooltip: 'Save Progress',
-            )
+            ),
+          if (_state != QuizState.creation && _state != QuizState.loading)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              tooltip: 'Export PDF',
+              onPressed: () {
+                final user = context.read<UserModel?>();
+                if (user != null && !user.isPro) {
+                  showDialog(
+                    context: context,
+                    builder: (context) =>
+                        const UpgradeDialog(featureName: 'PDF Export'),
+                  );
+                  return;
+                }
+
+                if (_quizId == null) return;
+
+                final quizToExport = LocalQuiz(
+                  id: _quizId!,
+                  userId: user?.uid ?? '',
+                  title: _titleController.text,
+                  questions: _questions,
+                  timestamp: DateTime.now(),
+                  scores: widget.quiz?.scores ?? [],
+                );
+
+                ExportService().exportPdf(context, quiz: quizToExport);
+              },
+            ),
         ],
         bottom: widget.quiz?.creatorName != null
             ? PreferredSize(

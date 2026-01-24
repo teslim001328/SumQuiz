@@ -6,6 +6,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:sumquiz/models/extraction_result.dart';
 
 /// Types of content that can be extracted from URLs
 enum UrlContentType {
@@ -22,17 +23,21 @@ class ContentExtractionService {
 
   ContentExtractionService(this._enhancedAiService);
 
-  Future<String> extractContent({
+  Future<ExtractionResult> extractContent({
     required String type, // 'text', 'link', 'pdf', 'image'
     dynamic input,
     String? userId,
-    bool refineWithAI =
-        false, // Skip AI refinement by default - raw text is clean
+    bool refineWithAI = false,
+    void Function(String)? onProgress,
   }) async {
-    String rawText;
+    String rawText = '';
+    String suggestedTitle = 'Imported Content';
+
     switch (type) {
       case 'text':
+        onProgress?.call('Processing pasted text...');
         rawText = input as String;
+        suggestedTitle = 'Pasted Text';
         break;
       case 'link':
         final url = input as String;
@@ -40,13 +45,14 @@ class ContentExtractionService {
 
         switch (urlType) {
           case UrlContentType.youtube:
-            // YouTube requires special handling
+            onProgress
+                ?.call('Analyzing YouTube video... this may take a moment');
             if (userId == null) {
               throw Exception('User ID is required for YouTube analysis.');
             }
             final result = await _enhancedAiService.analyzeYouTubeVideo(url,
                 userId: userId);
-            if (result is Ok<String>) {
+            if (result is Ok<ExtractionResult>) {
               return result.value;
             } else {
               throw (result as Error).error;
@@ -56,7 +62,7 @@ class ContentExtractionService {
           case UrlContentType.image:
           case UrlContentType.audio:
           case UrlContentType.video:
-            // NEW: Use Gemini File API for direct URL processing
+            onProgress?.call('Analyzing file from URL...');
             if (userId == null) {
               throw Exception('User ID is required for file URL analysis.');
             }
@@ -66,14 +72,14 @@ class ContentExtractionService {
               mimeType: mimeType,
               userId: userId,
             );
-            if (result is Ok<String>) {
+            if (result is Ok<ExtractionResult>) {
               return result.value;
             } else {
               throw (result as Error).error;
             }
 
           case UrlContentType.webpage:
-            // Use Gemini-powered extraction for webpages
+            onProgress?.call('Extracting webpage content...');
             if (userId == null) {
               throw Exception('User ID is required for webpage extraction.');
             }
@@ -81,7 +87,7 @@ class ContentExtractionService {
               url: url,
               userId: userId,
             );
-            if (result is Ok<String>) {
+            if (result is Ok<ExtractionResult>) {
               return result.value;
             } else {
               throw (result as Error).error;
@@ -89,29 +95,29 @@ class ContentExtractionService {
         }
         break;
       case 'pdf':
-        // Use Syncfusion PDF library (no AI needed)
+        onProgress?.call('Reading PDF document...');
         rawText = await _extractFromPdfBytes(input as Uint8List);
+        suggestedTitle = 'PDF Document';
         break;
       case 'image':
-        // Use Google ML Kit OCR (no AI needed)
+        onProgress?.call('Scanning image for text...');
         rawText = await _extractFromImageBytes(input as Uint8List);
+        suggestedTitle = 'Scanned Image';
         break;
       default:
         throw Exception('Unknown content type: $type');
     }
 
-    // Optional: Refine/Polish the extracted text with AI
-    // This cleans up formatting, removes ads, etc.
     if (refineWithAI && rawText.isNotEmpty) {
+      onProgress?.call('Polishing extracted text with AI...');
       try {
-        return await _enhancedAiService.refineContent(rawText);
+        rawText = await _enhancedAiService.refineContent(rawText);
       } catch (e) {
-        // If AI refinement fails, return raw text
-        return rawText;
+        // Fallback to raw text
       }
     }
 
-    return rawText;
+    return ExtractionResult(text: rawText, suggestedTitle: suggestedTitle);
   }
 
   bool _isYoutubeUrl(String url) {

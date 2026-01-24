@@ -1,4 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -237,51 +238,47 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
   Widget _buildStatCard(
       String label, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: WebColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: WebColors.subtleShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: color, size: 32),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 32,
+            style: GoogleFonts.outfit(
+              fontSize: 36,
               fontWeight: FontWeight.w800,
               color: WebColors.textPrimary,
+              letterSpacing: -1,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: WebColors.textSecondary,
-              fontWeight: FontWeight.w500,
+            label.toUpperCase(),
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              color: WebColors.textTertiary,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
             ),
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2, end: 0);
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildActivityChart() {
@@ -299,32 +296,46 @@ class _ProgressScreenWebState extends State<ProgressScreenWeb> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Weekly Activity',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: WebColors.textPrimary,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Weekly Activity',
+                    style: GoogleFonts.outfit(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: WebColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'Your learning consistency over time',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      color: WebColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: WebColors.primaryLight.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(20),
+                  color: WebColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: WebColors.primary.withOpacity(0.1)),
                 ),
                 child: Text(
-                  'Last 7 Days',
-                  style: TextStyle(
+                  'LAST 7 DAYS',
+                  style: GoogleFonts.outfit(
                       color: WebColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      letterSpacing: 1),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 48),
           SizedBox(
             height: 300,
             child: BarChart(

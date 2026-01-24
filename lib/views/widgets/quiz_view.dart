@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:sumquiz/theme/web_theme.dart';
 import '../../models/local_quiz_question.dart';
 
 class QuizView extends StatefulWidget {
@@ -147,23 +149,25 @@ class _QuizViewState extends State<QuizView> {
             child: ElevatedButton(
               onPressed: _answerWasSelected ? _handleNextQuestion : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                elevation: 4,
-                shadowColor: theme.colorScheme.primary.withValues(alpha: 0.4),
+                backgroundColor: WebColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                disabledBackgroundColor:
-                    theme.disabledColor.withValues(alpha: 0.3),
+                disabledBackgroundColor: WebColors.border,
+                disabledForegroundColor: WebColors.textTertiary,
               ),
               child: Text(
                 _currentQuestionIndex < widget.questions.length - 1
                     ? 'Next Question'
                     : 'Finish Quiz',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onPrimary,
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                  color: _answerWasSelected
+                      ? Colors.white
+                      : WebColors.textTertiary,
                 ),
               ),
             ),

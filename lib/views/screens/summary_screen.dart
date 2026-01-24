@@ -8,6 +8,7 @@ import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/services/iap_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../models/user_model.dart';
 import '../../services/local_database_service.dart';
@@ -17,6 +18,7 @@ import 'package:collection/collection.dart';
 import '../widgets/upgrade_dialog.dart';
 import '../../models/public_deck.dart';
 import '../../services/firestore_service.dart';
+import '../../services/export_service.dart';
 
 enum ScreenState { initial, loading, error, success }
 
@@ -46,7 +48,8 @@ class SummaryScreenState extends State<SummaryScreen> {
   @override
   void initState() {
     super.initState();
-    _aiService = EnhancedAIService(iapService: Provider.of<IAPService>(context, listen: false));
+    _aiService = EnhancedAIService(
+        iapService: Provider.of<IAPService>(context, listen: false));
     _localDbService = LocalDatabaseService();
     _localDbService.init();
     if (widget.summary != null) {
@@ -368,8 +371,7 @@ class SummaryScreenState extends State<SummaryScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(
-            widget.summary == null ? 'Generate Summary' : 'Summary',
+        title: Text(widget.summary == null ? 'Generate Summary' : 'Summary',
             style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: theme.colorScheme.onSurface)),
@@ -379,7 +381,9 @@ class SummaryScreenState extends State<SummaryScreen> {
         actions: [
           Consumer<UserModel?>(
             builder: (context, user, _) {
-              if (user != null && user.role == UserRole.creator && _state == ScreenState.success) {
+              if (user != null &&
+                  user.role == UserRole.creator &&
+                  _state == ScreenState.success) {
                 return IconButton(
                   icon: const Icon(Icons.public),
                   tooltip: 'Publish Deck',
@@ -454,7 +458,6 @@ class SummaryScreenState extends State<SummaryScreen> {
                     color: theme.colorScheme.onSurface.withOpacity(0.6)),
               ).animate().fadeIn(delay: 100.ms).slideY(begin: -0.2),
               const SizedBox(height: 48),
-              
               TextField(
                 controller: _textController,
                 maxLines: 20,
@@ -475,15 +478,14 @@ class SummaryScreenState extends State<SummaryScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                    borderSide:
+                        BorderSide(color: theme.colorScheme.primary, width: 2),
                   ),
                   contentPadding: const EdgeInsets.all(24),
                 ),
                 onChanged: (text) => setState(() {}),
               ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
-              
               const SizedBox(height: 24),
-              
               Row(
                 children: [
                   Expanded(
@@ -519,21 +521,20 @@ class SummaryScreenState extends State<SummaryScreen> {
                     const SizedBox(width: 12),
                     IconButton(
                         onPressed: () => setState(() => _pdfFileName = null),
-                        icon: Icon(Icons.close_rounded, 
+                        icon: Icon(Icons.close_rounded,
                             color: theme.colorScheme.error))
                   ]
                 ],
               ).animate().fadeIn(delay: 300.ms),
-              
               const SizedBox(height: 32),
-              
               SizedBox(
                 height: 56,
                 child: ElevatedButton.icon(
                   onPressed: canGenerate ? _generateSummary : null,
                   icon: const Icon(Icons.auto_awesome_rounded),
                   label: const Text('Generate Summary',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
@@ -579,7 +580,8 @@ class SummaryScreenState extends State<SummaryScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
@@ -594,8 +596,8 @@ class SummaryScreenState extends State<SummaryScreen> {
     if (_summaryTitle.isEmpty && _summaryContent.isEmpty) {
       return Center(
           child: Text('No summary available',
-              style: theme.textTheme.bodyLarge
-                  ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))));
+              style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6))));
     }
 
     final isViewingSaved = widget.summary != null;
@@ -617,9 +619,9 @@ class SummaryScreenState extends State<SummaryScreen> {
                     color: theme.colorScheme.onSurface,
                   ),
                 ).animate().fadeIn().slideY(begin: -0.2),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Tags
                 if (_summaryTags.isNotEmpty)
                   Wrap(
@@ -643,9 +645,9 @@ class SummaryScreenState extends State<SummaryScreen> {
                       );
                     }).toList(),
                   ).animate().fadeIn(delay: 100.ms),
-                
+
                 if (_summaryTags.isNotEmpty) const SizedBox(height: 32),
-                
+
                 // Action Buttons
                 Row(
                   children: [
@@ -667,7 +669,8 @@ class SummaryScreenState extends State<SummaryScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _saveToLibrary,
-                          icon: const Icon(Icons.bookmark_add_rounded, size: 18),
+                          icon:
+                              const Icon(Icons.bookmark_add_rounded, size: 18),
                           label: const Text('Save'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -704,27 +707,70 @@ class SummaryScreenState extends State<SummaryScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          final user = context.read<UserModel?>();
+                          if (user != null && !user.isPro) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const UpgradeDialog(
+                                  featureName: 'PDF Export'),
+                            );
+                            return;
+                          }
+
+                          final summaryToExport = LocalSummary(
+                            id: widget.summary?.id ?? 'temp',
+                            userId: user?.uid ?? '',
+                            title: _summaryTitle,
+                            content: _summaryContent,
+                            tags: _summaryTags,
+                            timestamp: DateTime.now(),
+                            isSynced: false,
+                          );
+
+                          ExportService()
+                              .exportPdf(context, summary: summaryToExport);
+                        },
+                        icon: const Icon(Icons.picture_as_pdf, size: 18),
+                        label: const Text('Export'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: BorderSide(color: theme.dividerColor),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
                   ],
                 ).animate().fadeIn(delay: 200.ms),
-                
+
                 const SizedBox(height: 32),
-                
+
                 Divider(color: theme.dividerColor),
-                
+
                 const SizedBox(height: 32),
-                
-                // Summary Content
-                SelectableText(
-                  _summaryContent,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    height: 1.8,
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 16,
+
+                // Summary Content - Markdown Rendering
+                MarkdownBody(
+                  data: _summaryContent,
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                    p: theme.textTheme.bodyLarge?.copyWith(
+                      height: 1.8,
+                      color: theme.colorScheme.onSurface,
+                      fontSize: 16,
+                    ),
+                    listBullet: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                 ).animate().fadeIn(delay: 300.ms),
-                
+
                 const SizedBox(height: 48),
-                
+
                 // Publish Button for Creators
                 Consumer<UserModel?>(builder: (context, user, _) {
                   if (user != null && user.role == UserRole.creator) {

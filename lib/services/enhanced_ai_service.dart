@@ -17,6 +17,7 @@ import 'package:uuid/uuid.dart';
 import 'dart:developer' as developer;
 import 'package:sumquiz/services/spaced_repetition_service.dart';
 import 'package:sumquiz/services/sync_service.dart';
+import 'package:sumquiz/models/extraction_result.dart';
 
 // --- RESULT TYPE FOR BETTER ERROR HANDLING ---
 sealed class Result<T> {
@@ -124,6 +125,7 @@ class EnhancedAIService {
       generationConfig: GenerationConfig(
         temperature: 0.2,
         maxOutputTokens: 4096,
+        responseMimeType: 'application/json',
       ),
     );
   }
@@ -369,7 +371,7 @@ $sanitizedText''';
   }
 
   /// Enhanced YouTube video analysis with proper URI handling
-  Future<Result<String>> analyzeYouTubeVideo(
+  Future<Result<ExtractionResult>> analyzeYouTubeVideo(
     String videoUrl, {
     required String userId,
   }) async {
@@ -389,6 +391,8 @@ $sanitizedText''';
       final prompt =
           '''Analyze this YouTube video and extract ALL educational content for study purposes.
 
+TASK: Provide a suggested title and all educational content.
+
 CRITICAL INSTRUCTIONS:
 1. EXTRACT all instructional content (do NOT summarize)
 2. Capture EVERYTHING the instructor teaches:
@@ -399,26 +403,15 @@ CRITICAL INSTRUCTIONS:
    - Step-by-step procedures
    - Key timestamps [MM:SS] for important sections
 
-EXCLUDE:
-- Intros, outros, channel promotions
-- Personal stories unrelated to the topic
-- Jokes, tangents, filler content
-- Calls to action (like, subscribe, notifications)
-- Sponsor messages
-- Navigation instructions ("in the next video...")
+EXCLUDE: intros, promos, sponsor messages, and filler content.
 
-OUTPUT FORMAT:
-Clean, organized text with:
-- Video title and main topic at the top
-- All factual information preserved
-- Organized by topic/section with clear headers
-- Visual descriptions where relevant (e.g., "Diagram shows...")
-- Technical accuracy maintained
-- Timestamps for key moments
+USE your native YouTube indexing and multimodal understanding to "watch" and "listen" to the video content from this URL: $videoUrl
 
-REMEMBER: EXTRACT for study purposes, not summarize. Keep all educational value intact.
-
-Here is the YouTube video to analyze: $videoUrl''';
+OUTPUT FORMAT (JSON):
+{
+  "title": "A high-quality study session title",
+  "content": "All the extracted educational text..."
+}''';
 
       developer.log(
         'Analyzing YouTube video: $videoUrl',
@@ -432,18 +425,26 @@ Here is the YouTube video to analyze: $videoUrl''';
       if (response.text == null || response.text!.trim().isEmpty) {
         return Result.error(
           EnhancedAIServiceException(
-            'Video analysis returned empty response. The video might be private, age-restricted, or too long.',
+            'Video analysis returned empty response.',
             code: 'EMPTY_RESPONSE',
           ),
         );
       }
 
+      final data = json.decode(response.text!);
+      final title = data['title'] ?? 'YouTube Video';
+      final content = data['content'] ?? '';
+
       developer.log(
-        'YouTube analysis completed: ${response.text!.substring(0, min(100, response.text!.length))}...',
+        'YouTube analysis completed: $title',
         name: 'EnhancedAIService',
       );
 
-      return Result.ok(response.text!);
+      return Result.ok(ExtractionResult(
+        text: content,
+        suggestedTitle: title,
+        sourceUrl: videoUrl,
+      ));
     } on TimeoutException catch (e) {
       return Result.error(
         EnhancedAIServiceException(
@@ -506,7 +507,7 @@ Here is the YouTube video to analyze: $videoUrl''';
 
   /// Extract educational content from a webpage URL using Gemini
   /// Uses Gemini's native URL understanding + fallback to HTML scraping
-  Future<Result<String>> extractWebpageContent({
+  Future<Result<ExtractionResult>> extractWebpageContent({
     required String url,
     required String userId,
   }) async {
@@ -530,8 +531,9 @@ Here is the YouTube video to analyze: $videoUrl''';
       );
 
       // Use Gemini to extract educational content from the URL
-      // Gemini 2.5+ has native URL understanding capabilities
-      final prompt = '''You are an expert content extractor for educational purposes.
+      // Gemini models (1.5 Flash+) have native URL reasoning/extraction capabilities
+      final prompt =
+          '''You are an expert content extractor for educational purposes.
 
 TASK: Extract ALL educational content from this webpage URL for study purposes.
 
@@ -539,33 +541,20 @@ URL: $url
 
 INSTRUCTIONS:
 1. Access and read the full content of this webpage
-2. EXTRACT (not summarize) all educational content including:
-   - Main article text and body content
-   - Key concepts, definitions, facts, and data
-   - Examples, case studies, code snippets
-   - Lists, tables, and structured information
-   - Headers and section titles for organization
+2. EXTRACT (not summarize) all educational content including body text, facts, and examples.
+3. REMOVE menus, ads, sidebars, and footers.
 
-3. REMOVE:
-   - Navigation menus, sidebars, footers
-   - Advertisements and promotional content
-   - Comments sections
-   - Social sharing buttons/text
-   - Cookie notices
+OUTPUT FORMAT (JSON):
+{
+  "title": "The most suitable title for this content",
+  "content": "All the extracted educational text..."
+}
 
-4. FORMAT the output:
-   - Use clear section headings
-   - Preserve bullet points and numbered lists
-   - Maintain code block formatting
-   - Keep tables as structured text
-
-OUTPUT: Clean, organized, educational content ready for studying.
-
-If you cannot access the URL, respond with: [ERROR: Unable to access URL]''';
+If you cannot access the URL, return JSON with: {"error": "Unable to access URL"}''';
 
       final response = await _visionModel
-          .generateContent([Content.text(prompt)])
-          .timeout(Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
+          .generateContent([Content.text(prompt)]).timeout(
+              Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
 
       if (response.text == null || response.text!.isEmpty) {
         return Result.error(
@@ -576,31 +565,35 @@ If you cannot access the URL, respond with: [ERROR: Unable to access URL]''';
         );
       }
 
-      final extractedText = response.text!;
+      final responseText = response.text!;
+      final resultData = json.decode(responseText);
 
       // Check if Gemini couldn't access the URL (fallback needed)
-      if (extractedText.contains('[ERROR:') ||
-          extractedText.toLowerCase().contains('unable to access') ||
-          extractedText.toLowerCase().contains('cannot access') ||
-          extractedText.toLowerCase().contains("don't have the ability")) {
+      if (resultData['error'] != null ||
+          responseText.contains('[ERROR:') ||
+          responseText.toLowerCase().contains('unable to access')) {
         developer.log(
           'Gemini URL access failed, falling back to HTTP scraping',
           name: 'EnhancedAIService',
         );
-        
+
         // Fallback: Fetch HTML and ask Gemini to process it
         return await _extractWebpageWithFallback(url);
       }
 
-      await _updateUsageStats(userId);
+      final title = resultData['title'] ?? 'Web Article';
+      final content = resultData['content'] ?? '';
 
       developer.log(
-        'Webpage extraction completed: ${extractedText.length} chars',
+        'Webpage extraction completed: $title',
         name: 'EnhancedAIService',
       );
 
-      return Result.ok(extractedText);
-
+      return Result.ok(ExtractionResult(
+        text: content,
+        suggestedTitle: title,
+        sourceUrl: url,
+      ));
     } on TimeoutException catch (e) {
       return Result.error(
         EnhancedAIServiceException(
@@ -628,7 +621,8 @@ If you cannot access the URL, respond with: [ERROR: Unable to access URL]''';
   }
 
   /// Fallback method: Fetch HTML via HTTP, then process with Gemini
-  Future<Result<String>> _extractWebpageWithFallback(String url) async {
+  Future<Result<ExtractionResult>> _extractWebpageWithFallback(
+      String url) async {
     try {
       developer.log(
         'Using HTTP fallback for: $url',
@@ -636,16 +630,16 @@ If you cannot access the URL, respond with: [ERROR: Unable to access URL]''';
       );
 
       // Fetch the webpage HTML
-      final response = await http
-          .get(
-            Uri.parse(url),
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.5',
-            },
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept':
+              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 200) {
         return Result.error(
@@ -657,7 +651,7 @@ If you cannot access the URL, respond with: [ERROR: Unable to access URL]''';
       }
 
       final htmlContent = response.body;
-      
+
       if (htmlContent.isEmpty) {
         return Result.error(
           EnhancedAIServiceException(
@@ -673,39 +667,27 @@ If you cannot access the URL, respond with: [ERROR: Unable to access URL]''';
           : htmlContent;
 
       // Ask Gemini to extract educational content from the HTML
-      final prompt = '''You are an expert content extractor for educational purposes.
+      final prompt =
+          '''You are an expert content extractor for educational purposes.
 
 TASK: Extract ALL educational content from this HTML for study purposes.
 
-HTML CONTENT:
-$truncatedHtml
-
 INSTRUCTIONS:
-1. Parse the HTML and extract the main article/content
-2. EXTRACT (not summarize) all educational content:
-   - Text from paragraphs, articles, main content divs
-   - Headers (h1, h2, h3, etc.)
-   - Lists (ul, ol)
-   - Tables
-   - Code blocks
-   - Definitions, facts, examples
+1. Parse the HTML and extract the main article/content.
+2. EXTRACT (not summarize) all educational facts, data, and examples.
 
-3. REMOVE:
-   - Script and style tags content
-   - Navigation, sidebars, footers
-   - Ads, comments, social buttons
-   - Cookie notices
+OUTPUT FORMAT (JSON):
+{
+  "title": "The most suitable title based on <h1> or meta tags",
+  "content": "All the extracted educational text..."
+}
 
-4. FORMAT cleanly with:
-   - Clear section headings
-   - Preserved structure
-   - Readable text
-
-OUTPUT: Clean educational content ready for studying.''';
+HTML CONTENT:
+$truncatedHtml''';
 
       final aiResponse = await _model
-          .generateContent([Content.text(prompt)])
-          .timeout(Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
+          .generateContent([Content.text(prompt)]).timeout(
+              Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
 
       if (aiResponse.text == null || aiResponse.text!.isEmpty) {
         return Result.error(
@@ -716,13 +698,21 @@ OUTPUT: Clean educational content ready for studying.''';
         );
       }
 
+      final responseText = aiResponse.text!;
+      final resultData = json.decode(responseText);
+      final title = resultData['title'] ?? 'Web Article (Fallback)';
+      final content = resultData['content'] ?? '';
+
       developer.log(
-        'Fallback extraction completed: ${aiResponse.text!.length} chars',
+        'Fallback extraction completed: $title',
         name: 'EnhancedAIService',
       );
 
-      return Result.ok(aiResponse.text!);
-
+      return Result.ok(ExtractionResult(
+        text: content,
+        suggestedTitle: title,
+        sourceUrl: url,
+      ));
     } on TimeoutException catch (e) {
       return Result.error(
         EnhancedAIServiceException(
@@ -750,7 +740,7 @@ OUTPUT: Clean educational content ready for studying.''';
   /// Analyze content from direct URL using Gemini multimodal API
   /// Downloads the file and sends bytes via DataPart for proper processing
   /// Supports: PDF, images, audio, video
-  Future<Result<String>> analyzeContentFromUrl({
+  Future<Result<ExtractionResult>> analyzeContentFromUrl({
     required String url,
     required String mimeType,
     String? customPrompt,
@@ -775,7 +765,7 @@ OUTPUT: Clean educational content ready for studying.''';
 
       // Download the file via HTTP
       final fileBytes = await _downloadFile(url);
-      
+
       if (fileBytes == null || fileBytes.isEmpty) {
         return Result.error(EnhancedAIServiceException(
           'Failed to download file from URL. The file may be empty or inaccessible.',
@@ -784,7 +774,8 @@ OUTPUT: Clean educational content ready for studying.''';
       }
 
       // Check file size limits (100MB for most, 50MB for PDFs)
-      final maxSize = mimeType.contains('pdf') ? 50 * 1024 * 1024 : 100 * 1024 * 1024;
+      final maxSize =
+          mimeType.contains('pdf') ? 50 * 1024 * 1024 : 100 * 1024 * 1024;
       if (fileBytes.length > maxSize) {
         final sizeMB = (fileBytes.length / (1024 * 1024)).toStringAsFixed(1);
         final limitMB = (maxSize / (1024 * 1024)).toInt();
@@ -800,7 +791,17 @@ OUTPUT: Clean educational content ready for studying.''';
       );
 
       // Build the prompt based on content type
-      final prompt = customPrompt ?? _getPromptForContentType(mimeType);
+      final contentTypePrompt = _getPromptForContentType(mimeType);
+
+      final prompt = '''$contentTypePrompt
+      
+${customPrompt ?? 'Extract all educational content from this file for study purposes.'}
+
+OUTPUT FORMAT (JSON):
+{
+  "title": "Suggested title for this file",
+  "content": "All extracted text..."
+}''';
 
       // Create multimodal content with file data
       final filePart = DataPart(mimeType, fileBytes);
@@ -818,15 +819,23 @@ OUTPUT: Clean educational content ready for studying.''';
         ));
       }
 
-      await _updateUsageStats(userId);
+      // Successfully extracted
+
+      final responseText = response.text!;
+      final data = json.decode(responseText);
+      final title = data['title'] ?? url.split('/').last;
+      final extractedText = data['content'] ?? '';
 
       developer.log(
-        'File analysis completed: ${response.text!.length} chars extracted',
+        'File analysis completed: $title',
         name: 'EnhancedAIService',
       );
 
-      return Result.ok(response.text!);
-
+      return Result.ok(ExtractionResult(
+        text: extractedText,
+        suggestedTitle: title,
+        sourceUrl: url,
+      ));
     } on TimeoutException catch (e) {
       return Result.error(EnhancedAIServiceException(
         'Request timed out. The file may be too large or complex.',
@@ -840,7 +849,8 @@ OUTPUT: Clean educational content ready for studying.''';
         error: e,
       );
 
-      if (e.message.contains('quota') || e.message.contains('RESOURCE_EXHAUSTED')) {
+      if (e.message.contains('quota') ||
+          e.message.contains('RESOURCE_EXHAUSTED')) {
         return Result.error(EnhancedAIServiceException(
           'API quota exceeded. Please try again later.',
           code: 'QUOTA_EXCEEDED',
@@ -871,7 +881,8 @@ OUTPUT: Clean educational content ready for studying.''';
       final response = await http.get(
         Uri.parse(url),
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': '*/*',
         },
       ).timeout(const Duration(seconds: 60));
@@ -892,10 +903,12 @@ OUTPUT: Clean educational content ready for studying.''';
         return null;
       }
     } on TimeoutException {
-      developer.log('Download timeout for URL: $url', name: 'EnhancedAIService');
+      developer.log('Download timeout for URL: $url',
+          name: 'EnhancedAIService');
       return null;
     } catch (e) {
-      developer.log('Download failed for URL: $url', name: 'EnhancedAIService', error: e);
+      developer.log('Download failed for URL: $url',
+          name: 'EnhancedAIService', error: e);
       return null;
     }
   }
@@ -903,12 +916,12 @@ OUTPUT: Clean educational content ready for studying.''';
   /// Check if MIME type is unsupported
   bool _isUnsupportedFormat(String mimeType) {
     final unsupported = [
-      'application/msword',                                                    // .doc
+      'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-      'application/vnd.ms-excel',                                              // .xls
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',     // .xlsx
-      'application/vnd.ms-powerpoint',                                         // .ppt
-      'application/rtf',                                                       // .rtf
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-powerpoint', // .ppt
+      'application/rtf', // .rtf
     ];
     return unsupported.contains(mimeType);
   }
@@ -932,7 +945,6 @@ INSTRUCTIONS:
    - Bullet points for lists
 
 OUTPUT: Clean, organized content ready for studying.''';
-
     } else if (mimeType.startsWith('image/')) {
       return '''Analyze this image and extract ALL text and educational content.
 
@@ -943,7 +955,6 @@ INSTRUCTIONS:
 4. Organize the output clearly
 
 OUTPUT: All text and relevant information from the image.''';
-
     } else if (mimeType.startsWith('audio/')) {
       return '''Transcribe and summarize this audio content for study purposes.
 
@@ -954,7 +965,6 @@ INSTRUCTIONS:
 4. Organize by topic if multiple subjects are covered
 
 OUTPUT: Complete transcription with key educational content highlighted.''';
-
     } else if (mimeType.startsWith('video/')) {
       return '''Analyze this video and extract ALL educational content.
 
@@ -966,7 +976,6 @@ INSTRUCTIONS:
 5. Organize by topic
 
 OUTPUT: Complete educational content from the video, organized for studying.''';
-
     } else {
       return 'Extract and describe all content from this file. Organize the output clearly and include all relevant information.';
     }
@@ -1399,7 +1408,7 @@ Text: $sanitizedText''';
 
   /// Generates study materials from a topic using AI knowledge.
   /// Creates a complete study deck with summary, quiz, and flashcards.
-  /// 
+  ///
   /// Parameters:
   /// - [topic]: The subject to learn about (e.g., "Spanish travel phrases")
   /// - [userId]: Current user's ID for saving and usage tracking
@@ -1407,7 +1416,7 @@ Text: $sanitizedText''';
   /// - [depth]: 'beginner' | 'intermediate' | 'advanced'
   /// - [cardCount]: Number of flashcards to generate (5-30)
   /// - [onProgress]: Optional callback for progress updates
-  /// 
+  ///
   /// Returns the folder ID containing the generated materials.
   Future<String> generateFromTopic({
     required String topic,
@@ -1467,7 +1476,12 @@ Text: $sanitizedText''';
                   'correctIndex': Schema.integer(),
                   'explanation': Schema.string(),
                 },
-                requiredProperties: ['question', 'options', 'correctIndex', 'explanation'],
+                requiredProperties: [
+                  'question',
+                  'options',
+                  'correctIndex',
+                  'explanation'
+                ],
               ),
               description: 'Array of 10 multiple-choice questions',
             ),
@@ -1511,7 +1525,8 @@ Target audience: Intermediate learners with basic knowledge.
 - Prepare for real-world scenarios'''
     };
 
-    final prompt = '''You are an expert educator creating comprehensive study materials.
+    final prompt =
+        '''You are an expert educator creating comprehensive study materials.
 
 TOPIC: $topic
 
@@ -1551,8 +1566,9 @@ IMPORTANT: Generate educational content you're confident is accurate. If the top
     onProgress?.call('Generating comprehensive study materials...');
 
     try {
-      final response = await model.generateContent([Content.text(prompt)])
-          .timeout(Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
+      final response = await model
+          .generateContent([Content.text(prompt)]).timeout(
+              Duration(seconds: EnhancedAIConfig.requestTimeoutSeconds));
 
       if (response.text == null || response.text!.isEmpty) {
         throw EnhancedAIServiceException(
@@ -1562,11 +1578,11 @@ IMPORTANT: Generate educational content you're confident is accurate. If the top
       }
 
       onProgress?.call('Processing generated content...');
-      
+
       // Parse the JSON response
       final data = json.decode(response.text!);
       final title = data['title'] as String;
-      
+
       // Create folder for this topic
       onProgress?.call('Creating study deck...');
       final folder = Folder(
@@ -1596,13 +1612,15 @@ IMPORTANT: Generate educational content you're confident is accurate. If the top
       // Save Quiz
       onProgress?.call('Saving quiz...');
       final quizData = data['quiz'] as List<dynamic>;
-      final questions = quizData.map((q) => LocalQuizQuestion(
-        id: const Uuid().v4(),
-        question: q['question'] as String,
-        options: List<String>.from(q['options']),
-        correctIndex: q['correctIndex'] as int,
-        explanation: q['explanation'] as String? ?? '',
-      )).toList();
+      final questions = quizData.map((q) {
+        final correctIndex = q['correctIndex'] as int;
+        final options = List<String>.from(q['options']);
+        return LocalQuizQuestion(
+          question: q['question'] as String,
+          options: options,
+          correctAnswer: options[correctIndex],
+        );
+      }).toList();
 
       final quiz = LocalQuiz(
         id: const Uuid().v4(),
@@ -1618,10 +1636,12 @@ IMPORTANT: Generate educational content you're confident is accurate. If the top
       // Save Flashcards
       onProgress?.call('Saving flashcards...');
       final flashcardsData = data['flashcards'] as List<dynamic>;
-      final flashcards = flashcardsData.map((f) => LocalFlashcard(
-        question: f['question'] as String,
-        answer: f['answer'] as String,
-      )).toList();
+      final flashcards = flashcardsData
+          .map((f) => LocalFlashcard(
+                question: f['question'] as String,
+                answer: f['answer'] as String,
+              ))
+          .toList();
 
       final flashcardSet = LocalFlashcardSet(
         id: const Uuid().v4(),
@@ -1634,13 +1654,14 @@ IMPORTANT: Generate educational content you're confident is accurate. If the top
       await localDb.saveFlashcardSet(flashcardSet, folderId);
 
       // Schedule SRS reviews for flashcards
-      final srsService = SpacedRepetitionService(localDb);
+      await localDb.init();
+      final srsService =
+          SpacedRepetitionService(localDb.getSpacedRepetitionBox());
       for (final flashcard in flashcards) {
         await srsService.scheduleReview(flashcard.id, userId);
       }
 
-      // Update usage stats
-      await _updateUsageStats(userId);
+      // Usage tracking done via UsageService in the calling code
 
       developer.log(
         'Generated study deck from topic "$topic" with ${questions.length} questions and ${flashcards.length} flashcards',
@@ -1649,7 +1670,6 @@ IMPORTANT: Generate educational content you're confident is accurate. If the top
 
       onProgress?.call('Study deck ready!');
       return folderId;
-
     } on TimeoutException catch (e) {
       throw EnhancedAIServiceException(
         'Request timed out. Please try again.',
@@ -1665,8 +1685,9 @@ IMPORTANT: Generate educational content you're confident is accurate. If the top
       );
     } catch (e) {
       if (e is EnhancedAIServiceException) rethrow;
-      
-      developer.log('Topic generation error', name: 'EnhancedAIService', error: e);
+
+      developer.log('Topic generation error',
+          name: 'EnhancedAIService', error: e);
       throw EnhancedAIServiceException(
         'Failed to generate study materials. Please try again.',
         code: 'GENERATION_FAILED',

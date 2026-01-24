@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:sumquiz/theme/web_theme.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class SummaryView extends StatelessWidget {
   final String title;
@@ -24,7 +26,7 @@ class SummaryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -36,9 +38,9 @@ class SummaryView extends StatelessWidget {
             color: theme.colorScheme.onSurface,
           ),
         ).animate().fadeIn().slideY(begin: -0.2),
-        
+
         const SizedBox(height: 24),
-        
+
         // Tags
         if (tags.isNotEmpty)
           Wrap(
@@ -46,8 +48,8 @@ class SummaryView extends StatelessWidget {
             runSpacing: 8,
             children: tags.map((tag) {
               return Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -62,9 +64,9 @@ class SummaryView extends StatelessWidget {
               );
             }).toList(),
           ).animate().fadeIn(delay: 100.ms),
-        
+
         if (tags.isNotEmpty) const SizedBox(height: 32),
-        
+
         // Action Buttons (if showing actions)
         if (showActions) ...[
           Row(
@@ -119,21 +121,24 @@ class SummaryView extends StatelessWidget {
               ],
             ],
           ).animate().fadeIn(delay: 200.ms),
-          
           const SizedBox(height: 32),
-          
           Divider(color: theme.dividerColor),
-          
           const SizedBox(height: 32),
         ],
-        
-        // Summary Content
-        SelectableText(
-          content,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            height: 1.8,
-            color: theme.colorScheme.onSurface,
-            fontSize: 16,
+
+        // Summary Content - Markdown Rendering
+        MarkdownBody(
+          data: content,
+          selectable: true,
+          styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+            p: theme.textTheme.bodyLarge?.copyWith(
+              height: 1.8,
+              color: WebColors.textPrimary,
+              fontSize: 18,
+            ),
+            listBullet: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
           ),
         ).animate().fadeIn(delay: showActions ? 300.ms : 200.ms),
       ],

@@ -1,9 +1,11 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:sumquiz/models/extraction_result.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/content_extraction_service.dart';
 import 'package:sumquiz/services/enhanced_ai_service.dart';
@@ -67,7 +69,9 @@ class CreateContentScreen extends StatefulWidget {
   State<CreateContentScreen> createState() => _CreateContentScreenState();
 }
 
-class _CreateContentScreenState extends State<CreateContentScreen> {
+class _CreateContentScreenState extends State<CreateContentScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final _textController = TextEditingController();
   final _linkController = TextEditingController();
   final _topicController = TextEditingController();
@@ -80,11 +84,24 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   // Topic-based learning state
   String _topicDepth = 'intermediate';
   double _topicCardCount = 15;
-  bool _isTopicMode = false;
 
   final ImagePicker _imagePicker = ImagePicker();
 
-  // Clears all input fields and resets the state
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _textController.dispose();
+    _linkController.dispose();
+    _topicController.dispose();
+    super.dispose();
+  }
+
   void _resetInputs() {
     _textController.clear();
     _linkController.clear();
@@ -95,18 +112,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       _imageName = null;
       _imageBytes = null;
       _errorMessage = '';
-      _isTopicMode = false;
     });
-  }
-
-  void _activateTopicMode() {
-    if (_textController.text.isNotEmpty ||
-        _linkController.text.isNotEmpty ||
-        _pdfBytes != null ||
-        _imageBytes != null) {
-      _resetInputs();
-    }
-    setState(() => _isTopicMode = true);
   }
 
   // These methods will set the active input type and clear others
@@ -185,41 +191,54 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       return;
     }
 
-    // TOPIC-BASED GENERATION FLOW
-    if (_isTopicMode && _topicController.text.trim().isNotEmpty) {
-      await _processTopicGeneration(user);
+    // TAB-BASED GENERATION FLOW
+    if (_tabController.index == 0) {
+      if (_topicController.text.trim().isNotEmpty) {
+        await _processTopicGeneration(user);
+      } else {
+        setState(() => _errorMessage = 'Please enter a topic to learn about.');
+      }
       return;
     }
 
-    // Validate input
+    // Validate input for Import tab
     String? validationError;
     String type;
     dynamic input;
 
-    if (_textController.text.trim().isNotEmpty) {
-      validationError = InputValidator.validateText(_textController.text);
-      type = 'text';
-      input = _textController.text;
-    } else if (_linkController.text.trim().isNotEmpty) {
-      validationError = InputValidator.validateUrl(_linkController.text);
-      type = 'link';
-      input = _linkController.text;
-    } else if (_pdfBytes != null) {
-      if (_pdfBytes!.length > 15 * 1024 * 1024) {
-        validationError = 'PDF file is too large. Maximum size is 15MB';
-      }
-      type = 'pdf';
-      input = _pdfBytes;
-    } else if (_imageBytes != null) {
-      if (_imageBytes!.length > 10 * 1024 * 1024) {
-        validationError = 'Image file is too large. Maximum size is 10MB';
-      }
-      type = 'image';
-      input = _imageBytes;
-    } else {
-      validationError = 'Please provide some content to process';
-      type = '';
-      input = null;
+    switch (_selectedImportMethod) {
+      case 'text':
+        validationError = InputValidator.validateText(_textController.text);
+        type = 'text';
+        input = _textController.text;
+        break;
+      case 'link':
+        validationError = InputValidator.validateUrl(_linkController.text);
+        type = 'link';
+        input = _linkController.text;
+        break;
+      case 'pdf':
+        if (_pdfBytes == null) {
+          validationError = 'Please upload a PDF file';
+        } else if (_pdfBytes!.length > 15 * 1024 * 1024) {
+          validationError = 'PDF file is too large. Maximum size is 15MB';
+        }
+        type = 'pdf';
+        input = _pdfBytes;
+        break;
+      case 'image':
+        if (_imageBytes == null) {
+          validationError = 'Please capture or select an image';
+        } else if (_imageBytes!.length > 10 * 1024 * 1024) {
+          validationError = 'Image file is too large. Maximum size is 10MB';
+        }
+        type = 'image';
+        input = _imageBytes;
+        break;
+      default:
+        validationError = 'Please select an import method';
+        type = '';
+        input = null;
     }
 
     if (validationError != null) {
@@ -230,6 +249,10 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     final extractionService =
         Provider.of<ContentExtractionService>(context, listen: false);
 
+    // Track progress for the dialog
+    final progressNotifier =
+        ValueNotifier<String>('Preparing to extract content...');
+
     // Capture the navigator before showing dialog to avoid context issues
     final navigator = Navigator.of(context);
 
@@ -237,16 +260,19 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return const ExtractionProgressDialog();
+        return ExtractionProgressDialog(messageNotifier: progressNotifier);
       },
     );
 
     try {
-      final extractedTextResult = await extractionService.extractContent(
+      final ExtractionResult extractionResult =
+          await extractionService.extractContent(
         type: type,
         input: input,
         userId: user.uid,
+        onProgress: (message) => progressNotifier.value = message,
       );
+
       if (mounted) {
         // Safely close dialog using captured navigator
         try {
@@ -254,7 +280,9 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         } catch (e) {
           // Dialog already closed or context invalid, ignore
         }
-        context.push('/create/extraction-view', extra: extractedTextResult);
+
+        // Pass the full result object
+        context.push('/create/extraction-view', extra: extractionResult);
       }
     } catch (e) {
       if (mounted) {
@@ -275,6 +303,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final user = Provider.of<UserModel?>(context);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -298,213 +327,408 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             ? SystemUiOverlayStyle.light
             : SystemUiOverlayStyle.dark,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            RichText(
-              text: TextSpan(
-                style: theme.textTheme.displaySmall
-                    ?.copyWith(color: colorScheme.onSurface, height: 1.3),
-                children: [
-                  const TextSpan(text: 'What do you want to '),
-                  TextSpan(
-                      text: 'learn',
-                      style: TextStyle(color: colorScheme.primary)),
-                  const TextSpan(text: ' today?'),
-                ],
-              ),
+      body: Column(
+        children: [
+          // Professional Welcome Header
+          _buildWelcomeHeader(theme, colorScheme, user),
+
+          // Premium Tab Bar
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 40),
-            // NEW: Learn Topic Section
-            _buildSectionHeader(colorScheme, Icons.lightbulb, 'LEARN SOMETHING NEW'),
-            _buildLearnTopicSection(theme),
-            const SizedBox(height: 32),
-            Divider(color: colorScheme.outline.withValues(alpha: 0.3)),
-            const SizedBox(height: 16),
-            Text('Or import your own content:',
-                style: theme.textTheme.titleSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 24),
-            _buildSectionHeader(colorScheme, Icons.edit, 'PASTE TEXT'),
-            _buildPasteTextSection(theme),
-            const SizedBox(height: 32),
-            _buildSectionHeader(colorScheme, Icons.link, 'IMPORT WEBPAGE'),
-            _buildImportWebpageSection(theme),
-            const SizedBox(height: 32),
-            _buildSectionHeader(
-                colorScheme, Icons.picture_as_pdf, 'UPLOAD PDF'),
-            _buildUploadPdfSection(theme),
-            const SizedBox(height: 32),
-            _buildSectionHeader(colorScheme, Icons.fullscreen, 'SCAN IMAGE'),
-            _buildScanImageSection(theme),
-            _buildErrorDisplay(theme),
-            const SizedBox(height: 120), // Space for the floating button
-          ],
-        ),
+            child: TabBar(
+              controller: _tabController,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: colorScheme.primary,
+              ),
+              labelColor: colorScheme.onPrimary,
+              unselectedLabelColor: colorScheme.onSurfaceVariant,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+              tabs: const [
+                Tab(text: 'Quick Topic'),
+                Tab(text: 'Import Content'),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Tab 1: Quick Topic Generation
+                _buildQuickTopicTab(theme, colorScheme),
+
+                // Tab 2: Import Materials
+                _buildImportTab(theme, colorScheme),
+              ],
+            ),
+          ),
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: _buildProcessButton(theme),
     );
   }
 
-  Widget _buildSectionHeader(
-      ColorScheme colorScheme, IconData icon, String title) {
-    return Row(
+  Widget _buildWelcomeHeader(
+      ThemeData theme, ColorScheme colorScheme, UserModel? user) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              style: theme.textTheme.headlineMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+              ),
+              children: [
+                const TextSpan(text: 'What will you '),
+                TextSpan(
+                  text: 'master',
+                  style: TextStyle(color: colorScheme.primary),
+                ),
+                const TextSpan(text: ' today?'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create study goals in seconds',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickTopicTab(ThemeData theme, ColorScheme colorScheme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          _buildLearnTopicSection(theme),
+          _buildErrorDisplay(theme),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImportTab(ThemeData theme, ColorScheme colorScheme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          _buildImportGrid(theme, colorScheme),
+          const SizedBox(height: 24),
+          _buildActiveImportSection(theme),
+          _buildErrorDisplay(theme),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  String _selectedImportMethod = '';
+
+  Widget _buildImportGrid(ThemeData theme, ColorScheme colorScheme) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.4,
       children: [
-        Icon(icon, color: colorScheme.primary, size: 20),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: TextStyle(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2),
-        ),
+        _buildImportCard(
+            'Scan PDF', Icons.picture_as_pdf_rounded, 'pdf', colorScheme),
+        _buildImportCard('Link/Video', Icons.link_rounded, 'link', colorScheme),
+        _buildImportCard(
+            'Paste Text', Icons.text_fields_rounded, 'text', colorScheme),
+        _buildImportCard(
+            'Scan Image', Icons.camera_alt_rounded, 'image', colorScheme),
       ],
     );
+  }
+
+  Widget _buildImportCard(
+      String label, IconData icon, String method, ColorScheme colorScheme) {
+    final isSelected = _selectedImportMethod == method;
+    return GestureDetector(
+      onTap: () {
+        if (method == 'link' || method == 'pdf' || method == 'image') {
+          // Check Pro for advanced inputs
+          String featureName = '';
+          if (method == 'link') featureName = 'Web/YouTube Analysis';
+          if (method == 'pdf') featureName = 'PDF Upload';
+          if (method == 'image') featureName = 'Image Scanning';
+
+          if (!_checkProAccess(featureName)) return;
+        }
+        setState(() => _selectedImportMethod = method);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.primary
+              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.outline.withValues(alpha: 0.2),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                color: isSelected ? colorScheme.onPrimary : colorScheme.primary,
+                size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color:
+                    isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveImportSection(ThemeData theme) {
+    if (_selectedImportMethod.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            children: [
+              Icon(Icons.touch_app_outlined,
+                  size: 48,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+              const SizedBox(height: 16),
+              Text(
+                'Select a method above to begin',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    switch (_selectedImportMethod) {
+      case 'text':
+        return _buildPasteTextSection(theme);
+      case 'link':
+        return _buildImportWebpageSection(theme);
+      case 'pdf':
+        return _buildUploadPdfSection(theme);
+      case 'image':
+        return _buildScanImageSection(theme);
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   // ===========================================================
   // LEARN TOPIC SECTION
   // ===========================================================
-  
+
   Widget _buildLearnTopicSection(ThemeData theme) {
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.primaryContainer.withValues(alpha: 0.3),
-            colorScheme.secondaryContainer.withValues(alpha: 0.2),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: _isTopicMode 
-              ? colorScheme.primary 
-              : colorScheme.outline.withValues(alpha: 0.3),
-          width: _isTopicMode ? 2 : 1,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'What do you want to learn today?',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 16),
           // Topic Input
           TextField(
             controller: _topicController,
-            onTap: _activateTopicMode,
-            style: TextStyle(
+            onTap: () {
+              if (_tabController.index != 0) {
+                _tabController.animateTo(0);
+              }
+            },
+            style: GoogleFonts.outfit(
               color: colorScheme.onSurface,
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
-              hintText: 'Enter any topic (e.g., "Spanish travel phrases")',
-              hintStyle: TextStyle(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              hintText: 'e.g., "History of Rome" or "Python Basics"',
+              hintStyle: GoogleFonts.outfit(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
-              prefixIcon: Icon(Icons.search, color: colorScheme.primary),
+              prefixIcon: Icon(Icons.auto_awesome,
+                  color: colorScheme.primary, size: 20),
               filled: true,
-              fillColor: colorScheme.surface,
+              fillColor:
+                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
-                vertical: 14,
+                vertical: 16,
               ),
             ),
           ),
-          
-          const SizedBox(height: 20),
-          
+
+          const SizedBox(height: 24),
+
           // Depth Selector
           Text(
-            'Difficulty Level',
-            style: theme.textTheme.labelMedium?.copyWith(
+            'DIFFICULTY SCALE',
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
               color: colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
-              _buildDepthChip('Beginner', 'beginner', theme),
+              _buildDepthChip('Easy', 'beginner', theme),
               const SizedBox(width: 8),
-              _buildDepthChip('Intermediate', 'intermediate', theme),
+              _buildDepthChip('Normal', 'intermediate', theme),
               const SizedBox(width: 8),
-              _buildDepthChip('Advanced', 'advanced', theme),
+              _buildDepthChip('Expert', 'advanced', theme),
             ],
           ),
-          
-          const SizedBox(height: 20),
-          
+
+          const SizedBox(height: 24),
+
           // Card Count Slider
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Flashcards:',
-                style: theme.textTheme.labelMedium?.copyWith(
+                'STUDY CARDS',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
                   color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                '${_topicCardCount.toInt()}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${_topicCardCount.toInt()}',
+                  style: GoogleFonts.outfit(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
+              trackHeight: 6,
               activeTrackColor: colorScheme.primary,
-              inactiveTrackColor: colorScheme.primary.withValues(alpha: 0.2),
+              inactiveTrackColor: colorScheme.primary.withValues(alpha: 0.1),
               thumbColor: colorScheme.primary,
               overlayColor: colorScheme.primary.withValues(alpha: 0.1),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
             ),
             child: Slider(
               value: _topicCardCount,
               min: 5,
               max: 30,
               divisions: 5,
-              label: '${_topicCardCount.toInt()} cards',
               onChanged: (value) {
-                _activateTopicMode();
+                final user = Provider.of<UserModel?>(context, listen: false);
+                if (value > 10 && (user == null || !user.isPro)) {
+                  showDialog(
+                    context: context,
+                    builder: (_) =>
+                        const UpgradeDialog(featureName: 'High Card Volume'),
+                  );
+                  // Snap back to limit
+                  setState(() => _topicCardCount = 10);
+                  return;
+                }
                 setState(() => _topicCardCount = value);
               },
             ),
           ),
-          
+
+          const SizedBox(height: 16),
           // AI Disclaimer
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              color: Colors.amber.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
-                Icon(Icons.auto_awesome, size: 16, color: Colors.amber[800]),
-                const SizedBox(width: 8),
+                Icon(Icons.info_outline_rounded,
+                    size: 16, color: Colors.amber[800]),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'AI-generated content. Verify facts with trusted sources.',
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    'AI generated content may contain inaccuracies. Verify with sources.',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
                       color: Colors.amber[900],
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -515,96 +739,97 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       ),
     );
   }
-  
+
   Widget _buildDepthChip(String label, String value, ThemeData theme) {
     final isSelected = _topicDepth == value;
     final colorScheme = theme.colorScheme;
-    
+
     return GestureDetector(
       onTap: () {
-        _activateTopicMode();
+        if (value == 'advanced') {
+          if (!_checkProAccess('Expert Deep Learning')) return;
+        }
         setState(() => _topicDepth = value);
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? colorScheme.primary 
-              : colorScheme.surface,
+          color: isSelected ? colorScheme.primary : colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected 
-                ? colorScheme.primary 
+            color: isSelected
+                ? colorScheme.primary
                 : colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         child: Text(
           label,
           style: theme.textTheme.labelMedium?.copyWith(
-            color: isSelected 
-                ? colorScheme.onPrimary 
-                : colorScheme.onSurface,
+            color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),
     );
   }
-  
+
   Future<void> _processTopicGeneration(UserModel user) async {
     final topic = _topicController.text.trim();
     if (topic.isEmpty) {
       setState(() => _errorMessage = 'Please enter a topic to learn about.');
       return;
     }
-    
+
     final aiService = Provider.of<EnhancedAIService>(context, listen: false);
     final localDb = Provider.of<LocalDatabaseService>(context, listen: false);
     final navigator = Navigator.of(context);
-    
+
     // Show progress dialog
-    String progressMessage = 'Preparing to generate study materials...';
+    final progressNotifier =
+        ValueNotifier<String>('Preparing to generate study materials...');
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 16),
+              CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.primary,
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 16),
-                  CircularProgressIndicator(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Learning about "$topic"',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              const SizedBox(height: 24),
+              Text(
+                'Learning about "$topic"',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    progressMessage,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              ValueListenableBuilder<String>(
+                valueListenable: progressNotifier,
+                builder: (context, value, _) {
+                  return Text(
+                    value,
                     style: Theme.of(context).textTheme.bodySmall,
                     textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                  );
+                },
               ),
-            );
-          },
+              const SizedBox(height: 16),
+            ],
+          ),
         );
       },
     );
-    
+
     try {
       final folderId = await aiService.generateFromTopic(
         topic: topic,
@@ -613,18 +838,18 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         depth: _topicDepth,
         cardCount: _topicCardCount.toInt(),
         onProgress: (message) {
-          // Progress updates can be shown in future enhancement
+          progressNotifier.value = message;
         },
       );
-      
+
       if (mounted) {
         try {
           navigator.pop(); // Close progress dialog
         } catch (_) {}
-        
+
         // Navigate to results
         context.push('/library/results-view/$folderId');
-        
+
         // Clear inputs
         _resetInputs();
       }
@@ -633,7 +858,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         try {
           navigator.pop(); // Close progress dialog
         } catch (_) {}
-        
+
         setState(() {
           _errorMessage = _getUserFriendlyError(e);
         });
@@ -643,49 +868,60 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
 
   Widget _buildPasteTextSection(ThemeData theme) {
     return Container(
-      margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withAlpha(128),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outline.withAlpha(77)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border:
+            Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Stack(
         alignment: Alignment.bottomRight,
         children: [
           TextField(
             controller: _textController,
-            maxLines: 5,
+            maxLines: 8,
             onTap: _activateTextField,
-            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            style: GoogleFonts.outfit(
+                color: theme.colorScheme.onSurface, fontSize: 16),
             decoration: InputDecoration(
-              hintText: 'Type or paste your notes here for AI summary...',
-              hintStyle: TextStyle(
-                  color: theme.colorScheme.onSurfaceVariant.withAlpha(128)),
+              hintText: 'Type or paste your notes here...',
+              hintStyle: GoogleFonts.outfit(
+                  color: theme.colorScheme.onSurfaceVariant
+                      .withValues(alpha: 0.5)),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(16),
+              contentPadding: const EdgeInsets.all(24),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(12.0),
             child: TextButton.icon(
               onPressed: () async {
                 final data = await Clipboard.getData(Clipboard.kTextPlain);
                 if (data != null) {
                   _activateTextField();
                   _textController.text = data.text ?? '';
+                  setState(() {});
                 }
               },
-              icon: Icon(Icons.paste,
-                  size: 16, color: theme.colorScheme.onSecondaryContainer),
+              icon: Icon(Icons.paste_rounded,
+                  size: 18, color: theme.colorScheme.onPrimary),
               label: Text('Paste',
-                  style:
-                      TextStyle(color: theme.colorScheme.onSecondaryContainer)),
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
               style: TextButton.styleFrom(
-                backgroundColor: theme.colorScheme.secondaryContainer,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                    borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ),
@@ -697,70 +933,102 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   Widget _buildImportWebpageSection(ThemeData theme) {
     final isValid = _linkController.text.isNotEmpty &&
         InputValidator.isValidUrl(_linkController.text);
+    final colorScheme = theme.colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          margin: const EdgeInsets.only(top: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withAlpha(128),
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _linkController.text.isEmpty
-                  ? theme.colorScheme.outline.withAlpha(77)
+                  ? colorScheme.outline.withValues(alpha: 0.1)
                   : isValid
-                      ? Colors.green.withAlpha(128)
-                      : Colors.red.withAlpha(128),
+                      ? Colors.green.withValues(alpha: 0.5)
+                      : Colors.red.withValues(alpha: 0.5),
+              width: 1.5,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.link,
-                color: _linkController.text.isEmpty
-                    ? theme.colorScheme.onSurfaceVariant.withAlpha(178)
-                    : isValid
-                        ? Colors.green
-                        : Colors.red,
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _linkController.text.isEmpty
+                      ? colorScheme.surfaceContainerHighest
+                      : isValid
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.link_rounded,
+                  color: _linkController.text.isEmpty
+                      ? colorScheme.primary
+                      : isValid
+                          ? Colors.green
+                          : Colors.red,
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: TextField(
                   controller: _linkController,
                   onTap: _activateLinkField,
                   onChanged: (value) =>
                       setState(() {}), // Trigger rebuild for validation
-                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                  style: GoogleFonts.outfit(
+                    color: colorScheme.onSurface,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
                   decoration: InputDecoration(
-                    hintText: 'YouTube, article, PDF link, or any URL',
-                    hintStyle: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant.withAlpha(128),
+                    hintText: 'Paste any URL here...',
+                    hintStyle: GoogleFonts.outfit(
+                      color:
+                          colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                     ),
                     border: InputBorder.none,
-                    suffixIcon: _linkController.text.isNotEmpty
-                        ? Icon(
-                            isValid ? Icons.check_circle : Icons.error,
-                            color: isValid ? Colors.green : Colors.red,
-                            size: 20,
-                          )
-                        : null,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(left: 16, top: 8, right: 16),
-          child: Text(
-            '💡 Paste links to YouTube videos, articles, PDFs, images, audio, or video files',
-            style: TextStyle(
-              fontSize: 12,
-              color: theme.colorScheme.onSurfaceVariant.withAlpha(153),
-              fontStyle: FontStyle.italic,
-            ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: colorScheme.primary.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.tips_and_updates_rounded,
+                  size: 14, color: colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AI-powered extraction: YouTube (multimodal), research articles, public PDFs, and educational links.',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -769,55 +1037,70 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
 
   Widget _buildUploadPdfSection(ThemeData theme) {
     final bool isSelected = _pdfBytes != null;
+    final colorScheme = theme.colorScheme;
     return GestureDetector(
       onTap: _pickPdf,
       child: Container(
-        margin: const EdgeInsets.only(top: 16),
-        height: 120,
+        height: 160,
         width: double.infinity,
         decoration: BoxDecoration(
           color: isSelected
-              ? theme.colorScheme.primaryContainer.withAlpha(77)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+              ? colorScheme.primary.withValues(alpha: 0.05)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withAlpha(77),
-            width: isSelected ? 1 : 2,
+                ? colorScheme.primary
+                : colorScheme.outline.withValues(alpha: 0.1),
+            width: isSelected ? 2 : 1,
             style: BorderStyle.solid,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              backgroundColor: isSelected
-                  ? theme.colorScheme.primary.withAlpha(51)
-                  : theme.colorScheme.surfaceContainerHighest,
-              radius: 24,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? colorScheme.primary.withValues(alpha: 0.1)
+                    : colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
               child: Icon(
                 isSelected
-                    ? Icons.check_circle_rounded
-                    : Icons.upload_file_rounded,
-                color: theme.colorScheme.primary,
-                size: 24,
+                    ? Icons.picture_as_pdf_rounded
+                    : Icons.cloud_upload_outlined,
+                color: colorScheme.primary,
+                size: 32,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
-              _pdfName ?? 'Tap to browse',
-              style: TextStyle(
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.bold),
+              isSelected ? (_pdfName ?? 'PDF Selected') : 'Upload PDF Document',
+              style: GoogleFonts.outfit(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16),
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
             ),
-            if (!isSelected)
-              Text('PDF files up to 10MB',
-                  style: TextStyle(
-                      color: theme.colorScheme.onSurface.withAlpha(153),
-                      fontSize: 12)),
+            const SizedBox(height: 4),
+            Text(
+              isSelected ? 'Tap to change file' : 'Maximum size 15MB',
+              style: GoogleFonts.outfit(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),
@@ -830,100 +1113,72 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     final bool isGallerySelected =
         _imageBytes != null && _imageName?.contains('gallery') == true;
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0),
-      child: Row(
-        children: [
-          Expanded(
-              child: _buildScanButton(
-                  'Camera',
-                  Icons.camera_alt,
-                  () => _pickImage(ImageSource.camera),
-                  isCameraSelected,
-                  theme)),
-          const SizedBox(width: 16),
-          Expanded(
-              child: _buildScanButton(
-                  'Gallery',
-                  Icons.photo_library,
-                  () => _pickImage(ImageSource.gallery),
-                  isGallerySelected,
-                  theme)),
-        ],
-      ),
+    return Row(
+      children: [
+        Expanded(
+            child: _buildScanButton('Camera', Icons.camera_alt_rounded,
+                () => _pickImage(ImageSource.camera), isCameraSelected, theme)),
+        const SizedBox(width: 16),
+        Expanded(
+            child: _buildScanButton(
+                'Gallery',
+                Icons.photo_library_rounded,
+                () => _pickImage(ImageSource.gallery),
+                isGallerySelected,
+                theme)),
+      ],
     );
   }
 
   Widget _buildScanButton(String label, IconData icon, VoidCallback onPressed,
       bool isSelected, ThemeData theme) {
+    final colorScheme = theme.colorScheme;
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        height: 120,
+        height: 140,
         decoration: BoxDecoration(
           color: isSelected
-              ? Colors.green.withAlpha(26)
-              : theme.colorScheme.surfaceContainerHighest.withAlpha(128),
-          borderRadius: BorderRadius.circular(16),
+              ? colorScheme.primary.withValues(alpha: 0.05)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isSelected
-                ? Colors.green
-                : theme.colorScheme.outline.withAlpha(77),
+                ? colorScheme.primary
+                : colorScheme.outline.withValues(alpha: 0.1),
             width: isSelected ? 2 : 1,
           ),
-        ),
-        child: Stack(
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  backgroundColor: isSelected
-                      ? Colors.green.withAlpha(51)
-                      : theme.colorScheme.secondaryContainer,
-                  radius: 24,
-                  child: Icon(icon,
-                      color: isSelected
-                          ? Colors.green
-                          : theme.colorScheme.onSecondaryContainer,
-                      size: 24),
-                ),
-                const SizedBox(height: 12),
-                Text(label,
-                    style: TextStyle(
-                        color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.bold)),
-                if (isSelected)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      '✓ Image selected',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-              ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            if (isSelected)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? colorScheme.primary.withValues(alpha: 0.1)
+                    : colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.5),
+                shape: BoxShape.circle,
               ),
+              child: Icon(icon, color: colorScheme.primary, size: 28),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
           ],
         ),
       ),
@@ -931,27 +1186,63 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   }
 
   Widget _buildProcessButton(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton.icon(
-          onPressed: _processAndNavigate,
-          icon: Icon(Icons.auto_awesome_sharp,
-              color: theme.colorScheme.onPrimary, size: 20),
-          label: Text(
-            'Extract Content',
-            style: TextStyle(
-                color: theme.colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
-                fontSize: 16),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.colorScheme.primary,
-            disabledBackgroundColor: theme.colorScheme.primary.withAlpha(128),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    final colorScheme = theme.colorScheme;
+    final isMethodSelected = _tabController.index == 0
+        ? _topicController.text.trim().isNotEmpty
+        : _selectedImportMethod.isNotEmpty;
+
+    return AnimatedSlide(
+      duration: const Duration(milliseconds: 300),
+      offset: isMethodSelected ? Offset.zero : const Offset(0, 2),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 300),
+        opacity: isMethodSelected ? 1 : 0,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Container(
+            width: double.infinity,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.primary.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _processAndNavigate,
+                borderRadius: BorderRadius.circular(20),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded,
+                          color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Text(
+                        'GENERATE NOW',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

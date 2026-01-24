@@ -3,9 +3,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:sumquiz/services/local_database_service.dart';
 
+import 'package:sumquiz/services/export_service.dart';
 import 'package:sumquiz/models/local_summary.dart';
 import 'package:sumquiz/models/local_quiz.dart';
 import 'package:sumquiz/models/local_flashcard_set.dart';
+import 'package:sumquiz/models/local_quiz_question.dart';
+import 'package:sumquiz/models/local_flashcard.dart';
+import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:sumquiz/models/flashcard.dart';
 import 'package:sumquiz/views/widgets/summary_view.dart';
@@ -75,6 +79,67 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
     }
   }
 
+  void _exportContent(BuildContext context, UserModel user,
+      {bool exportAll = false,
+      bool summary = false,
+      bool quiz = false,
+      bool flashcards = false}) {
+    if (!user.isPro) {
+      showDialog(
+        context: context,
+        builder: (context) => const UpgradeDialog(featureName: 'PDF Export'),
+      );
+      return;
+    }
+
+    if (_summary == null && _quiz == null && _flashcardSet == null) return;
+
+    // Construct temp local models
+    LocalSummary? localSummary;
+    if ((exportAll || summary) && _summary != null) {
+      localSummary = LocalSummary(
+          id: 'temp',
+          title: _summary!.title,
+          content: _summary!.content,
+          tags: [],
+          timestamp: DateTime.now(),
+          userId: user.uid,
+          isSynced: false);
+    }
+
+    LocalQuiz? localQuiz;
+    if ((exportAll || quiz) && _quiz != null) {
+      localQuiz = LocalQuiz(
+          id: 'temp',
+          title: _summary!.title,
+          questions: _quiz!.questions
+              .map((q) => LocalQuizQuestion(
+                  question: q.question,
+                  options: q.options,
+                  correctAnswer: q.correctAnswer))
+              .toList(),
+          timestamp: DateTime.now(),
+          userId: user.uid,
+          isSynced: false);
+    }
+
+    LocalFlashcardSet? localFlash;
+    if ((exportAll || flashcards) && _flashcardSet != null) {
+      localFlash = LocalFlashcardSet(
+          id: 'temp',
+          title: _summary!.title,
+          flashcards: _flashcardSet!.flashcards
+              .map((f) => LocalFlashcard(question: f.question, answer: f.answer))
+              .toList(),
+          timestamp: DateTime.now(),
+          userId: user.uid,
+          isSynced: false);
+    }
+
+    ExportService().exportPdf(context,
+        summary: localSummary, quiz: localQuiz, flashcardSet: localFlash);
+  }
+
   Future<void> _publishDeck() async {
     if (!mounted) return;
     final user = context.read<UserModel?>();
@@ -88,6 +153,14 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
     if (_summary == null || _quiz == null || _flashcardSet == null) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Wait for content to finish loading.')));
+      return;
+    }
+
+    if (!user.isPro) {
+      showDialog(
+        context: context,
+        builder: (context) => const UpgradeDialog(featureName: 'Sharing Decks'),
+      );
       return;
     }
 

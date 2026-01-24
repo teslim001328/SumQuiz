@@ -10,11 +10,12 @@ import 'package:sumquiz/services/notification_integration.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 import 'package:sumquiz/services/auth_service.dart';
+import 'package:sumquiz/models/extraction_result.dart';
 
 class ExtractionViewScreenWeb extends StatefulWidget {
-  final String? initialText;
+  final ExtractionResult? result;
 
-  const ExtractionViewScreenWeb({super.key, this.initialText});
+  const ExtractionViewScreenWeb({super.key, this.result});
 
   @override
   State<ExtractionViewScreenWeb> createState() =>
@@ -25,8 +26,7 @@ enum OutputType { summary, quiz, flashcards }
 
 class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
   late TextEditingController _textController;
-  final TextEditingController _titleController =
-      TextEditingController(text: 'Untitled Creation');
+  late TextEditingController _titleController;
   final Set<OutputType> _selectedOutputs = {OutputType.summary};
   bool _isLoading = false;
   String _loadingMessage = 'Generating...';
@@ -36,7 +36,9 @@ class _ExtractionViewScreenWebState extends State<ExtractionViewScreenWeb> {
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.initialText ?? '');
+    _textController = TextEditingController(text: widget.result?.text ?? '');
+    _titleController = TextEditingController(
+        text: widget.result?.suggestedTitle ?? 'Untitled Creation');
   }
 
   @override

@@ -6,6 +6,7 @@ import 'package:sumquiz/services/auth_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../models/user_model.dart';
 import '../../services/firestore_service.dart';
+import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -15,6 +16,15 @@ class SettingsScreen extends StatelessWidget {
     if (user == null) return;
 
     if (value) {
+      if (!user.isPro) {
+        showDialog(
+          context: context,
+          builder: (context) =>
+              const UpgradeDialog(featureName: 'Creator Tools'),
+        );
+        return;
+      }
+
       // Confirm enabling
       final confirm = await showDialog<bool>(
           context: context,

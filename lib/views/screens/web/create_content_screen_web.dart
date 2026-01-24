@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,7 @@ import 'package:sumquiz/services/enhanced_ai_service.dart';
 import 'package:sumquiz/services/local_database_service.dart';
 import 'package:sumquiz/services/usage_service.dart';
 import 'package:sumquiz/views/widgets/upgrade_dialog.dart';
+import 'package:sumquiz/models/extraction_result.dart';
 import 'dart:math' as dart_math;
 
 class CreateContentScreenWeb extends StatefulWidget {
@@ -29,6 +31,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
   Uint8List? _fileBytes;
   bool _isLoading = false;
   String _errorMessage = '';
+  String _extractionProgress = 'Preparing to extract content...';
   String _selectedInputType = 'topic'; // Default to topic now
 
   // Topic-based learning state
@@ -39,7 +42,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);  // Now 5 tabs
+    _tabController = TabController(length: 5, vsync: this); // Now 5 tabs
   }
 
   @override
@@ -128,18 +131,21 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
     try {
       final extractionService =
           Provider.of<ContentExtractionService>(context, listen: false);
-      String extractedText = '';
+      ExtractionResult? extractionResult;
 
       switch (_selectedInputType) {
         case 'topic':
           // Handle topic-based generation separately
           await _processTopicGeneration(user);
-          return;  // Exit early, topic handling is complete
+          return; // Exit early, topic handling is complete
         case 'text':
           if (_textController.text.trim().isEmpty) {
             throw Exception('Text field cannot be empty.');
           }
-          extractedText = _textController.text;
+          extractionResult = ExtractionResult(
+            text: _textController.text,
+            suggestedTitle: 'Pasted Text',
+          );
           break;
         case 'link':
           if (_linkController.text.trim().isEmpty) {
@@ -149,29 +155,45 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
             setState(() => _isLoading = false);
             return;
           }
-          extractedText = await extractionService.extractContent(
-              type: 'link', input: _linkController.text, userId: user.uid);
+          extractionResult = await extractionService.extractContent(
+            type: 'link',
+            input: _linkController.text,
+            userId: user.uid,
+            onProgress: (message) =>
+                setState(() => _extractionProgress = message),
+          );
           break;
         case 'pdf':
           if (_fileBytes == null) throw Exception('No PDF file selected.');
-          extractedText = await extractionService.extractContent(
-              type: 'pdf', input: _fileBytes!, userId: user.uid);
+          extractionResult = await extractionService.extractContent(
+            type: 'pdf',
+            input: _fileBytes!,
+            userId: user.uid,
+            onProgress: (message) =>
+                setState(() => _extractionProgress = message),
+          );
           break;
         case 'image':
           if (_fileBytes == null) throw Exception('No image file selected.');
-          extractedText = await extractionService.extractContent(
-              type: 'image', input: _fileBytes!, userId: user.uid);
+          extractionResult = await extractionService.extractContent(
+            type: 'image',
+            input: _fileBytes!,
+            userId: user.uid,
+            onProgress: (message) =>
+                setState(() => _extractionProgress = message),
+          );
           break;
         default:
           throw Exception('Please provide some content first.');
       }
 
-      if (extractedText.trim().isEmpty) {
+      if (extractionResult == null || extractionResult.text.trim().isEmpty) {
         throw Exception('Could not extract any content from the source.');
       }
 
       await usageService.recordDeckGeneration(user.uid);
-      if (mounted) context.go('/create/extraction-view', extra: extractedText);
+      if (mounted)
+        context.go('/create/extraction-view', extra: extractionResult);
     } catch (e) {
       if (mounted) {
         setState(
@@ -218,72 +240,81 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
     return Column(
       children: [
         ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFF4F46E5), Color(0xFF9333EA)],
-          ).createShader(bounds),
-          child: const Text(
-            'Create Study Materials',
-            style: TextStyle(
-              fontSize: 42,
+          shaderCallback: (bounds) =>
+              WebColors.HeroGradient.createShader(bounds),
+          child: Text(
+            'Create Masterpiece',
+            style: GoogleFonts.outfit(
+              fontSize: 56,
               fontWeight: FontWeight.w800,
               color: Colors.white,
-              letterSpacing: -1,
+              letterSpacing: -2,
+              height: 1,
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         Text(
-          'Transform text, links, PDFs, or images into\ninteractive flashcards and quizzes instantly.',
+          'Transform any content into structured knowledge.\nSelect your source and let AI do the heavy lifting.',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
+          style: GoogleFonts.outfit(
+            fontSize: 20,
             color: WebColors.textSecondary,
-            height: 1.6,
+            height: 1.5,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
-    ).animate().fadeIn().slideY(begin: -0.2);
+    ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildMainCard() {
     return Container(
-      width: 1000,
-      padding: const EdgeInsets.all(48),
+      width: 1100,
+      constraints: const BoxConstraints(minHeight: 600),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: WebColors.primary.withOpacity(0.1),
-            blurRadius: 40,
-            offset: const Offset(0, 20),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: WebColors.border, width: 1.5),
+        boxShadow: WebColors.cardShadow,
       ),
       child: Column(
         children: [
           _buildCustomTabBar(),
-          const SizedBox(height: 40),
-          SizedBox(
-            height: 400,
-            child: TabBarView(
-              controller: _tabController,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 40),
+              child: TabBarView(
+                controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildTopicInput(),
+                  _buildTextInput(),
+                  _buildLinkInput(),
+                  _buildFileUpload('pdf'),
+                  _buildFileUpload('image'),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(48, 0, 48, 48),
+            child: Column(
               children: [
-                _buildTopicInput(),  // NEW: Topic tab first
-                _buildTextInput(),
-                _buildLinkInput(),
-                _buildFileUpload('pdf'),
-                _buildFileUpload('image'),
+                if (_errorMessage.isNotEmpty) _buildErrorBanner(),
+                const SizedBox(height: 24),
+                _isLoading ? _buildLoadingState() : _buildGenerateButton(),
               ],
             ),
           ),
-          const SizedBox(height: 40),
-          if (_errorMessage.isNotEmpty) _buildErrorBanner(),
-          const SizedBox(height: 24),
-          _isLoading ? _buildLoadingState() : _buildGenerateButton(),
         ],
       ),
-    ).animate().fadeIn(delay: 200.ms).scale(begin: const Offset(0.95, 0.95));
+    ).animate().fadeIn(delay: 200.ms).scale(
+          begin: const Offset(0.98, 0.98),
+          end: const Offset(1, 1),
+          curve: Curves.easeOutCubic,
+          duration: 400.ms,
+        );
   }
 
   Widget _buildCustomTabBar() {
@@ -314,11 +345,12 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
         onTap: (index) {
           _resetInputs();
           setState(() {
-            _selectedInputType = ['topic', 'text', 'link', 'pdf', 'image'][index];
+            _selectedInputType =
+                ['topic', 'text', 'link', 'pdf', 'image'][index];
           });
         },
         tabs: [
-          _buildTabItem(Icons.lightbulb, 'Learn Topic'),  // NEW tab first
+          _buildTabItem(Icons.lightbulb, 'Learn Topic'), // NEW tab first
           _buildTabItem(Icons.edit_note, 'Text'),
           _buildTabItem(Icons.link, 'Web Link'),
           _buildTabItem(Icons.picture_as_pdf, 'Upload PDF'),
@@ -345,191 +377,162 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
   // ===========================================================
   // TOPIC-BASED LEARNING
   // ===========================================================
-  
+
   Widget _buildTopicInput() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Header
-          ShaderMask(
-            shaderCallback: (bounds) => LinearGradient(
-              colors: [WebColors.primary, const Color(0xFF9333EA)],
-            ).createShader(bounds),
-            child: const Icon(Icons.auto_awesome, size: 48, color: Colors.white),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) =>
+              WebColors.HeroGradient.createShader(bounds),
+          child: const Icon(Icons.auto_awesome_rounded,
+              size: 64, color: Colors.white),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Master Any Topic',
+          style: GoogleFonts.outfit(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: WebColors.textPrimary,
           ),
-          const SizedBox(height: 16),
-          Text(
-            'What do you want to learn?',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: WebColors.textPrimary,
-            ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Tell us what you want to learn, and AI will build a complete study deck for you.',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            color: WebColors.textSecondary,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Enter any topic and we\'ll create a complete study deck for you.',
-            style: TextStyle(
-              fontSize: 16,
-              color: WebColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          
-          // Topic Input
-          Container(
-            constraints: const BoxConstraints(maxWidth: 600),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: WebColors.primary.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 48),
+        Container(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            children: [
+              TextField(
+                controller: _topicController,
+                style: GoogleFonts.outfit(
+                  color: WebColors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
-            child: TextField(
-              controller: _topicController,
-              style: TextStyle(
-                color: WebColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.all(20),
-                hintText: 'e.g., "Spanish travel phrases", "Python basics"...',
-                hintStyle: TextStyle(color: WebColors.textTertiary),
-                prefixIcon: Icon(Icons.search, color: WebColors.primary, size: 24),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: WebColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: WebColors.primary, width: 2),
+                decoration: InputDecoration(
+                  hintText:
+                      'e.g., "History of the Renaissance", "React Hooks basics"...',
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Icon(Icons.search_rounded, size: 28),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          
-          // Options Row
-          Container(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Row(
-              children: [
-                // Depth Selector
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Difficulty',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: WebColors.textSecondary,
+              const SizedBox(height: 40),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader('SELECT DIFFICULTY'),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            _buildWebDepthChip('Beginner', 'beginner'),
+                            const SizedBox(width: 12),
+                            _buildWebDepthChip('Intermediate', 'intermediate'),
+                            const SizedBox(width: 12),
+                            _buildWebDepthChip('Advanced', 'advanced'),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _buildWebDepthChip('Beginner', 'beginner'),
-                          const SizedBox(width: 8),
-                          _buildWebDepthChip('Intermediate', 'intermediate'),
-                          const SizedBox(width: 8),
-                          _buildWebDepthChip('Advanced', 'advanced'),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 48),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                            'DECK SIZE: ${_topicCardCount.toInt()} CARDS'),
+                        const SizedBox(height: 16),
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 6,
+                            activeTrackColor: WebColors.primary,
+                            inactiveTrackColor:
+                                WebColors.primary.withOpacity(0.1),
+                            thumbColor: WebColors.primary,
+                            overlayColor: WebColors.primary.withOpacity(0.1),
+                            thumbShape: const RoundSliderThumbShape(
+                                enabledThumbRadius: 10),
+                          ),
+                          child: Slider(
+                            value: _topicCardCount,
+                            min: 5,
+                            max: 30,
+                            divisions: 5,
+                            onChanged: (value) =>
+                                setState(() => _topicCardCount = value),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          
-          // Card Count
-          Container(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Flashcards: ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: WebColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      '${_topicCardCount.toInt()}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: WebColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: WebColors.primary,
-                    inactiveTrackColor: WebColors.primary.withOpacity(0.2),
-                    thumbColor: WebColors.primary,
-                    overlayColor: WebColors.primary.withOpacity(0.1),
-                  ),
-                  child: Slider(
-                    value: _topicCardCount,
-                    min: 5,
-                    max: 30,
-                    divisions: 5,
-                    onChanged: (value) => setState(() => _topicCardCount = value),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // AI Disclaimer
-          Container(
-            constraints: const BoxConstraints(maxWidth: 600),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.amber.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.amber.withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.auto_awesome, size: 20, color: Colors.amber[800]),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'AI-generated content. Verify important facts with trusted sources.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.amber[900],
-                    ),
-                  ),
-                ),
-              ],
+        ),
+        const Spacer(),
+        _buildAIDisclaimer(),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.outfit(
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+        color: WebColors.textTertiary,
+        letterSpacing: 1.5,
+      ),
+    );
+  }
+
+  Widget _buildAIDisclaimer() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        color: WebColors.backgroundAlt,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: WebColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome_rounded, size: 20, color: WebColors.primary),
+          const SizedBox(width: 12),
+          Text(
+            'AI-generated content. Verify important facts with trusted sources.',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: WebColors.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildWebDepthChip(String label, String value) {
     final isSelected = _topicDepth == value;
     return GestureDetector(
@@ -543,13 +546,15 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
           border: Border.all(
             color: isSelected ? WebColors.primary : WebColors.border,
           ),
-          boxShadow: isSelected ? [
-            BoxShadow(
-              color: WebColors.primary.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ] : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: WebColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           label,
@@ -562,7 +567,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
       ),
     );
   }
-  
+
   Future<void> _processTopicGeneration(UserModel user) async {
     final topic = _topicController.text.trim();
     if (topic.isEmpty) {
@@ -570,11 +575,11 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
       setState(() => _isLoading = false);
       return;
     }
-    
+
     try {
       final aiService = Provider.of<EnhancedAIService>(context, listen: false);
       final localDb = Provider.of<LocalDatabaseService>(context, listen: false);
-      
+
       final folderId = await aiService.generateFromTopic(
         topic: topic,
         userId: user.uid,
@@ -582,14 +587,15 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
         depth: _topicDepth,
         cardCount: _topicCardCount.toInt(),
       );
-      
+
       if (mounted) {
         _resetInputs();
         context.push('/library/results-view/$folderId');
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+        setState(
+            () => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -599,28 +605,30 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
   Widget _buildTextInput() {
     return Container(
       decoration: BoxDecoration(
-        color: WebColors.backgroundAlt.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: WebColors.border),
+        boxShadow: WebColors.subtleShadow,
       ),
       child: TextField(
         controller: _textController,
         maxLines: null,
         expands: true,
-        style: TextStyle(
+        textAlignVertical: TextAlignVertical.top,
+        style: GoogleFonts.outfit(
           color: WebColors.textPrimary,
-          fontSize: 16,
+          fontSize: 17,
           height: 1.6,
         ),
         decoration: InputDecoration(
-          contentPadding: const EdgeInsets.all(24),
           hintText:
-              'Paste your lecture notes, article text, or any content here...',
-          hintStyle: TextStyle(
-            color: WebColors.textTertiary,
-            fontSize: 16,
-          ),
+              'Paste any text content here to summarize and generate study materials...',
+          hintStyle: GoogleFonts.outfit(color: WebColors.textTertiary),
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.all(40),
         ),
         onChanged: (_) {
           setState(() => _selectedInputType = 'text');
@@ -633,46 +641,53 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: WebColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.link_rounded, size: 48, color: WebColors.primary),
+        ),
+        const SizedBox(height: 24),
         Text(
-          'Paste a URL to Generate Content',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
+          'Summarize Webpage',
+          style: GoogleFonts.outfit(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
             color: WebColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 48),
         Container(
-          constraints: const BoxConstraints(maxWidth: 600),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
+          constraints: const BoxConstraints(maxWidth: 800),
           child: TextField(
             controller: _linkController,
-            style: TextStyle(
+            style: GoogleFonts.outfit(
               color: WebColors.textPrimary,
-              fontSize: 16,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
-              hintText: 'https://youtube.com/watch?v=...',
+              hintText: 'https://example.com/article...',
+              hintStyle: GoogleFonts.outfit(color: WebColors.textTertiary),
+              prefixIcon: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Icon(Icons.language_rounded,
+                    size: 28, color: WebColors.primary),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
               filled: true,
               fillColor: WebColors.backgroundAlt,
-              prefixIcon: Icon(Icons.link, color: WebColors.primary),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(color: WebColors.border),
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 20,
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide:
+                    const BorderSide(color: WebColors.primary, width: 2),
               ),
             ),
             onChanged: (_) {
@@ -683,10 +698,12 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
         const SizedBox(height: 32),
         Wrap(
           spacing: 16,
+          runSpacing: 16,
+          alignment: WrapAlignment.center,
           children: [
-            _buildSupportedChip(Icons.play_circle, 'YouTube Videos'),
-            _buildSupportedChip(Icons.article, 'Blog Articles'),
-            _buildSupportedChip(Icons.web, 'Web Pages'),
+            _buildSupportedChip(Icons.play_circle_rounded, 'YouTube Videos'),
+            _buildSupportedChip(Icons.article_rounded, 'Blog Articles'),
+            _buildSupportedChip(Icons.web_rounded, 'Web Pages'),
           ],
         ),
       ],
@@ -723,150 +740,119 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
     final hasFile = _fileName != null && _selectedInputType == type;
     if (hasFile) return _buildFilePreview();
 
-    return GestureDetector(
-      onTap: () => _pickFile(type),
-      child: Container(
-        decoration: BoxDecoration(
-          color: WebColors.backgroundAlt.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: WebColors.primary.withOpacity(0.3),
-            width: 2,
-            style: BorderStyle
-                .none, // Can't do dashed easily without package, using dotted image instead
-          ),
-        ),
-        child: CustomPaint(
-          painter: DashedRectPainter(
-            color: WebColors.primary.withOpacity(0.4),
-            strokeWidth: 2,
-            gap: 8,
-          ),
-          child: SizedBox(
+    bool isPdf = type == 'pdf';
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        GestureDetector(
+          onTap: () => _pickFile(type),
+          child: Container(
             width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 80),
+            decoration: BoxDecoration(
+              color: WebColors.backgroundAlt,
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: WebColors.primary.withOpacity(0.3),
+                width: 2,
+                style: BorderStyle
+                    .solid, // Removed dashed border as standard flutter doesn't support easily without extra package
+              ),
+            ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  height: 120,
-                  width: 120,
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: WebColors.primary.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                    boxShadow: WebColors.subtleShadow,
                   ),
-                  child: ClipOval(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Image.asset(
-                        'assets/images/web/upload_illustration.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+                  child: Icon(
+                    isPdf
+                        ? Icons.picture_as_pdf_rounded
+                        : Icons.add_a_photo_rounded,
+                    size: 64,
+                    color: WebColors.primary,
                   ),
-                ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
-                const SizedBox(height: 24),
+                ),
+                const SizedBox(height: 32),
                 Text(
-                  'Click to upload ${type.toUpperCase()}',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                  isPdf ? 'Choose a PDF file' : 'Select an Image',
+                  style: GoogleFonts.outfit(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
                     color: WebColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
-                  type == 'pdf'
-                      ? 'Supports standard PDF files up to 15MB'
-                      : 'Supports JPG, PNG up to 10MB',
-                  style: TextStyle(
-                    fontSize: 15,
+                  isPdf
+                      ? 'Drop your PDF here or click to browse'
+                      : 'Upload an image with text to turn it into flashcards',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
                     color: WebColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: WebColors.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Browse Files',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
                   ),
                 ),
               ],
             ),
-          ),
+          ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
+                duration: 3.seconds,
+                color: Colors.white.withOpacity(0.5),
+              ),
         ),
-      ),
+      ],
     );
   }
 
   Widget _buildFilePreview() {
     return Center(
       child: Container(
-        width: 500,
-        padding: const EdgeInsets.all(32),
+        width: 600,
+        padding: const EdgeInsets.all(48),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(32),
           border: Border.all(color: WebColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          boxShadow: WebColors.cardShadow,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
+                color: const Color(0xFFF0FDF4),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.check_circle,
-                color: Color(0xFF10B981),
-                size: 40,
+                Icons.check_circle_rounded,
+                color: Color(0xFF22C55E),
+                size: 48,
               ),
-            ).animate().scale(),
-            const SizedBox(height: 20),
+            ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+            const SizedBox(height: 32),
             Text(
-              'File Selected Ready',
-              style: TextStyle(
+              'READY TO PROCESS',
+              style: GoogleFonts.outfit(
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: WebColors.textSecondary,
-                letterSpacing: 1,
+                fontWeight: FontWeight.w800,
+                color: WebColors.primary,
+                letterSpacing: 2,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               _fileName!,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+              style: GoogleFonts.outfit(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
                 color: WebColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             OutlinedButton.icon(
               onPressed: () {
                 setState(() {
@@ -963,6 +949,7 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
 
   Widget _buildLoadingState() {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SizedBox(
           width: 60,
@@ -974,17 +961,18 @@ class _CreateContentScreenWebState extends State<CreateContentScreenWeb>
         ),
         const SizedBox(height: 24),
         Text(
-          'Analyzing content with AI...',
-          style: TextStyle(
-            fontSize: 18,
+          _extractionProgress,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.outfit(
+            fontSize: 20,
             fontWeight: FontWeight.w600,
             color: WebColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
-          'This usually takes 5-10 seconds',
-          style: TextStyle(
+          'AI is processing your content...',
+          style: GoogleFonts.outfit(
             color: WebColors.textSecondary,
           ),
         ),

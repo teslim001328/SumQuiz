@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -183,16 +184,15 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
   Widget _buildSidebar() {
     return Container(
       width: 280,
-      margin: const EdgeInsets.all(24),
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        border: const Border(right: BorderSide(color: WebColors.border)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 24,
-            offset: const Offset(4, 4),
+            color: Colors.black.withOpacity(0.01),
+            blurRadius: 20,
+            offset: const Offset(4, 0),
           ),
         ],
       ),
@@ -202,58 +202,117 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [WebColors.primary, const Color(0xFF8B5CF6)]),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: WebColors.HeroGradient,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: WebColors.primary.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.library_books,
+                child: const Icon(Icons.auto_awesome_rounded,
                     color: Colors.white, size: 24),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Text(
-                'Library',
-                style: TextStyle(
-                  fontSize: 24,
+                'SumQuiz',
+                style: GoogleFonts.outfit(
+                  fontSize: 22,
                   fontWeight: FontWeight.w800,
                   color: WebColors.textPrimary,
+                  letterSpacing: -0.5,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 48),
-          Text(
-            'MENU',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: WebColors.textTertiary,
-              letterSpacing: 1.5,
-            ),
-          ),
+          const SizedBox(height: 56),
+          _buildSidebarLabel('MENU'),
           const SizedBox(height: 16),
-          _buildSidebarTab(0, 'Folders', Icons.folder_open),
+          _buildSidebarTab(0, 'Folders', Icons.folder_rounded),
           const SizedBox(height: 8),
-          _buildSidebarTab(1, 'All Content', Icons.dashboard_outlined),
-          const SizedBox(height: 32),
-          Text(
-            'FILTERS',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: WebColors.textTertiary,
-              letterSpacing: 1.5,
-            ),
-          ),
+          _buildSidebarTab(1, 'All Content', Icons.grid_view_rounded),
+          const SizedBox(height: 40),
+          _buildSidebarLabel('FILTERS'),
           const SizedBox(height: 16),
-          _buildSidebarTab(2, 'Summaries', Icons.article_outlined),
+          _buildSidebarTab(2, 'Summaries', Icons.description_rounded),
           const SizedBox(height: 8),
-          _buildSidebarTab(3, 'Quizzes', Icons.quiz_outlined),
+          _buildSidebarTab(3, 'Quizzes', Icons.quiz_rounded),
           const SizedBox(height: 8),
-          _buildSidebarTab(4, 'Flashcards', Icons.style_outlined),
+          _buildSidebarTab(4, 'Flashcards', Icons.style_rounded),
           const Spacer(),
           _buildStorageUsed(),
+          const SizedBox(height: 24),
+          _buildPremiumCTA(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarLabel(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: WebColors.textTertiary,
+        letterSpacing: 1.2,
+      ),
+    );
+  }
+
+  Widget _buildPremiumCTA() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: WebColors.HeroGradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: WebColors.primary.withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Go Pro',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Unlock all features',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => context.push('/subscription'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: WebColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Upgrade Now'),
+            ),
+          ),
         ],
       ),
     );
@@ -363,71 +422,76 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
   }
 
   Widget _buildHeader() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: WebColors.border),
+        boxShadow: WebColors.subtleShadow,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                color: WebColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                hintText:
+                    'Search through your summaries, quizzes, and flashcards...',
+                hintStyle: GoogleFonts.outfit(color: WebColors.textTertiary),
+                prefixIcon: Icon(Icons.search_rounded,
+                    color: WebColors.primary, size: 24),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                fillColor: Colors.transparent,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+            ),
+          ),
+          const SizedBox(width: 24),
+          Container(
+            height: 52,
             decoration: BoxDecoration(
-              color: Colors.white,
+              gradient: WebColors.HeroGradient,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 16,
+                  color: WebColors.primary.withOpacity(0.3),
+                  blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: TextField(
-              controller: _searchController,
-              style: TextStyle(color: WebColors.textPrimary, fontSize: 16),
-              decoration: InputDecoration(
-                hintText: 'Search summaries, quizzes, flashcards...',
-                hintStyle: TextStyle(color: WebColors.textTertiary),
-                prefixIcon: Icon(Icons.search, color: WebColors.primary),
-                border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 24),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [WebColors.primary, const Color(0xFF8B5CF6)],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: WebColors.primary.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: ElevatedButton.icon(
-            onPressed: () => context.push('/create'),
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text(
-              'Create New',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600,
+            child: ElevatedButton.icon(
+              onPressed: () => context.push('/create'),
+              icon:
+                  const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+              label: Text(
+                'Create New',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
                   color: Colors.white,
-                  fontSize: 16),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 22),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
             ),
           ),
-        ),
-      ],
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.2);
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0);
   }
 
   // --- Grid Builders ---
@@ -599,18 +663,26 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
   }
 
   Widget _buildMasonryGrid(List<_LibraryCardData> cards) {
-    return GridView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 40),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 24,
-        mainAxisSpacing: 24,
-        childAspectRatio: 1.4,
-      ),
-      itemCount: cards.length,
-      itemBuilder: (context, index) {
-        final card = cards[index];
-        return _buildLibraryCard(card: card, delay: index * 50);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 3;
+        if (constraints.maxWidth < 900) crossAxisCount = 2;
+        if (constraints.maxWidth < 600) crossAxisCount = 1;
+
+        return GridView.builder(
+          padding: const EdgeInsets.only(top: 8, bottom: 40),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 32,
+            mainAxisSpacing: 32,
+            childAspectRatio: 1.3,
+          ),
+          itemCount: cards.length,
+          itemBuilder: (context, index) {
+            final card = cards[index];
+            return _buildLibraryCard(card: card, delay: index * 40);
+          },
+        );
       },
     );
   }
@@ -624,95 +696,131 @@ class LibraryScreenWebState extends State<LibraryScreenWeb>
       child: GestureDetector(
         onTap: card.onTap,
         child: Container(
-          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-            // Gradient border effect could be added here
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: WebColors.border),
+            boxShadow: WebColors.cardShadow,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: card.color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(card.icon, color: card.color, size: 28),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: card.color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Icon(card.icon, color: card.color, size: 24),
+                          ),
+                          if (card.isFolder)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: WebColors.backgroundAlt,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'FOLDER',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: WebColors.textSecondary,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          IconButton(
+                            onPressed: () {}, // Future action menu
+                            icon: Icon(Icons.more_vert_rounded,
+                                color: WebColors.textTertiary, size: 20),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Text(
+                        card.title,
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: WebColors.textPrimary,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Container(
+                            height: 6,
+                            width: 6,
+                            decoration: BoxDecoration(
+                              color: card.color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            card.subtitle,
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              color: WebColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(Icons.schedule_rounded,
+                              size: 14, color: WebColors.textTertiary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Just now',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              color: WebColors.textTertiary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  if (card.isFolder)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'FOLDER',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[500]),
-                      ),
-                    ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                card.title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: WebColors.textPrimary,
-                  height: 1.3,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.schedule, size: 14, color: WebColors.textTertiary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Just now', // Placeholder for real time
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: WebColors.textTertiary,
-                      fontWeight: FontWeight.w500,
+                // Subtle hover overlay effect
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: card.onTap,
+                      hoverColor: card.color.withOpacity(0.02),
+                      splashColor: card.color.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(24),
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    card.subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: card.color,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    )
-        .animate()
-        .fadeIn(delay: Duration(milliseconds: delay))
-        .slideY(begin: 0.1, end: 0);
+    ).animate().fadeIn(delay: Duration(milliseconds: delay)).scale(
+          begin: const Offset(0.95, 0.95),
+          end: const Offset(1, 1),
+          curve: Curves.easeOutBack,
+          duration: 400.ms,
+        );
   }
 
   @override

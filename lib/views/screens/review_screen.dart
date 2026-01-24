@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/local_database_service.dart';
@@ -220,6 +221,43 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ),
         ],
       ),
+      floatingActionButton: SpeedDial(
+        icon: Icons.add,
+        activeIcon: Icons.close,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
+        activeBackgroundColor: theme.colorScheme.primaryContainer,
+        activeForegroundColor: theme.colorScheme.onPrimaryContainer,
+        spacing: 12,
+        spaceBetweenChildren: 8,
+        tooltip: 'Create New Content',
+        children: [
+          SpeedDialChild(
+            child: const Icon(Icons.style),
+            label: 'New Flashcards',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FlashcardsScreen()),
+            ),
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.quiz),
+            label: 'New Quiz',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const QuizScreen()),
+            ),
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.article),
+            label: 'New Summary',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SummaryScreen()),
+            ),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           // Animated Background
@@ -353,10 +391,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         value: _masteryScore / 100,
                         strokeWidth: 4,
                         color: theme.colorScheme.secondary,
-                        backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                        backgroundColor:
+                            theme.colorScheme.secondary.withValues(alpha: 0.1),
                       ),
                     ),
-                    Icon(Icons.auto_awesome_rounded, color: theme.colorScheme.secondary, size: 24),
+                    Icon(Icons.auto_awesome_rounded,
+                        color: theme.colorScheme.secondary, size: 24),
                   ],
                 ),
                 const SizedBox(width: 16),
@@ -366,8 +406,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     children: [
                       Text('Mastery Level',
                           style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6))),
-                      Text('${_masteryScore.toStringAsFixed(0)}% Overall Progress',
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.6))),
+                      Text(
+                          '${_masteryScore.toStringAsFixed(0)}% Overall Progress',
                           style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: theme.colorScheme.onSurface)),
@@ -410,7 +452,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           Text('Jump Back In',
               style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface.withOpacity(0.8))),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.8))),
           const SizedBox(height: 16),
           SizedBox(
             height: 180,
@@ -475,7 +517,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   color: theme.colorScheme.onSurface)),
           Text(label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
         ],
       ),
     );
@@ -497,7 +539,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             children: [
               CircularProgressIndicator(
                 value: progress,
-                backgroundColor: theme.disabledColor.withOpacity(0.2),
+                backgroundColor: theme.disabledColor.withValues(alpha: 0.2),
                 color: isDone ? Colors.green : theme.colorScheme.primary,
                 strokeWidth: 6,
                 strokeCap: StrokeCap.round,
@@ -508,7 +550,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     fontWeight: FontWeight.bold,
                     color: isDone
                         ? Colors.green
-                        : theme.colorScheme.onSurface.withOpacity(0.8)),
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.8)),
               ),
             ],
           ),
@@ -519,7 +561,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   color: theme.colorScheme.onSurface)),
           Text('Daily Goal',
               style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
         ],
       ),
     );
@@ -567,7 +609,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         Text('Boost your momentum now',
                             style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurface
-                                    .withOpacity(0.6))),
+                                    .withValues(alpha: 0.6))),
                     ],
                   ),
                 ),
@@ -612,7 +654,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 "You've earned +${_dailyMission!.momentumReward} momentum score today!",
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.8)),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8)),
               ),
               const SizedBox(height: 16),
               // Growth CTA when finished
@@ -620,11 +662,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                  color:
+                      theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color:
-                          theme.colorScheme.primary.withValues(alpha: 0.2)),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   children: [
@@ -637,7 +679,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurface
-                                .withOpacity(0.7))),
+                                .withValues(alpha: 0.7))),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () => context.push('/create'),
@@ -668,7 +710,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         Text(label,
             style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onSurface.withOpacity(0.8))),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.8))),
       ],
     );
   }
@@ -712,7 +754,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
           return Center(
               child: Text('No recent activity',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6))));
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.6))));
         }
 
         return ListView.builder(
@@ -803,7 +846,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           Text(type,
                               style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(0.6))),
+                                      .withValues(alpha: 0.6))),
                         ],
                       ),
                     ),
@@ -841,7 +884,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle),
               child: Icon(Icons.timer_outlined,
                   color: theme.colorScheme.primary, size: 24),
@@ -859,7 +902,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   Text('Next review session $timeText',
                       style: theme.textTheme.bodySmall?.copyWith(
                           fontSize: 13,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.6))),
                 ],
               ),
             ),
@@ -881,13 +925,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
       child: _buildGlassCard(
         theme: theme,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        borderColor: Colors.amber.withOpacity(0.3),
+        borderColor: Colors.amber.withValues(alpha: 0.3),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.2), shape: BoxShape.circle),
+                  color: Colors.amber.withValues(alpha: 0.2),
+                  shape: BoxShape.circle),
               child: const Icon(Icons.notifications_active_rounded,
                   color: Colors.amber, size: 24),
             ),
@@ -904,7 +949,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   Text('Keep your streak alive!',
                       style: theme.textTheme.bodySmall?.copyWith(
                           fontSize: 13,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6))),
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.6))),
                 ],
               ),
             ),

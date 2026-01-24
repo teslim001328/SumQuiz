@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sumquiz/theme/web_theme.dart';
@@ -10,7 +10,6 @@ import '../../../services/auth_service.dart';
 import '../../../services/local_database_service.dart';
 import '../../../services/spaced_repetition_service.dart';
 import '../../../models/flashcard.dart';
-import '../../../models/flashcard_set.dart';
 import '../../../models/user_model.dart';
 import '../../../models/daily_mission.dart';
 import '../../../services/mission_service.dart';
@@ -308,47 +307,88 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
               // Top Bar
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                    const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.close_rounded, size: 28),
                       onPressed: () {
                         _stopwatch.stop();
                         _timer?.cancel();
                         setState(() => _isStudying = false);
                       },
                       tooltip: 'Exit Session',
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: (_currentCardIndex + 1) / _studyCards.length,
-                          backgroundColor: Colors.grey[200],
-                          color: WebColors.primary,
-                          minHeight: 8,
-                        ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: WebColors.backgroundAlt,
+                        foregroundColor: WebColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 24),
+                    const SizedBox(width: 32),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'SESSION PROGRESS',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: WebColors.textTertiary,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              Text(
+                                '${_currentCardIndex + 1} / ${_studyCards.length}',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: WebColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: LinearProgressIndicator(
+                              value:
+                                  (_currentCardIndex + 1) / _studyCards.length,
+                              backgroundColor: WebColors.backgroundAlt,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  WebColors.primary),
+                              minHeight: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 40),
+                    // Glassmorphism Timer
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                          horizontal: 24, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.white.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: WebColors.border),
+                        boxShadow: WebColors.subtleShadow,
                       ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.timer_outlined, size: 18),
-                          const SizedBox(width: 8),
+                          Icon(Icons.timer_outlined,
+                              size: 22, color: WebColors.primary),
+                          const SizedBox(width: 12),
                           Text(
                             _formatDuration(_stopwatch.elapsed),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'monospace'),
+                            style: GoogleFonts.jetBrainsMono(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                              color: WebColors.textPrimary,
+                            ),
                           ),
                         ],
                       ),
@@ -423,18 +463,21 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
               ..setEntry(3, 2, 0.001)
               ..rotateY(val * pi / 180),
             child: Container(
-              width: 600,
-              height: 400,
+              width: 640,
+              height: 420,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(32),
-                boxShadow: [
-                  BoxShadow(
-                    color: WebColors.primary.withOpacity(0.1),
-                    blurRadius: 40,
-                    offset: const Offset(0, 20),
-                  ),
-                ],
+                border: Border.all(color: WebColors.border.withOpacity(0.5)),
+                boxShadow: isBack
+                    ? [
+                        BoxShadow(
+                          color: WebColors.success.withOpacity(0.1),
+                          blurRadius: 40,
+                          offset: const Offset(0, 20),
+                        ),
+                      ]
+                    : WebColors.hoverShadow,
               ),
               child: isBack
                   ? Transform(
@@ -518,64 +561,111 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
   // --- Dashboard UI ---
 
   Widget _buildWelcomeHeader(UserModel? user) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back, ${user?.displayName.split(' ').first ?? 'Friend'}! 👋',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                      color: WebColors.textPrimary,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(48),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: WebColors.border),
+        boxShadow: WebColors.cardShadow,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: WebColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'DASHBOARD',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: WebColors.primary,
+                      letterSpacing: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Ready to crush your daily mission?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: WebColors.textSecondary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Welcome back,\n${user?.displayName.split(' ').first ?? 'Friend'}! 👋',
+                  style: GoogleFonts.outfit(
+                    fontSize: 48,
+                    fontWeight: FontWeight.w800,
+                    color: WebColors.textPrimary,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Your learning journey continues here.\nYou have ${_dueCount > 0 ? "$_dueCount items" : "no items"} due for review today.',
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    color: WebColors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 48),
+          Column(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: WebColors.HeroGradient,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: WebColors.primary.withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.local_fire_department_rounded,
+                        color: Colors.white, size: 28),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${user?.missionCompletionStreak ?? 0} DAY STREAK',
+                      style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white),
+                    ),
+                  ],
+                ),
+              )
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .shimmer(duration: 2.seconds),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () => context.push('/settings'),
+                icon: const Icon(Icons.settings_outlined),
+                label: const Text('Account Settings'),
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.local_fire_department,
-                      color: WebColors.accentOrange),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${user?.missionCompletionStreak ?? 0} Day Streak',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: WebColors.textPrimary),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    ).animate().fadeIn(duration: 300.ms);
+            ],
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.1, end: 0);
   }
 
   Widget _buildDailyMissionCard(BuildContext context) {
@@ -585,7 +675,7 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: WebColors.border),
+          border: Border.all(color: WebColors.border, width: 2),
           boxShadow: WebColors.cardShadow,
         ),
         child: Row(
@@ -594,50 +684,58 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Your mission is waiting... 🚀',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: WebColors.textPrimary,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: WebColors.accentOrange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
                     ),
+                    child: Text(
+                      'READY FOR BLASTOFF 🚀',
+                      style: TextStyle(
+                        color: WebColors.accentOrange,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Your mission is waiting...',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Summarize a document or link to generate your first study mission for today.',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: WebColors.textSecondary,
-                    ),
+                    'Summarize a document or link to generate your first study mission for today. Turn content into knowledge instantly.',
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 40),
                   ElevatedButton.icon(
                     onPressed: () => context.push('/create'),
-                    icon: const Icon(Icons.add_rounded, color: Colors.white),
-                    label: const Text(
-                      'Create New Topic',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
+                    icon: const Icon(Icons.add_rounded,
+                        color: Colors.white, size: 24),
+                    label: const Text('Create New Topic'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: WebColors.primary,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 22,
-                      ),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
+                          horizontal: 40, vertical: 24),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 40),
-            Image.asset(
-              'assets/images/web/empty_library_illustration.png',
-              width: 250,
-              height: 250,
-              fit: BoxFit.contain,
+            const SizedBox(width: 60),
+            Hero(
+              tag: 'empty_illu',
+              child: Image.asset(
+                'assets/images/web/empty_library_illustration.png',
+                width: 320,
+                height: 320,
+                fit: BoxFit.contain,
+              ),
             ),
           ],
         ),
@@ -701,7 +799,8 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
                 _dailyMission!.isCompleted
                     ? ElevatedButton.icon(
                         onPressed: () => context.push('/create'),
-                        icon: const Icon(Icons.auto_awesome, color: Colors.white),
+                        icon:
+                            const Icon(Icons.auto_awesome, color: Colors.white),
                         label: const Text(
                           'Master a New Topic',
                           style: TextStyle(
@@ -819,8 +918,8 @@ class _ReviewScreenWebState extends State<ReviewScreenWeb> {
             ElevatedButton(
               onPressed: () {
                 // Navigate to SRS (not yet implemented for web specifically, but could use generic)
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text("SRS for web coming soon!")));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("SRS for web coming soon!")));
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.amber[700],

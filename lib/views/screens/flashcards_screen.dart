@@ -22,6 +22,8 @@ import '../../models/flashcard_set.dart';
 import '../../models/local_flashcard_set.dart';
 import '../widgets/upgrade_dialog.dart';
 import 'package:sumquiz/views/widgets/flashcards_view.dart';
+import '../../services/export_service.dart';
+import '../../models/local_flashcard.dart';
 
 enum FlashcardState { creation, loading, review, finished, error }
 
@@ -299,6 +301,38 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                 onPressed: _saveFlashcardSet,
                 tooltip: 'Save Set',
               ),
+            if (_flashcards.isNotEmpty && _state == FlashcardState.review)
+              IconButton(
+                icon: Icon(Icons.picture_as_pdf,
+                    color: theme.colorScheme.primary),
+                onPressed: () {
+                  final user = context.read<UserModel?>();
+                  if (user != null && !user.isPro) {
+                    showDialog(
+                      context: context,
+                      builder: (context) =>
+                          const UpgradeDialog(featureName: 'PDF Export'),
+                    );
+                    return;
+                  }
+
+                  final flashcardSetToExport = LocalFlashcardSet(
+                    id: widget.flashcardSet?.id ?? 'temp',
+                    userId: user?.uid ?? '',
+                    title: _titleController.text,
+                    flashcards: _flashcards
+                        .map((f) => LocalFlashcard(
+                            question: f.question, answer: f.answer))
+                        .toList(),
+                    timestamp: DateTime.now(),
+                    isSynced: false,
+                  );
+
+                  ExportService()
+                      .exportPdf(context, flashcardSet: flashcardSetToExport);
+                },
+                tooltip: 'Export PDF',
+              ),
           ],
         ),
         body: Stack(
@@ -460,9 +494,10 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                   decoration: InputDecoration(
                     hintText: 'e.g., Biology Chapter 5',
                     hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                     filled: true,
-                    fillColor: theme.cardColor.withOpacity(0.5),
+                    fillColor: theme.cardColor.withValues(alpha: 0.5),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none),
@@ -482,9 +517,10 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                   decoration: InputDecoration(
                     hintText: 'Paste your notes, an article, or any text here.',
                     hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                     filled: true,
-                    fillColor: theme.cardColor.withOpacity(0.5),
+                    fillColor: theme.cardColor.withValues(alpha: 0.5),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none),
@@ -560,7 +596,8 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
               Text(
                   'You got $_correctCount out of ${_flashcards.length} correct.',
                   style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.8))),
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.8))),
               const SizedBox(height: 40),
               if (_isCreationMode) ...[
                 SizedBox(
@@ -611,8 +648,8 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                     },
                     child: Text('Finish',
                         style: theme.textTheme.labelLarge?.copyWith(
-                            color:
-                                theme.colorScheme.onSurface.withOpacity(0.7)))),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7)))),
               ),
             ],
           ),
@@ -632,13 +669,13 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         child: Container(
           padding: padding ?? const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: theme.cardColor.withOpacity(0.8),
+            color: theme.cardColor.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-                color: theme.dividerColor.withOpacity(0.2), width: 1.5),
+                color: theme.dividerColor.withValues(alpha: 0.2), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
