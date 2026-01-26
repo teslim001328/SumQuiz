@@ -466,74 +466,81 @@ class _LibraryViewState extends State<_LibraryView>
       iconColor: iconColor,
       theme: theme,
       onTap: onTap,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Creator badge if imported
-          if (item.creatorName != null && item.creatorName!.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: Colors.blue.withAlpha(26),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withAlpha(77)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.person, size: 14, color: Colors.blue),
-                  const SizedBox(width: 4),
-                  Text(
-                    item.creatorName!,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w600,
-                    ),
+      trailing: Flexible(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Creator badge if imported
+            if (item.creatorName != null && item.creatorName!.isNotEmpty)
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withAlpha(26),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.withAlpha(77)),
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person, size: 14, color: Colors.blue),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          item.creatorName!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.blue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          // Share menu
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert,
-                color: theme.colorScheme.onSurface.withAlpha(153)),
-            onSelected: (value) async {
-              if (value == 'share') {
-                final user = context.read<UserModel?>();
-                if (user != null) {
-                  await LibraryShareHelper.shareLibraryItem(
-                      context, item, user);
+            // Share menu
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert,
+                  color: theme.colorScheme.onSurface.withAlpha(153)),
+              onSelected: (value) async {
+                if (value == 'share') {
+                  final user = context.read<UserModel?>();
+                  if (user != null) {
+                    await LibraryShareHelper.shareLibraryItem(
+                        context, item, user);
+                  }
+                } else if (value == 'edit') {
+                  _navigateToEdit(context, item);
                 }
-              } else if (value == 'edit') {
-                _navigateToEdit(context, item);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit, size: 20),
-                    SizedBox(width: 12),
-                    Text('Edit'),
-                  ],
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, size: 20),
+                      SizedBox(width: 12),
+                      Text('Edit'),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'share',
-                child: Row(
-                  children: [
-                    Icon(Icons.share, size: 20),
-                    SizedBox(width: 12),
-                    Text('Share'),
-                  ],
+                const PopupMenuItem(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      Icon(Icons.share, size: 20),
+                      SizedBox(width: 12),
+                      Text('Share'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

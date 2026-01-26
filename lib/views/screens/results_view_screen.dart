@@ -16,7 +16,6 @@ import 'package:sumquiz/views/widgets/summary_view.dart';
 import 'package:sumquiz/views/widgets/quiz_view.dart';
 import 'package:sumquiz/views/widgets/flashcards_view.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sumquiz/models/public_deck.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:sumquiz/services/firestore_service.dart';
@@ -129,7 +128,8 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
           id: 'temp',
           title: _summary!.title,
           flashcards: _flashcardSet!.flashcards
-              .map((f) => LocalFlashcard(question: f.question, answer: f.answer))
+              .map(
+                  (f) => LocalFlashcard(question: f.question, answer: f.answer))
               .toList(),
           timestamp: DateTime.now(),
           userId: user.uid,
@@ -424,23 +424,21 @@ class _ResultsViewScreenState extends State<ResultsViewScreen> {
               Text('No summary available.', style: theme.textTheme.bodyMedium));
     }
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SummaryView(
-          title: _summary!.title,
-          content: _summary!.content,
-          tags: _summary!.tags,
-          showActions: true,
-          onCopy: () {
-            Clipboard.setData(ClipboardData(text: _summary!.content));
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Summary copied to clipboard')),
-              );
-            }
-          },
-        ),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SummaryView(
+        title: _summary!.title,
+        content: _summary!.content,
+        tags: _summary!.tags,
+        showActions: true,
+        onCopy: () {
+          Clipboard.setData(ClipboardData(text: _summary!.content));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Summary copied to clipboard')),
+            );
+          }
+        },
       ),
     );
   }
