@@ -15,16 +15,16 @@ class IAPService {
   static const String _proMonthlyId = 'sumquiz_pro_monthly';
   static const String _proYearlyId = 'sumquiz_pro_yearly';
   static const String _proLifetimeId = 'sumquiz_pro_lifetime';
-  static const String _examPassId = 'sumquiz_exam_24h'; // NEW: 24-hour pass
-  static const String _weekPassId = 'sumquiz_week_pass'; // NEW: 7-day pass
+  static const String _dailyPassId = 'sumquiz_daily_pass'; // NEW: 24-hour pass
+  static const String _weeklyPassId = 'sumquiz_weekly_pass'; // NEW: 7-day pass
 
   late StreamSubscription<List<PurchaseDetails>> _subscription;
   final Set<String> _productIds = {
     _proMonthlyId,
     _proYearlyId,
     _proLifetimeId,
-    _examPassId, // NEW
-    _weekPassId, // NEW
+    _dailyPassId, // NEW
+    _weeklyPassId, // NEW
   };
 
   // Freemium limits
@@ -125,11 +125,11 @@ class IAPService {
       if (purchaseDetails.productID == _proLifetimeId) {
         // Lifetime: Set expiry far in the future (100 years)
         expiryDate = DateTime.now().add(const Duration(days: 36500));
-      } else if (purchaseDetails.productID == _examPassId) {
-        // NEW: Exam Pass - 24 hours
+      } else if (purchaseDetails.productID == _dailyPassId) {
+        // NEW: Daily Pass - 24 hours
         expiryDate = DateTime.now().add(const Duration(hours: 24));
-      } else if (purchaseDetails.productID == _weekPassId) {
-        // NEW: Week Pass - 7 days
+      } else if (purchaseDetails.productID == _weeklyPassId) {
+        // NEW: Weekly Pass - 7 days
         expiryDate = DateTime.now().add(const Duration(days: 7));
       } else {
         // For recurring subscriptions, set expiry to 1 month or 1 year from now
@@ -177,7 +177,7 @@ class IAPService {
       // Make purchase - use consumable for passes, non-consumable for subscriptions
       final purchaseParam = PurchaseParam(productDetails: product);
 
-      if (productId == _examPassId || productId == _weekPassId) {
+      if (productId == _dailyPassId || productId == _weeklyPassId) {
         // Consumable: can be purchased multiple times
         return await InAppPurchase.instance.buyConsumable(
           purchaseParam: purchaseParam,

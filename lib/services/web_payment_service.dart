@@ -4,6 +4,7 @@ import 'package:flutterwave_standard/flutterwave.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:sumquiz/models/user_model.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class WebPaymentResult {
   final bool success;
@@ -15,28 +16,62 @@ class WebPaymentResult {
 }
 
 class WebPaymentService {
-  // TODO: Replace with your actual Public Key from Flutterwave Dashboard
-  static const String publicKey = "FLWPUBK_TEST-SANDBOX-DEMO-DUMMY";
+  // Load API key from environment variables
+  static String get publicKey {
+    // Load from .env file
+    final key = dotenv.env['FLUTTERWAVE_PUBLIC_KEY'] ??
+        'YOUR_FLUTTERWAVE_PUBLIC_KEY_HERE';
+
+    if (key == 'YOUR_FLUTTERWAVE_PUBLIC_KEY_HERE') {
+      // Fallback - you need to provide your actual key
+      throw Exception(
+          'FlutterWave public key not configured. Please add FLUTTERWAVE_PUBLIC_KEY to your .env file');
+    }
+    return key;
+  }
+
   static const String appName = "SumQuiz Pro";
   static const String currency = "USD";
 
+  /// Check if FlutterWave is properly configured
+  static bool get isConfigured {
+    try {
+      final key = publicKey;
+      return key != 'YOUR_FLUTTERWAVE_PUBLIC_KEY_HERE' &&
+          key.startsWith('FLWPUBK-');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Validate that FlutterWave is ready for payments
+  static void validateConfiguration() {
+    if (!isConfigured) {
+      throw Exception('FlutterWave is not properly configured. \n'
+          'Please:\n'
+          '1. Get your API keys from https://dashboard.flutterwave.com/settings/apis\n'
+          '2. Add FLUTTERWAVE_PUBLIC_KEY to your .env file\n'
+          '3. Restart the app');
+    }
+  }
+
   /// Centralized Product Definitions for Web
   static final List<ProductDetails> webProducts = [
-    // Quick Access Passes (NEW)
+    // Quick Access Passes
     ProductDetails(
-      id: 'sumquiz_exam_24h',
-      title: 'Exam Pass (24h)',
+      id: 'sumquiz_daily_pass',
+      title: 'Daily Pass',
       description: 'Unlimited access for 24 hours',
-      price: '\$2.99',
-      rawPrice: 2.99,
+      price: r'\$0.99',
+      rawPrice: 0.99,
       currencyCode: 'USD',
     ),
     ProductDetails(
-      id: 'sumquiz_week_pass',
-      title: 'Week Pass',
+      id: 'sumquiz_weekly_pass',
+      title: 'Weekly Pass',
       description: 'Unlimited access for 7 days',
-      price: '\$3.99',
-      rawPrice: 3.99,
+      price: r'\$4.99',
+      rawPrice: 4.99,
       currencyCode: 'USD',
     ),
     // Subscription Plans
@@ -44,24 +79,24 @@ class WebPaymentService {
       id: 'sumquiz_pro_monthly',
       title: 'SumQuiz Pro Monthly',
       description: 'Monthly Subscription',
-      price: '\$4.99',
-      rawPrice: 4.99,
+      price: r'\$14.99',
+      rawPrice: 14.99,
       currencyCode: 'USD',
     ),
     ProductDetails(
       id: 'sumquiz_pro_yearly',
       title: 'SumQuiz Pro Annual',
       description: 'Annual Subscription',
-      price: '\$39.99',
-      rawPrice: 39.99,
+      price: r'\$99.00',
+      rawPrice: 99.00,
       currencyCode: 'USD',
     ),
     ProductDetails(
       id: 'sumquiz_pro_lifetime',
       title: 'SumQuiz Pro Lifetime',
       description: 'Lifetime Access',
-      price: '\$99.99',
-      rawPrice: 99.99,
+      price: r'\$249.99',
+      rawPrice: 249.99,
       currencyCode: 'USD',
     ),
   ];
@@ -78,6 +113,16 @@ class WebPaymentService {
     required ProductDetails product,
     required UserModel user,
   }) async {
+    // Validate configuration first
+    try {
+      validateConfiguration();
+    } catch (e) {
+      return WebPaymentResult(
+        success: false,
+        errorMessage: e.toString(),
+      );
+    }
+
     final email = user.email.isNotEmpty ? user.email : 'customer@sumquiz.app';
     final name =
         user.displayName.isNotEmpty ? user.displayName : 'Valued Customer';
@@ -99,7 +144,7 @@ class WebPaymentService {
       customer: customer,
       paymentOptions: "card, payattitude, barter, bank transfer, ussd",
       customization: Customization(title: appName),
-      isTestMode: true,
+      isTestMode: false, // Set to false for production
     );
 
     try {

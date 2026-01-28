@@ -83,6 +83,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         return;
       }
 
+      // Check if FlutterWave is configured
+      if (!WebPaymentService.isConfigured) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Payment system not configured. Please contact support.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
       final result = await WebPaymentService().processWebPurchase(
         context: context,
         product: _selectedProduct!,
@@ -283,8 +298,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           // Products List (filter out passes) - Yearly pre-selected
                           ..._products
                               .where((p) =>
-                                  !p.id.contains('24h') &&
-                                  !p.id.contains('week_pass'))
+                                  !p.id.contains('daily') &&
+                                  !p.id.contains('weekly'))
                               .map((product) =>
                                   _buildProductCard(product, theme, isDark)),
 
@@ -490,10 +505,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  /// Quick Access Section for Exam Pass and Week Pass
+  /// Quick Access Section for Daily Pass and Weekly Pass
   Widget _buildQuickAccessSection(ThemeData theme, bool isDark) {
     final passes = _products
-        .where((p) => p.id.contains('24h') || p.id.contains('week_pass'))
+        .where((p) => p.id.contains('daily') || p.id.contains('weekly'))
         .toList();
 
     if (passes.isEmpty) return const SizedBox.shrink();
@@ -516,7 +531,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Exam tomorrow? Get instant unlimited access!',
+          'Need access now? Get instant unlimited access!',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
@@ -540,7 +555,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildPassCard(ProductDetails pass, ThemeData theme, bool isDark) {
-    final isExamPass = pass.id.contains('24h');
+    final isDailyPass = pass.id.contains('daily');
     final isSelected = _selectedProduct?.id == pass.id;
 
     return GestureDetector(
@@ -580,13 +595,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         child: Column(
           children: [
             Icon(
-              isExamPass ? Icons.timer : Icons.calendar_today,
+              isDailyPass ? Icons.timer : Icons.calendar_today,
               color: isSelected ? theme.colorScheme.primary : Colors.amber[700],
               size: 28,
             ),
             const SizedBox(height: 8),
             Text(
-              isExamPass ? 'Exam Pass' : 'Week Pass',
+              isDailyPass ? 'Daily Pass' : 'Weekly Pass',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.onSurface,
@@ -602,7 +617,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              isExamPass ? '24 hours' : '7 days',
+              isDailyPass ? '24 hours' : '7 days',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
@@ -614,8 +629,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   String _getProductTitle(String id) {
-    if (id.contains('24h')) return 'Exam';
-    if (id.contains('week')) return 'Week';
+    if (id.contains('daily')) return 'Daily';
+    if (id.contains('weekly')) return 'Weekly';
     if (id.contains('monthly')) return 'Monthly';
     if (id.contains('yearly')) return 'Annual';
     if (id.contains('lifetime')) return 'Lifetime';
@@ -623,14 +638,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   String _getPeriod(String id) {
+    if (id.contains('daily')) return 'day';
+    if (id.contains('weekly')) return 'wk';
     if (id.contains('monthly')) return 'mo';
     if (id.contains('yearly')) return 'yr';
     return '';
   }
 
   String _getBillingText(String id) {
-    if (id.contains('monthly')) return 'Flexible cancellation';
-    if (id.contains('yearly')) return 'Save 33%';
+    if (id.contains('daily')) return 'Access for 24 hours';
+    if (id.contains('weekly')) return 'Access for 7 days';
+    if (id.contains('monthly')) return 'Billed monthly';
+    if (id.contains('yearly')) return 'Save ~US\$10/month';
     if (id.contains('lifetime')) return 'One-time payment';
     return '';
   }
